@@ -61,6 +61,8 @@ interface LobbyViewProps {
   onStartDailyChallenge: (slug: string, label: string) => Promise<void> | void;
   dailyChallenges: CategoryChallenge[];
   dailyLoading: boolean;
+  dailyError: string | null;
+  onRetryDailies: () => void;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -70,6 +72,8 @@ export default function LobbyView({
   onStartDailyChallenge,
   dailyChallenges,
   dailyLoading,
+  dailyError,
+  onRetryDailies,
 }: LobbyViewProps) {
   const [target, setTarget] = useState<TargetScore>(501);
   // Slug of the row that's currently starting a game (null = nothing in flight).
@@ -217,7 +221,7 @@ export default function LobbyView({
           </div>
 
           {/* Daily Challenges */}
-          {!dailyLoading && dailyChallenges.length > 0 && (
+          {!dailyLoading && (dailyChallenges.length > 0 || dailyError) && (
             <div className="mb-8">
               <div className="flex items-center gap-2.5 mb-3">
                 <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
@@ -226,7 +230,20 @@ export default function LobbyView({
                   Score once · Share with friends
                 </span>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+
+              {dailyError && (
+                <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
+                  <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
+                  <button
+                    onClick={onRetryDailies}
+                    className="kicker text-accent hover:text-ink transition-colors shrink-0"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!dailyError && <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
                 {dailyChallenges.map((dc) => {
                   const isThisStarting = starting === dc.categorySlug;
                   const lock = dc.lockState;
@@ -290,7 +307,7 @@ export default function LobbyView({
                     </button>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           )}
 
