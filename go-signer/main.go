@@ -19,6 +19,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -68,12 +69,19 @@ func main() {
 }
 
 // requireSecret is middleware that enforces a bearer token on the wrapped handler.
+// Uses crypto/subtle.ConstantTimeCompare so the comparison does not short-circuit
+// on the first differing byte — a non-constant-time comparison leaks timing
+// information that could theoretically be used to recover the secret byte-by-byte.
 // When secret is empty (local dev without INTERNAL_SECRET set) the check is skipped.
 func requireSecret(secret string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if secret != "" && r.Header.Get("Authorization") != "Bearer "+secret {
-			writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthorized"})
-			return
+		if secret != "" {
+			got := r.Header.Get("Authorization")
+			want := "Bearer " + secret
+			if subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
+				writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthorized"})
+				return
+			}
 		}
 		next(w, r)
 	}
