@@ -2,6 +2,7 @@ package com.trivia501.repository;
 
 import com.trivia501.model.Game;
 import com.trivia501.model.Game.GameStatus;
+import com.trivia501.model.Match;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -106,4 +107,30 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
           AND g.status = 'IN_PROGRESS'
         """)
     List<Game> findActiveGamesByPlayerId(@Param("playerId") UUID playerId);
+
+    /**
+     * Find a daily challenge game for a player in a specific category with the given status,
+     * created on or after startOfDay and before endOfDay. Used to enforce the
+     * one-attempt-per-day rule and to resume in-progress daily games.
+     */
+    @Query("""
+        SELECT g FROM Game g
+        JOIN Match m ON g.matchId = m.id
+        WHERE m.player1Id = :playerId
+          AND m.type = :matchType
+          AND m.categoryId = :categoryId
+          AND g.status = :status
+          AND g.createdAt >= :startOfDay
+          AND g.createdAt < :endOfDay
+        ORDER BY g.updatedAt DESC
+        LIMIT 1
+        """)
+    Optional<Game> findDailyGameByPlayerCategoryAndStatus(
+        @Param("playerId") UUID playerId,
+        @Param("categoryId") UUID categoryId,
+        @Param("matchType") Match.MatchType matchType,
+        @Param("status") GameStatus status,
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
+    );
 }

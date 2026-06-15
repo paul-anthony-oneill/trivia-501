@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { useToast } from "@/context/ToastContext";
+import {
+  getDailyLock,
+  pruneStaleDailyLocks,
+  type DailyLockState,
+} from "@/lib/dailyLock";
 
 interface CategoryStatus {
   categorySlug: string;
@@ -22,9 +27,13 @@ export default function DailyCategoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [lock, setLock] = useState<DailyLockState | null>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
+    pruneStaleDailyLocks();
+    setLock(getDailyLock(categorySlug));
+
     apiFetch(`/api/daily-challenge/${encodeURIComponent(categorySlug)}`)
       .then(async (res) => {
         if (!res.ok) {
@@ -113,13 +122,25 @@ export default function DailyCategoryPage() {
           {status.questionText}
         </p>
 
-        <button
-          onClick={handlePlay}
-          disabled={starting}
-          className="btn-primary w-full h-13 text-lg py-3.5"
-        >
-          {starting ? "Starting…" : "Play now"}
-        </button>
+        {lock?.state === "completed" ?
+          <a
+            href={`/api/daily-challenge/share/${lock.gameId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary w-full h-13 text-lg py-3.5 flex items-center justify-center"
+          >
+            View result →
+          </a>
+        : <button
+            onClick={handlePlay}
+            disabled={starting}
+            className="btn-primary w-full h-13 text-lg py-3.5"
+          >
+            {starting ? "Starting…"
+            : lock?.state === "in_progress" ? "Resume →"
+            : "Play now"}
+          </button>
+        }
 
         <div className="mt-6 text-center">
           <a href="/daily" className="kicker hover:text-ink transition-colors">

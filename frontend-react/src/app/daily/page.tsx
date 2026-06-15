@@ -127,34 +127,54 @@ export default function DailyPage() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-          {challenges.map((dc: CategoryChallenge) => (
-            <div
-              key={dc.categorySlug}
-              className="bg-surface border border-line rounded-md p-6 flex flex-col transition-all duration-200 hover:border-line-strong hover:shadow-[var(--shadow-card)]"
-            >
-              <div className="flex items-baseline justify-between mb-3">
-                <span className="font-display font-bold text-xl tracking-tight">
-                  {dc.categoryName}
-                </span>
-                <span className="font-mono text-[9px] tracking-[0.2em] text-gold uppercase">
-                  Daily
-                </span>
-              </div>
-              <div className="display-num text-[56px] mb-2">
-                {dc.startingScore}
-              </div>
-              <div className="text-muted text-sm leading-snug mb-5 line-clamp-2">
-                {dc.questionText || "Loading…"}
-              </div>
-              <button
-                onClick={() => handlePlay(dc.categorySlug, dc.categoryName)}
-                disabled={starting === dc.categorySlug}
-                className="btn-primary mt-auto h-12 text-base w-full"
+          {challenges.map((dc: CategoryChallenge) => {
+            const lock = dc.lockState;
+            const isCompleted = lock?.state === "completed";
+            const isInProgress = lock?.state === "in_progress";
+            return (
+              <div
+                key={dc.categorySlug}
+                className={[
+                  "bg-surface border rounded-md p-6 flex flex-col transition-all duration-200",
+                  isCompleted ?
+                    "border-line opacity-70"
+                  : "border-line hover:border-line-strong hover:shadow-[var(--shadow-card)]",
+                ].join(" ")}
               >
-                {starting === dc.categorySlug ? "Starting…" : "Play now"}
-              </button>
-            </div>
-          ))}
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="font-display font-bold text-xl tracking-tight">
+                    {dc.categoryName}
+                  </span>
+                  <span className="font-mono text-[9px] tracking-[0.2em] text-gold uppercase">
+                    {isCompleted ? "Played" : "Daily"}
+                  </span>
+                </div>
+                <div className="display-num text-[56px] mb-2">
+                  {dc.startingScore}
+                </div>
+                <div className="text-muted text-sm leading-snug mb-5 line-clamp-2">
+                  {dc.questionText || "Loading…"}
+                </div>
+                {isCompleted ?
+                  <a
+                    href={`/daily/${dc.categorySlug}`}
+                    className="btn-secondary mt-auto h-12 text-base w-full flex items-center justify-center"
+                  >
+                    View result →
+                  </a>
+                : <button
+                    onClick={() => handlePlay(dc.categorySlug, dc.categoryName)}
+                    disabled={starting === dc.categorySlug}
+                    className="btn-primary mt-auto h-12 text-base w-full"
+                  >
+                    {starting === dc.categorySlug ? "Starting…"
+                    : isInProgress ? "Resume →"
+                    : "Play now"}
+                  </button>
+                }
+              </div>
+            );
+          })}
         </div>
 
         <footer className="mt-12 pt-6 border-t border-line text-center">
