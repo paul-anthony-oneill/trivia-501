@@ -63,6 +63,9 @@ class GameServiceTest {
     @Mock
     private MatchService matchService;
 
+    @Mock
+    private ResultSignerClient resultSignerClient;
+
     /**
      * Use a real GameStateMachine (no DB dependencies) so all transition-logic
      * assertions continue to pass without per-test stubbing.
@@ -85,7 +88,8 @@ class GameServiceTest {
         // Manual construction — @InjectMocks can't handle the @Lazy MatchService parameter
         gameService = new GameService(
             gameRepository, gameMoveRepository, matchRepository,
-            answerEvaluator, gameStateMachine, playerProfileService, matchService);
+            answerEvaluator, gameStateMachine, playerProfileService, matchService,
+            resultSignerClient);
 
         matchId = UUID.randomUUID();
         gameId = UUID.randomUUID();
