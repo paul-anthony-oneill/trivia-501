@@ -24,6 +24,9 @@ public class DailyChallengeShareResponse {
     private int turnCount;
     private boolean isWin;
     private List<MoveEmoji> moveEmojis;
+    // Null when go-signer was unavailable at checkout. Presence means the result is
+    // cryptographically verifiable against the public key at GET /pubkey on go-signer.
+    private String resultToken;
 
     public enum MoveEmoji {
         VALID,      // 🟩

@@ -286,6 +286,7 @@ public class DailyChallengeController {
                 .turnCount(game.getTurnCount())
                 .isWin(isWin)
                 .moveEmojis(emojis)
+                .resultToken(game.getResultToken())
                 .build());
     }
 

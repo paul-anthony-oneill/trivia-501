@@ -1,6 +1,6 @@
 # Trivia 501 — Backlog & Future Work
 
-**Last updated**: 2026-06-13 (added P1 item: daily /status endpoint does not trigger lazy creation)  
+**Last updated**: 2026-06-14 (added P2 item: Go Result Integrity Service)  
 **Purpose**: Living document capturing all deferred work, stretch goals, and improvement ideas regardless of size or urgency. Update this whenever a decision is made to defer something, or when a backlog item is completed or abandoned.
 
 **Product direction** (2026-06-08): The game is now focused on **single-player daily challenges** as the core experience — Wordle-style social trivia where everyone plays the same question with the same parameters each day and shares results with friends. A separate **Free Play** mode (formerly "practice") lets players pick any category/question to play on their own terms. Async friend challenges (play the same question and compare) are a planned social feature. The ranking/MMR/league-tier system and real-time multiplayer are deferred indefinitely.
@@ -563,6 +563,49 @@ Features that are designed but not being built until the core Daily Challenge + 
 - **Why deferred**: The core game rules are still being validated. Adding rule configurability while the base rules are in flux creates a test-matrix explosion. Defer until (a) the strict-rules game loop has seen real play, and (b) at least one more game mode is implemented so the configuration surface is better understood.
 - **When to pick up**: After Daily Challenge has real users and we have feedback on whether the strict darts rules are causing confusion. The 2026-06-08 reason-surfacing pass (showing why a move was rejected) will give us that signal — if players consistently need the reason explained, relaxed rules become higher priority.
 - **Files**: `DartsValidator.java`, `ScoringService.java`, `AnswerEvaluator.java:95-106`, `ScoreResult.java`, `GameHintsService.java:35`, `GameService.java:88`, `AdminAnswerService.java:51-52,157-162`, `QuestionMaterializerService.java:223-224`, `Match.java:75`, `Game.java`.
+
+### Go: Result Integrity Service (ed25519 signing for share links)
+
+- **What**: A standalone Go microservice that cryptographically signs game results using `crypto/ed25519` from the Go standard library. When a player checks out, Java `GameService` calls `POST /sign` on this service with a payload of `{gameId, playerId, finalScore, completedAt}`; the service returns a signed base64 token. The token is stored on the `games` table and embedded in the share link and share data response. Anyone can verify a shared result is genuine via `POST /verify` (or independently, since the public key is exposed at `GET /pubkey`). The net effect: the emoji-grid share feature gains cryptographic authenticity — a shared result is either genuine or provably forged.
+- **Why not just use a Java library**: The Java backend could sign tokens using `java.security`; splitting this into a Go service is a deliberate architectural choice for the portfolio. It demonstrates: (1) Go `crypto/ed25519` stdlib — no third-party crypto; (2) a stateless Go HTTP microservice; (3) table-driven tests; (4) Fly.io deployment alongside the existing backend. It is on-message for any security-focused employer. The Go service closing a real gap (share authenticity) gives it a defensible reason to exist beyond "we added Go for the sake of it."
+- **The gap it closes**: The `GET /share/{gameId}` endpoint returns an emoji grid anyone can fabricate. Right now nothing distinguishes a real 3-move checkout from a claim invented in a text editor. The signing service makes share results verifiable — the same trust model as a signed JWT.
+- **Go service endpoints**:
+  ```
+  POST /sign    { gameId, playerId, finalScore, completedAt } → { token: "<base64-encoded signed payload>" }
+  POST /verify  { token: "<base64>" }                         → { valid: bool, payload: {...} }
+  GET  /pubkey                                                → { publicKey: "<base64 DER>" }
+  GET  /health                                                → 200 OK
+  ```
+- **Architecture**:
+  - Service is **stateless** — no DB, no cache. Holds only a private key (Fly.io secret). Every instance can sign and verify; scaling is trivial.
+  - Java calls it **once on checkout**, off the hot path. Not on the critical move-submission path, so latency from the Go service does not affect gameplay.
+  - `GET /pubkey` exposes the public key so the Java backend (or any third party) can verify tokens independently without calling the service at all. Verification is free to scale.
+  - **Key rotation**: generate a new keypair via the included `keygen` CLI (`go run keygen/keygen.go`), update the `SIGNING_KEY` Fly.io secret, redeploy. Tokens embed a `kid` (key-ID) so old tokens remain verifiable against the old public key during the overlap window.
+- **Java integration points**:
+  - `GameService.java` — on CHECKOUT transition (after `GameStateMachine.onMoveSubmitted` returns `CHECKOUT`), call `ResultSignerClient.sign(gameId, playerId, finalScore)` and persist the returned token to `games.result_token`. Failure to sign must not fail the checkout — log the error, leave `result_token` null, game still completes.
+  - `DailyChallengeController.java` / `FreePlayController.java` — include `resultToken` in the `GET /share/{gameId}` response DTO so the frontend can embed it in share URLs and share text.
+  - `ResultSignerClient` — a thin `RestTemplate` or `WebClient` wrapper; configure the Go service base URL via a `RESULT_SIGNER_URL` Fly.io secret. Mock the client interface in `GameService` unit tests so the checkout test suite does not require a running Go service.
+  - **Schema**: add `result_token VARCHAR(512) NULL` to the `games` table (new Flyway migration, V37+). Null is valid — it means the game predates the signing service or the service was unavailable at checkout.
+- **File structure** (new top-level directory `go-signer/`):
+  ```
+  go-signer/
+  ├── main.go              # HTTP server, routes, env-var key loading
+  ├── signer/
+  │   ├── signer.go        # Sign / Verify / PublicKey using crypto/ed25519
+  │   └── signer_test.go   # Table-driven: sign→verify roundtrip, tampered payload,
+  │                        #   wrong key, expired token, missing fields
+  ├── keygen/
+  │   └── keygen.go        # CLI: generate ed25519 keypair → stdout (for Fly.io secrets)
+  ├── fly.toml             # Fly.io deployment config, port 8090
+  └── README.md            # Why this exists, how to generate keys, how to verify a token
+  ```
+- **Test coverage target**: table-driven tests in `signer_test.go` covering at minimum: sign→verify roundtrip (valid), tampered payload (invalid), token from a different key (invalid), token with a future `completedAt` (implementation choice: accept or reject), empty/missing fields (error). This is the idiomatic Go test pattern to demonstrate.
+- **Resume bullet**: "Built a Go microservice that cryptographically signs game-result submissions (ed25519, Go stdlib), preventing fabricated share results; table-driven tests, deployed on Fly.io alongside the Java backend."
+- **Why deferred**: Share link authenticity is a "nice to have" — the core game works without it. Building it requires deploying a new Fly.io service and wiring a new HTTP client into `GameService`. Pick up when the game has real users and share links have meaning worth verifying.
+- **Dependencies**: Flyway migration for `result_token` column; `RESULT_SIGNER_URL` and `SIGNING_KEY` secrets on Fly.io; `ResultSignerClient` interface + implementation in the backend.
+- **See**: `GameService.java`, `DailyChallengeController.java`, `FreePlayController.java`, `games` table, `go-signer/` (not yet created).
+
+---
 
 ### Football: league-scope questions for "Random League Question" option
 - **What**: All current football questions are `q_scope = 'club'` (tied to a specific team). A "league-scope" question would ask about the whole league (e.g. "Top scorers in the Premier League since 2000" — valid answers are any player from any club in that league). The lobby had a "Random League Question" option that fell back to club questions when none existed, causing confusion. The option has been replaced with a single "Random Question" entry that uses `scope: random_any` until league-scope questions are added.

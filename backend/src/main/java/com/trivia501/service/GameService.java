@@ -49,6 +49,7 @@ public class GameService {
     private final GameStateMachine gameStateMachine;
     private final PlayerProfileService playerProfileService;
     private final MatchService matchService;
+    private final ResultSignerClient resultSignerClient;
 
     public GameService(
             GameRepository gameRepository,
@@ -57,7 +58,8 @@ public class GameService {
             AnswerEvaluator answerEvaluator,
             GameStateMachine gameStateMachine,
             PlayerProfileService playerProfileService,
-            @Lazy MatchService matchService
+            @Lazy MatchService matchService,
+            ResultSignerClient resultSignerClient
     ) {
         this.gameRepository       = gameRepository;
         this.gameMoveRepository   = gameMoveRepository;
@@ -66,6 +68,7 @@ public class GameService {
         this.gameStateMachine     = gameStateMachine;
         this.playerProfileService = playerProfileService;
         this.matchService         = matchService;
+        this.resultSignerClient   = resultSignerClient;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -120,6 +123,15 @@ public class GameService {
         // Record game completion for authenticated players
         if (transition.moveResult() == GameMove.MoveResult.CHECKOUT) {
             playerProfileService.recordGameCompleted(playerId, transition.scoreAfter(), true);
+
+            // Sign the result for verifiable share links. Failure is non-fatal.
+            resultSignerClient.sign(gameId, playerId, transition.scoreAfter(), game.getCompletedAt() != null
+                    ? game.getCompletedAt()
+                    : java.time.LocalDateTime.now())
+                    .ifPresent(token -> {
+                        game.setResultToken(token);
+                        gameRepository.save(game);
+                    });
         }
 
         log.debug("Move processed: result={}, score {}→{}",
