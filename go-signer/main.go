@@ -147,8 +147,9 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 
 func handlePubKey(s *signer.Signer) http.HandlerFunc {
 	encoded := base64.StdEncoding.EncodeToString(s.PublicKeyBytes())
+	kid := s.KeyID()
 	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, pubKeyResponse{PublicKey: encoded})
+		writeJSON(w, http.StatusOK, pubKeyResponse{PublicKey: encoded, KeyID: kid})
 	}
 }
 

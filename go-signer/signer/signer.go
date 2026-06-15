@@ -113,3 +113,8 @@ func (s *Signer) Verify(t *Token) (*Payload, error) {
 func (s *Signer) PublicKeyBytes() []byte {
 	return s.publicKey
 }
+
+// KeyID returns the key identifier embedded in signed tokens.
+func (s *Signer) KeyID() string {
+	return s.keyID
+}

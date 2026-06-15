@@ -3,9 +3,11 @@ package com.trivia501.service;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -40,8 +42,12 @@ public class ResultSignerClientImpl implements ResultSignerClient {
     ) {
         this.signerUrl = signerUrl;
         this.internalSecret = internalSecret;
+        var factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(5));
         this.restClient = RestClient.builder()
                 .baseUrl(signerUrl.isBlank() ? "http://localhost:8090" : signerUrl)
+                .requestFactory(factory)
                 .build();
     }
 
