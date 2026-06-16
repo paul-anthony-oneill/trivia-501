@@ -4,6 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useAnimatedScore } from "@/hooks/useAnimatedScore";
 import { apiFetch } from "@/lib/api/client";
+import {
+  getDailyLock,
+  setDailyLockInProgress,
+  setDailyLockCompleted,
+} from "@/lib/dailyLock";
 import type { FootballFilter } from "@/lib/api/footballApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,13 +45,19 @@ interface SavedGameState {
   gameId: string;
   label: string;
   gameType: GameType;
+  categorySlug?: string;
 }
 
-function saveGameState(gameId: string, label: string, gameType: GameType) {
+function saveGameState(
+  gameId: string,
+  label: string,
+  gameType: GameType,
+  categorySlug?: string,
+) {
   try {
     sessionStorage.setItem(
       GAME_STORAGE_KEY,
-      JSON.stringify({ gameId, label, gameType }),
+      JSON.stringify({ gameId, label, gameType, categorySlug }),
     );
   } catch {
     /* storage full or unavailable — non-critical */
@@ -66,6 +77,7 @@ function loadSavedGameState(): SavedGameState | null {
           parsed.gameType === "daily-challenge" ?
             "daily-challenge"
           : "freeplay",
+        categorySlug: parsed.categorySlug ?? undefined,
       };
     }
   } catch {
@@ -174,6 +186,8 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
   const [gameId, setGameId] = useState<string | null>(null);
   // Question ID for debug tooling
   const [questionId, setQuestionId] = useState<string | null>(null);
+  // Category slug for daily challenge lock writes
+  const [currentCategorySlug, setCurrentCategorySlug] = useState<string | null>(null);
 
   /** Returns the API base path for the current game type. */
   function apiBase(): string {
@@ -225,6 +239,17 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         setGameStatus(
           game.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS",
         );
+
+        // Restore categorySlug for daily challenge lock writes
+        if (savedGameType === "daily-challenge" && saved.categorySlug) {
+          setCurrentCategorySlug(saved.categorySlug);
+          // Re-sync the localStorage lock in case it was cleared
+          if (game.status === "COMPLETED") {
+            setDailyLockCompleted(saved.categorySlug, game.gameId);
+          } else if ((game.turnCount ?? 0) > 0) {
+            setDailyLockInProgress(saved.categorySlug, game.gameId);
+          }
+        }
 
         // Restore move history (server returns oldest-first; we keep newest-first)
         if (game.moves && Array.isArray(game.moves)) {
@@ -349,18 +374,29 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
       setQuestionId(game.questionId ?? null);
       setScore(game.currentScore);
       setQuestion(game.questionText);
-      setTurnCount(0);
+      setTurnCount(game.turnCount ?? 0);
       setMoves([]);
       setEntityType(game.entityType ?? "footballer");
       setHints(game.hints ?? null);
+      setCurrentCategorySlug(categorySlug);
       setGameStatus("IN_PROGRESS");
 
-      saveGameState(game.gameId, label, "daily-challenge");
+      saveGameState(game.gameId, label, "daily-challenge", categorySlug);
+
+      // Re-sync lock if this was a resume (game already has darts thrown)
+      if ((game.turnCount ?? 0) > 0) {
+        setDailyLockInProgress(categorySlug, game.gameId);
+      }
 
       document.body.classList.remove("theme-home");
       document.body.classList.add("theme-teletext");
 
-      addToast("Daily Challenge started!", "success");
+      addToast(
+        (game.turnCount ?? 0) > 0 ?
+          "Daily Challenge resumed!"
+        : "Daily Challenge started!",
+        "success",
+      );
     } catch (err) {
       addToast(
         (err as Error).message || "Error starting daily challenge",
@@ -404,8 +440,8 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         result: result.result as PopupState["result"],
         reason: (result.reason as string) ?? undefined,
       });
-    } catch {
-      addToast("Error validating answer", "error");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Error validating answer", "error");
     }
   }
 
@@ -446,6 +482,15 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     if (r.isWin) {
       setGameStatus("COMPLETED");
       clearSavedGameState();
+      if (gameType === "daily-challenge" && currentCategorySlug && gameId) {
+        setDailyLockCompleted(currentCategorySlug, gameId);
+      }
+    } else if (gameType === "daily-challenge" && currentCategorySlug && gameId) {
+      // Lock on first dart (and keep lock current if localStorage was cleared mid-game)
+      const existing = getDailyLock(currentCategorySlug);
+      if (!existing || existing.state === "in_progress") {
+        setDailyLockInProgress(currentCategorySlug, gameId);
+      }
     }
   }
 
@@ -455,6 +500,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     setGameStatus("NOT_STARTED");
     setGameId(null);
     setQuestionId(null);
+    setCurrentCategorySlug(null);
     document.body.classList.remove("theme-teletext");
     document.body.classList.add("theme-home");
   }

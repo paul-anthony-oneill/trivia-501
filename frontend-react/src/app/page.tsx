@@ -69,8 +69,12 @@ export default function GamePage() {
   } = useGameLoop();
 
   // Daily challenge status
-  const { challenges: dailyChallenges, loading: dailyLoading } =
-    useDailyChallenge();
+  const {
+    challenges: dailyChallenges,
+    loading: dailyLoading,
+    error: dailyError,
+    refresh: retryDailies,
+  } = useDailyChallenge();
 
   const { addToast } = useToast();
 
@@ -170,6 +174,8 @@ export default function GamePage() {
           onStartDailyChallenge={handleStartDailyChallenge}
           dailyChallenges={dailyChallenges}
           dailyLoading={dailyLoading}
+          dailyError={dailyError}
+          onRetryDailies={retryDailies}
         />
       </ErrorBoundary>
     );

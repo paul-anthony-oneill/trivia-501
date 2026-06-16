@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api/client";
+import {
+  getDailyLock,
+  pruneStaleDailyLocks,
+  type DailyLockState,
+} from "@/lib/dailyLock";
 
 export interface CategoryChallenge {
   categorySlug: string;
@@ -9,6 +14,8 @@ export interface CategoryChallenge {
   startingScore: number;
   questionText: string;
   hasChallenge: boolean;
+  /** Local lock state for this category today: null = not started. */
+  lockState: DailyLockState | null;
 }
 
 export interface DailyChallengeState {
@@ -27,6 +34,7 @@ export function useDailyChallenge(): DailyChallengeState & { refresh: () => void
   function fetchStatus() {
     setLoading(true);
     setError(null);
+    pruneStaleDailyLocks();
 
     apiFetch("/api/daily-challenge/status")
       .then(async (res) => {
@@ -35,7 +43,11 @@ export function useDailyChallenge(): DailyChallengeState & { refresh: () => void
       })
       .then((data) => {
         setDate(data.date ?? null);
-        setChallenges(data.challenges ?? []);
+        const raw: Omit<CategoryChallenge, "lockState">[] =
+          data.challenges ?? [];
+        setChallenges(
+          raw.map((c) => ({ ...c, lockState: getDailyLock(c.categorySlug) })),
+        );
         setLoading(false);
       })
       .catch((err) => {

@@ -61,6 +61,8 @@ interface LobbyViewProps {
   onStartDailyChallenge: (slug: string, label: string) => Promise<void> | void;
   dailyChallenges: CategoryChallenge[];
   dailyLoading: boolean;
+  dailyError: string | null;
+  onRetryDailies: () => void;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -70,6 +72,8 @@ export default function LobbyView({
   onStartDailyChallenge,
   dailyChallenges,
   dailyLoading,
+  dailyError,
+  onRetryDailies,
 }: LobbyViewProps) {
   const [target, setTarget] = useState<TargetScore>(501);
   // Slug of the row that's currently starting a game (null = nothing in flight).
@@ -217,18 +221,62 @@ export default function LobbyView({
           </div>
 
           {/* Daily Challenges */}
-          {!dailyLoading && dailyChallenges.length > 0 && (
+          {!dailyLoading && (dailyChallenges.length > 0 || dailyError) && (
             <div className="mb-8">
               <div className="flex items-center gap-2.5 mb-3">
                 <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
                 <span className="kicker">Today&apos;s Challenges</span>
                 <span className="ml-auto kicker opacity-60 hidden sm:block">
-                  One attempt · Share with friends
+                  Score once · Share with friends
                 </span>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+
+              {dailyError && (
+                <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
+                  <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
+                  <button
+                    onClick={onRetryDailies}
+                    className="kicker text-accent hover:text-ink transition-colors shrink-0"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!dailyError && <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
                 {dailyChallenges.map((dc) => {
                   const isThisStarting = starting === dc.categorySlug;
+                  const lock = dc.lockState;
+                  const isCompleted = lock?.state === "completed";
+                  const isInProgress = lock?.state === "in_progress";
+
+                  if (isCompleted) {
+                    return (
+                      <a
+                        key={dc.categorySlug}
+                        href={`/daily/${dc.categorySlug}`}
+                        className="group flex-shrink-0 flex flex-col bg-surface border border-line rounded-md p-4 w-56 text-left transition-all duration-200 opacity-60 hover:opacity-80"
+                      >
+                        <div className="flex items-baseline justify-between mb-2">
+                          <span className="font-display font-bold text-sm">{dc.categoryName}</span>
+                          <span className="font-mono text-[9px] tracking-[0.2em] text-gold">PLAYED</span>
+                        </div>
+                        <div className="display-num text-[34px] mb-1.5">
+                          {dc.startingScore}
+                        </div>
+                        <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
+                          {dc.questionText || "Loading..."}
+                        </div>
+                        <div className="mt-auto flex items-center justify-between">
+                          <span className="font-mono text-[9px] tracking-[0.2em] text-muted uppercase">
+                            View result
+                          </span>
+                          <span className="font-display font-bold text-muted transition-transform group-hover:translate-x-0.5">→</span>
+                        </div>
+                      </a>
+                    );
+                  }
+
                   return (
                     <button
                       key={dc.categorySlug}
@@ -238,7 +286,9 @@ export default function LobbyView({
                     >
                       <div className="flex items-baseline justify-between mb-2">
                         <span className="font-display font-bold text-sm">{dc.categoryName}</span>
-                        <span className="font-mono text-[9px] tracking-[0.2em] text-gold">DAILY</span>
+                        <span className="font-mono text-[9px] tracking-[0.2em] text-gold">
+                          {isInProgress ? "IN PROGRESS" : "DAILY"}
+                        </span>
                       </div>
                       <div className="display-num text-[34px] mb-1.5">
                         {dc.startingScore}
@@ -248,14 +298,16 @@ export default function LobbyView({
                       </div>
                       <div className="mt-auto flex items-center justify-between">
                         <span className="font-mono text-[9px] tracking-[0.2em] text-accent uppercase">
-                          {isThisStarting ? "Starting…" : "Play now"}
+                          {isThisStarting ? "Starting…"
+                          : isInProgress ? "Resume"
+                          : "Play now"}
                         </span>
                         <span className="font-display font-bold text-accent transition-transform group-hover:translate-x-0.5">→</span>
                       </div>
                     </button>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           )}
 

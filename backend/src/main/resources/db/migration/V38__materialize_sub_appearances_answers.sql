@@ -148,7 +148,7 @@ INSERT INTO entities (entity_type, display_name, normalized_name)
 SELECT DISTINCT
     'footballer',
     p.name,
-    p.normalized_name
+    unaccent(lower(p.name))
 FROM answers a
 JOIN questions q ON a.question_id = q.id
 JOIN players p   ON p.normalized_name = a.answer_key

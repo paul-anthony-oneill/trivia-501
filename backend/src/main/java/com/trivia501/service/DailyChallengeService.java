@@ -9,6 +9,8 @@ import com.trivia501.model.Question;
 import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.CategoryRepository;
 import com.trivia501.repository.DailyChallengeRepository;
+import com.trivia501.repository.GameRepository;
+import com.trivia501.repository.MatchRepository;
 import com.trivia501.repository.QuestionRepository;
 import com.trivia501.scheduler.DailyChallengeScheduler;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +33,8 @@ public class DailyChallengeService {
     private final CategoryRepository categoryRepository;
     private final MatchService matchService;
     private final GameService gameService;
+    private final GameRepository gameRepository;
+    private final MatchRepository matchRepository;
 
     public DailyChallengeService(
             DailyChallengeRepository challengeRepository,
@@ -37,7 +42,9 @@ public class DailyChallengeService {
             AnswerRepository answerRepository,
             CategoryRepository categoryRepository,
             MatchService matchService,
-            GameService gameService
+            GameService gameService,
+            GameRepository gameRepository,
+            MatchRepository matchRepository
     ) {
         this.challengeRepository = challengeRepository;
         this.questionRepository = questionRepository;
@@ -45,6 +52,8 @@ public class DailyChallengeService {
         this.categoryRepository = categoryRepository;
         this.matchService = matchService;
         this.gameService = gameService;
+        this.gameRepository = gameRepository;
+        this.matchRepository = matchRepository;
     }
 
     /**
@@ -93,7 +102,34 @@ public class DailyChallengeService {
 
         DailyChallenge challenge = getTodaysChallenge(category.getId());
 
-        // Abandon any existing in-progress games for this player
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        // Block replay: a completed game today cannot be restarted
+        gameRepository.findDailyGameByPlayerCategoryAndStatus(
+                playerId, category.getId(), Match.MatchType.DAILY_CHALLENGE,
+                Game.GameStatus.COMPLETED, startOfDay, endOfDay)
+            .ifPresent(g -> {
+                throw new IllegalStateException(
+                    "You have already completed today's " + categorySlug + " daily challenge");
+            });
+
+        // Resume: return the existing in-progress game rather than creating a new one
+        Optional<Game> inProgress = gameRepository.findDailyGameByPlayerCategoryAndStatus(
+                playerId, category.getId(), Match.MatchType.DAILY_CHALLENGE,
+                Game.GameStatus.IN_PROGRESS, startOfDay, endOfDay);
+        if (inProgress.isPresent()) {
+            Game existingGame = inProgress.get();
+            Match existingMatch = matchRepository.findById(existingGame.getMatchId())
+                    .orElseThrow(() -> new IllegalStateException("Match not found for existing daily game"));
+            Question question = questionRepository.findById(challenge.getQuestionId())
+                    .orElseThrow(() -> new IllegalStateException("Question not found for daily challenge"));
+            log.info("Resuming daily challenge: gameId={}, playerId={}, category={}",
+                    existingGame.getId(), playerId, categorySlug);
+            return new GameStartRecord(existingMatch, existingGame, question, challenge);
+        }
+
+        // Fresh start: abandon any stale in-progress games from other modes or previous days
         gameService.abandonActiveGamesForPlayer(playerId);
 
         Match match = matchService.createMatch(
