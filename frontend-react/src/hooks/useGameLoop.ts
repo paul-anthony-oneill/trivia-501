@@ -440,8 +440,8 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         result: result.result as PopupState["result"],
         reason: (result.reason as string) ?? undefined,
       });
-    } catch {
-      addToast("Error validating answer", "error");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Error validating answer", "error");
     }
   }
 

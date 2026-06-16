@@ -173,7 +173,7 @@ INSERT INTO entities (entity_type, display_name, normalized_name)
 SELECT DISTINCT
     'footballer',
     p.name,
-    p.normalized_name
+    unaccent(lower(p.name))
 FROM answers a
 JOIN questions q  ON a.question_id = q.id
 JOIN question_templates qt ON q.template_id = qt.id
@@ -345,7 +345,7 @@ INSERT INTO entities (entity_type, display_name, normalized_name)
 SELECT DISTINCT
     'footballer',
     p.name,
-    p.normalized_name
+    unaccent(lower(p.name))
 FROM answers a
 JOIN questions q  ON a.question_id = q.id
 JOIN question_templates qt ON q.template_id = qt.id

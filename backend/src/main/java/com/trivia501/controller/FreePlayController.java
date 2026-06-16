@@ -90,16 +90,11 @@ public class FreePlayController {
     @PostMapping("/start")
     public ResponseEntity<GameStateResponse> startFreePlayGame(
         @Valid @RequestBody StartFreePlayRequest request,
-        Principal principal,
-        HttpServletRequest httpRequest
+        Principal principal
     ) {
         UUID playerId = playerIdFrom(principal);
         playerProfileService.ensureProfile(playerId);
 
-        // Rotate anonymous session cookie on game start to prevent cross-game tracking
-        if (OptionalJwtFilter.AUTH_TYPE_ANON.equals(httpRequest.getAttribute(OptionalJwtFilter.AUTH_TYPE_ATTR))) {
-            httpRequest.setAttribute(OptionalJwtFilter.ROTATE_ANON_ATTR, "true");
-        }
         log.debug("Starting Free Play game for player {}", playerId);
 
         // Prevent orphaned-game accumulation: abandon any in-progress games

@@ -79,7 +79,7 @@ public interface NamedEntityRepository extends JpaRepository<NamedEntity, UUID> 
     @Transactional
     @Query(value = """
             INSERT INTO entities (entity_type, display_name, normalized_name, hint)
-            SELECT 'footballer', p.name, p.normalized_name, p.nationality
+            SELECT 'footballer', p.name, unaccent(lower(p.name)), p.nationality
             FROM   players p
             ON CONFLICT (entity_type, normalized_name) DO NOTHING
             """, nativeQuery = true)

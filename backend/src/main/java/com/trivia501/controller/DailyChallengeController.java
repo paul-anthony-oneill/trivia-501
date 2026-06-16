@@ -119,16 +119,10 @@ public class DailyChallengeController {
     @PostMapping("/{categorySlug}/start")
     public ResponseEntity<GameStateResponse> startDailyChallenge(
             @PathVariable String categorySlug,
-            Principal principal,
-            HttpServletRequest httpRequest
+            Principal principal
     ) {
         UUID playerId = playerIdFrom(principal);
         playerProfileService.ensureProfile(playerId);
-
-        // Rotate anonymous session cookie on game start to prevent cross-game tracking
-        if (OptionalJwtFilter.AUTH_TYPE_ANON.equals(httpRequest.getAttribute(OptionalJwtFilter.AUTH_TYPE_ATTR))) {
-            httpRequest.setAttribute(OptionalJwtFilter.ROTATE_ANON_ATTR, "true");
-        }
 
         log.debug("Starting daily challenge for player {} in category '{}'", playerId, categorySlug);
 
