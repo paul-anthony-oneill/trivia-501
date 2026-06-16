@@ -6,6 +6,8 @@ import com.trivia501.model.Question;
 import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.CategoryRepository;
 import com.trivia501.repository.DailyChallengeRepository;
+import com.trivia501.repository.GameRepository;
+import com.trivia501.repository.MatchRepository;
 import com.trivia501.repository.QuestionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,8 @@ class DailyChallengeServiceTest {
     @Mock private CategoryRepository categoryRepository;
     @Mock private MatchService matchService;
     @Mock private GameService gameService;
+    @Mock private GameRepository gameRepository;
+    @Mock private MatchRepository matchRepository;
 
     private DailyChallengeService service;
 
@@ -50,7 +54,8 @@ class DailyChallengeServiceTest {
     void setUp() {
         service = new DailyChallengeService(
                 challengeRepository, questionRepository, answerRepository,
-                categoryRepository, matchService, gameService);
+                categoryRepository, matchService, gameService,
+                gameRepository, matchRepository);
     }
 
     @Test
