@@ -11,6 +11,26 @@ import type { CategoryChallenge } from "@/hooks/useDailyChallenge";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
+const DARTBOARD_SVG = (
+  <svg viewBox="0 0 1440 900" className="absolute inset-0 w-full h-full opacity-[0.13]" preserveAspectRatio="xMidYMid slice">
+    <g fill="none" stroke="currentColor" strokeWidth="1">
+      <circle cx="1190" cy="180" r="60" />
+      <circle cx="1190" cy="180" r="130" />
+      <circle cx="1190" cy="180" r="210" />
+      <circle cx="1190" cy="180" r="300" />
+      <circle cx="1190" cy="180" r="400" />
+    </g>
+    <circle cx="1190" cy="180" r="5" fill="currentColor" />
+    <path
+      d="M-100,640 C300,540 800,820 1190,180"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      fill="none"
+      className="animate-draw"
+    />
+  </svg>
+);
+
 type TargetScore = 501 | 301 | 101 | "random";
 const TARGET_OPTIONS: TargetScore[] = [501, 301, 101, "random"];
 
@@ -145,23 +165,7 @@ export default function LobbyView({
     <div className="relative min-h-screen bg-bg text-ink flex flex-col font-sans overflow-hidden">
       {/* Background motif — dartboard rings + dart trajectory, barely there */}
       <div className="absolute inset-0 pointer-events-none z-0 text-ink" aria-hidden="true">
-        <svg viewBox="0 0 1440 900" className="absolute inset-0 w-full h-full opacity-[0.13]" preserveAspectRatio="xMidYMid slice">
-          <g fill="none" stroke="currentColor" strokeWidth="1">
-            <circle cx="1190" cy="180" r="60" />
-            <circle cx="1190" cy="180" r="130" />
-            <circle cx="1190" cy="180" r="210" />
-            <circle cx="1190" cy="180" r="300" />
-            <circle cx="1190" cy="180" r="400" />
-          </g>
-          <circle cx="1190" cy="180" r="5" fill="currentColor" />
-          <path
-            d="M-100,640 C300,540 800,820 1190,180"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            className="animate-draw"
-          />
-        </svg>
+        {DARTBOARD_SVG}
       </div>
 
       {/* Header */}

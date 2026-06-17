@@ -31,17 +31,19 @@ export function useDailyChallenge(): DailyChallengeState & { refresh: () => void
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function fetchStatus() {
+  function fetchStatus(signal?: AbortSignal) {
     setLoading(true);
     setError(null);
     pruneStaleDailyLocks();
 
     apiFetch("/api/daily-challenge/status")
       .then(async (res) => {
+        if (signal?.aborted) return;
         if (!res.ok) throw new Error("Failed to fetch daily challenges");
         return res.json();
       })
       .then((data) => {
+        if (signal?.aborted) return;
         setDate(data.date ?? null);
         const raw: Omit<CategoryChallenge, "lockState">[] =
           data.challenges ?? [];
@@ -51,13 +53,16 @@ export function useDailyChallenge(): DailyChallengeState & { refresh: () => void
         setLoading(false);
       })
       .catch((err) => {
+        if (signal?.aborted) return;
         setError(err.message || "Error fetching daily challenges");
         setLoading(false);
       });
   }
 
   useEffect(() => {
-    fetchStatus();
+    const controller = new AbortController();
+    fetchStatus(controller.signal);
+    return () => controller.abort();
   }, []);
 
   return { date, challenges, loading, error, refresh: fetchStatus };
