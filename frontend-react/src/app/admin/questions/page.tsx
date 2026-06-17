@@ -13,18 +13,18 @@ import { useToast } from "@/context/ToastContext";
 type QuestionRow = Question & { difficultyLabel: string; statusLabel: string };
 
 const statusBadgeClass: Record<QuestionStatus, string> = {
-  draft:    "bg-[rgba(156,163,175,0.15)] text-[#9ca3af] border-[#9ca3af]",
-  active:   "bg-[rgba(74,222,128,0.1)]  text-[#4ade80] border-[#4ade80]",
-  retired:  "bg-[rgba(239,68,68,0.1)]   text-[#ef4444] border-[#ef4444]",
-  excluded: "bg-[rgba(251,191,36,0.1)]  text-[#fbbf24] border-[#fbbf24]",
+  draft:    "bg-[rgba(156,163,175,0.15)] text-[var(--color-on-surface-variant)] border-[var(--color-on-surface-variant)]",
+  active:   "bg-[var(--color-primary-container)] text-[var(--color-primary)] border-[var(--color-primary)]",
+  retired:  "bg-[var(--color-error-container)] text-[var(--color-error)] border-[var(--color-error)]",
+  excluded: "bg-[var(--color-excluded-container)] text-[var(--color-excluded)] border-[var(--color-excluded)]",
 };
 
 /** Next status to transition to and the button label, given current status. */
 function statusAction(status: QuestionStatus): { label: string; next: QuestionStatus; color: string } | null {
   switch (status) {
-    case "draft":    return { label: "Activate", next: "active",  color: "#4ade80" };
-    case "active":   return { label: "Retire",   next: "retired", color: "#f97316" };
-    case "retired":  return { label: "Restore",  next: "active",  color: "#60a5fa" };
+    case "draft":    return { label: "Activate", next: "active",  color: "var(--color-primary)" };
+    case "active":   return { label: "Retire",   next: "retired", color: "var(--color-retire)" };
+    case "retired":  return { label: "Restore",  next: "active",  color: "var(--color-restore)" };
     case "excluded": return null;
   }
 }
@@ -207,14 +207,14 @@ export default function QuestionsPage() {
         <h1 className="m-0 text-[var(--color-primary)]">Questions</h1>
         <Link
           href="/admin/questions/create"
-          className="bg-[var(--color-primary)] text-black px-6 py-3 rounded-lg font-semibold no-underline hover:bg-[#22c55e] transition-colors"
+          className="bg-[var(--color-primary)] text-black px-6 py-3 rounded-lg font-semibold no-underline hover:opacity-80 transition-opacity"
         >
           + New Question
         </Link>
       </div>
 
       {/* Bulk Activate panel */}
-      <div className="mb-8 p-5 rounded-xl bg-[#2a2a2a] border border-[var(--color-outline)]">
+      <div className="mb-8 p-5 rounded-xl bg-[var(--color-surface-variant)] border border-[var(--color-outline)]">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h3 className="m-0 text-sm font-semibold text-[var(--color-on-surface)]">
@@ -222,7 +222,7 @@ export default function QuestionsPage() {
             </h3>
             <p className="m-0 mt-1 text-xs text-[var(--color-on-surface-variant)]">
               Promotes draft → active and materialises answers from{" "}
-              <code className="bg-[#1a1a1a] px-1 rounded">player_season_stints</code>.
+              <code className="bg-[var(--color-input-bg)] px-1 rounded">player_season_stints</code>.
               Run repeatedly until all questions are active.
               {lastBulkResult && (
                 <span className="ml-2 text-[var(--color-primary)]">
@@ -230,7 +230,7 @@ export default function QuestionsPage() {
                   {lastBulkResult.answersUpserted.toLocaleString()} answers ·{" "}
                   {lastBulkResult.remainingDraft.toLocaleString()} remaining
                   {lastBulkResult.errors > 0 && (
-                    <span className="text-[#fbbf24]"> · {lastBulkResult.errors} errors</span>
+                    <span className="text-[var(--color-excluded)]"> · {lastBulkResult.errors} errors</span>
                   )}
                 </span>
               )}
@@ -246,7 +246,7 @@ export default function QuestionsPage() {
                 max={500}
                 value={bulkLimit}
                 onChange={(e) => setBulkLimit(Math.min(500, Math.max(1, Number(e.target.value))))}
-                className="w-20 px-2 py-1 rounded bg-[#1a1a1a] border border-[#444] text-white text-sm text-center"
+                className="w-20 px-2 py-1 rounded bg-[var(--color-input-bg)] border border-[var(--color-input-border)] text-white text-sm text-center"
               />
             </div>
             <button
@@ -261,7 +261,7 @@ export default function QuestionsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6 bg-[#2a2a2a] p-4 rounded-lg items-end">
+      <div className="flex gap-4 mb-6 bg-[var(--color-surface-variant)] p-4 rounded-lg items-end">
         <div className="flex-1 max-w-[200px]">
           <Select
             label="Category"
@@ -281,7 +281,7 @@ export default function QuestionsPage() {
         <div className="mb-4">
           <button
             onClick={applyFilters}
-            className="bg-[#3b82f6] text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium hover:opacity-90 transition-opacity"
+            className="bg-[var(--color-filter-btn)] text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium hover:opacity-90 transition-opacity"
           >
             Apply Filters
           </button>
@@ -298,7 +298,7 @@ export default function QuestionsPage() {
             {statusLabel(s)}
           </span>
         ))}
-        <span className="text-[#6b7280] text-[0.75rem]">
+        <span className="text-[var(--color-on-surface-variant)] text-[0.75rem]">
           · Daily column: whether question is in the daily challenge pool
         </span>
       </div>
@@ -330,7 +330,7 @@ export default function QuestionsPage() {
                 disabled={pendingId === item.id}
                 title={item.suitableForDaily ? "Remove from daily pool" : "Add to daily pool"}
                 className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-40 ${
-                  item.suitableForDaily ? "bg-[var(--color-primary)]" : "bg-[#555]"
+                  item.suitableForDaily ? "bg-[var(--color-primary)]" : "bg-[var(--color-toggle-off)]"
                 }`}
               >
                 <span

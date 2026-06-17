@@ -50,6 +50,8 @@ export default function EntitySearch({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [noMatch, setNoMatch] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Warm the cache as soon as the component mounts so it's ready before typing starts.
@@ -72,9 +74,19 @@ export default function EntitySearch({
   }
 
   async function fetchSuggestionsAsync(query: string) {
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
+
     setLoading(true);
-    const entities = await loadEntityCache(entityType);
-    applyResults(searchEntities(entities, query));
+    try {
+      const entities = await loadEntityCache(entityType);
+      if (!signal.aborted && mountedRef.current) {
+        applyResults(searchEntities(entities, query));
+      }
+    } catch {
+      // aborted or network error — either way, no-op
+    }
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -98,12 +110,15 @@ export default function EntitySearch({
     }
 
     // Async path — first load still in flight, debounce to avoid hammering
+    if (abortRef.current) abortRef.current.abort();
     debounceRef.current = setTimeout(() => fetchSuggestionsAsync(val), 300);
   }
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, []);
 

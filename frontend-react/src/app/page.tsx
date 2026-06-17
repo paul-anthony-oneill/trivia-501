@@ -83,11 +83,9 @@ export default function GamePage() {
 
   // Track the last selection so we can replay and display in MatchView.
   // On mount, try to recover the label from a saved game (refresh recovery).
-  const [lastSlug, setLastSlug] = useState(() => getSavedLabel() ?? "football");
-  const [lastLabel, setLastLabel] = useState(() => {
-    const saved = getSavedLabel();
-    return saved ?? "Football";
-  });
+  const savedLabel = getSavedLabel();
+  const [lastSlug, setLastSlug] = useState(() => savedLabel ?? "football");
+  const [lastLabel, setLastLabel] = useState(() => savedLabel ?? "Football");
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
