@@ -23,6 +23,8 @@ interface AuthState {
   /** Player profile from the backend (null for anonymous users). */
   profile: PlayerProfile | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -33,6 +35,8 @@ const AuthContext = createContext<AuthState>({
   backendConfirmed: false,
   profile: null,
   signInWithGoogle: async () => {},
+  signInWithEmail: async () => ({}),
+  signUpWithEmail: async () => ({}),
   signOut: async () => {},
 });
 
@@ -112,13 +116,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [supabase]);
 
+  const signInWithEmail = useCallback(
+    async (email: string, password: string): Promise<{ error?: string }> => {
+      if (!supabase) return { error: "Supabase client not available" };
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      return {};
+    },
+    [supabase],
+  );
+
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string): Promise<{ error?: string }> => {
+      if (!supabase) return { error: "Supabase client not available" };
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) return { error: error.message };
+      return {};
+    },
+    [supabase],
+  );
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
   }, [supabase]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, backendConfirmed, profile, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, backendConfirmed, profile, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   );
