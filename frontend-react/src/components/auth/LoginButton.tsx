@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import EmailAuthForm from "@/components/auth/EmailAuthForm";
 
 export default function LoginButton() {
   const { user, loading, backendConfirmed, signInWithGoogle, signOut } = useAuth();
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
   if (loading) {
     return (
@@ -43,9 +46,20 @@ export default function LoginButton() {
     );
   }
 
+  if (showEmailForm) {
+    return (
+      <EmailAuthForm onCancel={() => setShowEmailForm(false)} />
+    );
+  }
+
   return (
-    <button onClick={signInWithGoogle} className="btn-ghost px-4 py-2">
-      Sign in with Google
-    </button>
+    <div className="flex items-center gap-2">
+      <button onClick={signInWithGoogle} className="btn-ghost px-4 py-2">
+        Sign in with Google
+      </button>
+      <button onClick={() => setShowEmailForm(true)} className="btn-ghost px-4 py-2">
+        Sign in with Email
+      </button>
+    </div>
   );
 }
