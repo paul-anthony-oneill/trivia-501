@@ -11,6 +11,7 @@ import com.trivia501.dto.SubmitAnswerResponse;
 import com.trivia501.model.*;
 import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.CategoryRepository;
+import com.trivia501.scheduler.DailyChallengeScheduler;
 import com.trivia501.service.DailyChallengeService;
 import com.trivia501.service.GameHintsService;
 import com.trivia501.service.GameService;
@@ -21,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -34,6 +36,7 @@ import java.util.UUID;
 public class DailyChallengeController {
 
     private final DailyChallengeService dailyChallengeService;
+    private final DailyChallengeScheduler dailyChallengeScheduler;
     private final GameService gameService;
     private final MatchService matchService;
     private final QuestionService questionService;
@@ -44,6 +47,7 @@ public class DailyChallengeController {
 
     public DailyChallengeController(
             DailyChallengeService dailyChallengeService,
+            DailyChallengeScheduler dailyChallengeScheduler,
             GameService gameService,
             MatchService matchService,
             QuestionService questionService,
@@ -53,6 +57,7 @@ public class DailyChallengeController {
             AnswerRepository answerRepository
     ) {
         this.dailyChallengeService = dailyChallengeService;
+        this.dailyChallengeScheduler = dailyChallengeScheduler;
         this.gameService = gameService;
         this.matchService = matchService;
         this.questionService = questionService;
@@ -87,6 +92,43 @@ public class DailyChallengeController {
                 .date(java.time.LocalDate.now())
                 .challenges(items)
                 .build());
+    }
+
+    /**
+     * Generates today's daily challenge for all categories.
+     * Pass ?force=true to delete any existing challenge and regenerate.
+     */
+    @PostMapping("/admin/generate-today")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, Object>> generateToday(
+            @RequestParam(defaultValue = "false") boolean force) {
+        var cats = categoryRepository.findAll();
+        int created = 0;
+        var today = java.time.LocalDate.now();
+        for (var cat : cats) {
+            if ("test".equals(cat.getSlug())) continue;
+            try {
+                if (force) {
+                    dailyChallengeService.deleteTodaysChallenge(cat.getId());
+                }
+                dailyChallengeService.getTodaysChallenge(cat.getId());
+                created++;
+            } catch (Exception e) {
+                // challenge already exists or no viable question
+            }
+        }
+        return ResponseEntity.ok(java.util.Map.of("status", "generation complete", "created", created));
+    }
+
+    /**
+     * Triggers monthly daily challenge generation for all categories.
+     * Idempotent — skips days that already have a challenge.
+     */
+    @PostMapping("/admin/generate")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, String>> generateChallenges() {
+        dailyChallengeScheduler.selectDailyChallenges();
+        return ResponseEntity.ok(java.util.Map.of("status", "generation complete"));
     }
 
     /**
@@ -286,8 +328,10 @@ public class DailyChallengeController {
 
     /**
      * Debug endpoint: returns all answers for the game's question.
+     * Restricted to admins only — this is the answer key.
      */
     @GetMapping("/games/{gameId}/answers")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AnswerDebugResponse>> getGameAnswers(
         @PathVariable UUID gameId,
         Principal principal

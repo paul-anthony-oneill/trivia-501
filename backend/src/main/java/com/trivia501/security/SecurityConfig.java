@@ -57,7 +57,10 @@ public class SecurityConfig {
         boolean jwtConfigured = jwtSecret != null && !jwtSecret.isEmpty();
         this.optionalJwtFilter = new OptionalJwtFilter(jwtDecoder, jwtConverter, jwtConfigured);
         this.rateLimitFilter = rateLimitFilter;
-        this.testProfile = Arrays.asList(environment.getActiveProfiles()).contains("test");
+        // DevModeAuthFilter on every non-prod profile (default, dev, test).
+        // Only OptionalJwtFilter when SPRING_PROFILES_ACTIVE includes "prod".
+        var profiles = Arrays.asList(environment.getActiveProfiles());
+        this.testProfile = !profiles.contains("prod");
         log.info("SecurityConfig: auth filter = {} (JWT {}configured)",
                 testProfile ? "DevModeAuthFilter" : "OptionalJwtFilter",
                 jwtConfigured ? "" : "NOT ");
@@ -82,6 +85,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/categories/**").permitAll()
                 .requestMatchers("/api/football/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/daily-challenge/games/*/answers").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/daily-challenge/**").permitAll()
                 .requestMatchers("/api/daily-challenge/**").authenticated()
                 .requestMatchers("/api/freeplay/**").hasAnyRole("USER", "ADMIN")

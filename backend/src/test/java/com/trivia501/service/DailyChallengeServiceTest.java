@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -80,7 +81,11 @@ class DailyChallengeServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
-        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyDouble(), anyDouble()))
+        when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(challengeRepository.findLatestStartingScoreForQuestion(any(UUID.class)))
+                .thenReturn(Optional.empty());
+        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
                 .thenReturn(Optional.of(question));
         when(answerRepository.hasViableFirstMove(eq(questionId), anyInt()))
                 .thenReturn(true);
@@ -103,7 +108,9 @@ class DailyChallengeServiceTest {
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         // No question found for any score — all fallback attempts fail
-        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyDouble(), anyDouble()))
+        when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getTodaysChallenge(categoryId))
@@ -144,7 +151,11 @@ class DailyChallengeServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
-        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyDouble(), anyDouble()))
+        when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+        when(challengeRepository.findLatestStartingScoreForQuestion(any(UUID.class)))
+                .thenReturn(Optional.empty());
+        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
                 .thenReturn(Optional.of(question));
         when(answerRepository.hasViableFirstMove(eq(questionId), anyInt()))
                 .thenReturn(true);

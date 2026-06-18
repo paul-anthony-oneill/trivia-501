@@ -14,18 +14,23 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Pre-selects daily challenges at midnight UTC so questions are ready when the
- * first player arrives.  Also serves as an early-warning system: if no question
- * is viable for a category, the error is logged well before a player hits it.
+ * Pre-selects daily challenges at midnight on the 1st of each month so all
+ * days of the upcoming month are ready when players arrive.  Each day gets
+ * a question + starting score per category with a 10-day question cooldown.
+ *
+ * <p>Idempotent — if a challenge already exists for a day, it is skipped.
  */
 @Component
 @Slf4j
 public class DailyChallengeScheduler {
+
+    private static final UUID NIL_UUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     private final DailyChallengeRepository challengeRepository;
     private final QuestionRepository questionRepository;
@@ -45,130 +50,167 @@ public class DailyChallengeScheduler {
     }
 
     /**
-     * Runs at midnight UTC every day.  For each category that has at least one
-     * {@code suitable_for_daily} question, pre-selects the day's question and
-     * starting score.
-     *
-     * <p>Idempotent — if today's challenge already exists for a category, it is
-     * skipped.  This is safe to run multiple times (e.g. on app restart).
+     * Runs at midnight UTC on the 1st of every month. Generates daily
+     * challenges for every day of the current month, for every category
+     * that has eligible questions.
      */
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 0 0 1 * *")
     @Transactional
     public void selectDailyChallenges() {
-        LocalDate today = LocalDate.now();
-        log.info("Daily challenge selection starting for {}", today);
+        YearMonth month = YearMonth.now();
+        LocalDate firstOfMonth = month.atDay(1);
+        LocalDate lastOfMonth = month.atEndOfMonth();
+        log.info("Monthly daily challenge generation starting for {} ({}–{})",
+                month, firstOfMonth, lastOfMonth);
 
         List<Category> categories = categoryRepository.findAll();
-        int created = 0;
-        int skipped = 0;
-        int failed = 0;
+        int totalCreated = 0;
+        int totalSkipped = 0;
+        int totalFailed = 0;
 
         for (Category category : categories) {
-            try {
-                // The test category exists for development only — never produce a daily challenge.
-                if ("test".equals(category.getSlug())) {
-                    skipped++;
-                    continue;
+            if ("test".equals(category.getSlug())) continue;
+
+            if (!questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(
+                    category.getId(), Question.STATUS_ACTIVE)) {
+                log.debug("No suitable_for_daily questions for '{}', skipping", category.getSlug());
+                continue;
+            }
+
+            for (LocalDate date = firstOfMonth; !date.isAfter(lastOfMonth); date = date.plusDays(1)) {
+                try {
+                    // Skip if challenge already exists for this day
+                    if (challengeRepository.findByChallengeDateAndCategoryId(date, category.getId()).isPresent()) {
+                        totalSkipped++;
+                        continue;
+                    }
+
+                    // Questions used in the cooldown window [date-10, date)
+                    LocalDate cooldownStart = date.minusDays(DifficultyConstants.DAILY_QUESTION_COOLDOWN_DAYS);
+                    List<UUID> recentQuestionIds = challengeRepository.findQuestionIdsUsedBetween(
+                            category.getId(), cooldownStart, date);
+
+                    // Yesterday's score for this category (anti-consecutive-repeat)
+                    int yesterdayScore = challengeRepository
+                            .findLatestStartingScoreBefore(category.getId(), date)
+                            .orElse(-1);
+
+                    var result = findViableQuestionAndScore(
+                            questionRepository, answerRepository, challengeRepository,
+                            category.getId(), yesterdayScore, recentQuestionIds);
+
+                    if (result == null) {
+                        log.warn("No viable question for '{}' on {} at any score (cooldown window: {} days)",
+                                category.getSlug(), date,
+                                DifficultyConstants.DAILY_QUESTION_COOLDOWN_DAYS);
+                        totalFailed++;
+                        continue;
+                    }
+
+                    DailyChallenge challenge = DailyChallenge.builder()
+                            .challengeDate(date)
+                            .categoryId(category.getId())
+                            .questionId(result.question().getId())
+                            .startingScore(result.score())
+                            .status("active")
+                            .build();
+
+                    challengeRepository.save(challenge);
+                    totalCreated++;
+                    log.debug("Daily challenge: {} / {} / q={} score={}",
+                            date, category.getSlug(), result.question().getId(), result.score());
+
+                } catch (Exception e) {
+                    log.error("Failed for '{}' on {}", category.getSlug(), date, e);
+                    totalFailed++;
                 }
-
-                // Skip if today's challenge already exists
-                if (challengeRepository.findByChallengeDateAndCategoryId(today, category.getId()).isPresent()) {
-                    skipped++;
-                    continue;
-                }
-
-                // Check if this category has any suitable_for_daily questions
-                if (!questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(
-                        category.getId(), Question.STATUS_ACTIVE)) {
-                    log.debug("No suitable_for_daily questions for category '{}', skipping", category.getSlug());
-                    skipped++;
-                    continue;
-                }
-
-                // Avoid repeating yesterday's starting score in the same category
-                int yesterdayScore = challengeRepository
-                    .findLatestStartingScoreBefore(category.getId(), today)
-                    .orElse(-1);
-
-                var result = findViableQuestionAndScore(category.getId(), yesterdayScore);
-                if (result == null) {
-                    log.warn("No viable daily question for category '{}' at any starting score", category.getSlug());
-                    failed++;
-                    continue;
-                }
-
-                DailyChallenge challenge = DailyChallenge.builder()
-                        .challengeDate(today)
-                        .categoryId(category.getId())
-                        .questionId(result.question().getId())
-                        .startingScore(result.score())
-                        .status("active")
-                        .build();
-
-                challengeRepository.save(challenge);
-                created++;
-                log.info("Daily challenge created for '{}': questionId={}, startingScore={}",
-                        category.getSlug(), result.question().getId(), result.score());
-
-            } catch (Exception e) {
-                log.error("Failed to create daily challenge for category '{}'", category.getSlug(), e);
-                failed++;
             }
         }
 
-        log.info("Daily challenge selection complete: created={}, skipped={}, failed={}", created, skipped, failed);
+        log.info("Monthly generation complete: created={}, skipped={}, failed={}", totalCreated, totalSkipped, totalFailed);
     }
 
+    // ── Question selection (static — shared with DailyChallengeService) ──────
+
     /**
-     * Finds a (question, score) pair where the question's answer pool supports
-     * the score. Tries candidate scores in random order, falling back through
-     * the full pool if the first choice fails.
+     * Finds a (question, score) pair where the question is viable for the given
+     * starting score and hasn't been used recently.
      *
-     * @param yesterdayScore the score used yesterday for this category, or -1
+     * @param yesterdayScore    the score used on the previous day for this category, or -1
+     * @param recentQuestionIds questions used in the last 10 days (will be excluded)
      * @return a viable pair, or null if exhausted
      */
     public static QuestionScorePair findViableQuestionAndScore(
-            QuestionRepository questionRepo, AnswerRepository answerRepo,
-            UUID categoryId, int yesterdayScore
+            QuestionRepository        questionRepo,
+            AnswerRepository          answerRepo,
+            DailyChallengeRepository  challengeRepo,
+            UUID                      categoryId,
+            int                       yesterdayScore,
+            List<UUID>                recentQuestionIds
     ) {
+        List<UUID> excludeIds = recentQuestionIds.isEmpty()
+                ? List.of(NIL_UUID)
+                : recentQuestionIds;
+
         int score = DifficultyConstants.pickDailyStartingScore(yesterdayScore);
 
-        Optional<Question> questionOpt = findViableQuestion(questionRepo, answerRepo, categoryId, score);
-        if (questionOpt.isPresent()) {
-            return new QuestionScorePair(questionOpt.get(), score);
+        // Try with the random pick first
+        QuestionScorePair result = tryPair(questionRepo, answerRepo, challengeRepo,
+                categoryId, score, excludeIds);
+        if (result != null) return result;
+
+        // Fallback: try every other score in the pool
+        for (int s : DifficultyConstants.DAILY_STARTING_SCORES) {
+            if (s == score) continue;
+            result = tryPair(questionRepo, answerRepo, challengeRepo,
+                    categoryId, s, excludeIds);
+            if (result != null) return result;
         }
 
-        // Fallback: try every score in the pool (the first pick might have been a
-        // bad match for first-move viability)
-        for (int fallback : DifficultyConstants.DAILY_STARTING_SCORES) {
-            if (fallback == score) continue; // already tried
-            questionOpt = findViableQuestion(questionRepo, answerRepo, categoryId, fallback);
-            if (questionOpt.isPresent()) {
-                return new QuestionScorePair(questionOpt.get(), fallback);
+        // Soft-fallback: accept any viable pair even if score repeats
+        for (int s : DifficultyConstants.DAILY_STARTING_SCORES) {
+            Optional<Question> qOpt = findViableQuestion(
+                    questionRepo, answerRepo, categoryId, s, excludeIds);
+            if (qOpt.isPresent()) {
+                return new QuestionScorePair(qOpt.get(), s);
             }
         }
 
         return null;
     }
 
-    private QuestionScorePair findViableQuestionAndScore(UUID categoryId, int yesterdayScore) {
-        return findViableQuestionAndScore(questionRepository, answerRepository, categoryId, yesterdayScore);
+    /** Tries one (score) candidate; returns null if no viable question exists
+     *  or if the score would repeat for the selected question. */
+    private static QuestionScorePair tryPair(
+            QuestionRepository        questionRepo,
+            AnswerRepository          answerRepo,
+            DailyChallengeRepository  challengeRepo,
+            UUID                      categoryId,
+            int                       score,
+            List<UUID>                excludeIds
+    ) {
+        Optional<Question> qOpt = findViableQuestion(
+                questionRepo, answerRepo, categoryId, score, excludeIds);
+        if (qOpt.isEmpty()) return null;
+
+        Question q = qOpt.get();
+        Integer lastScore = challengeRepo
+                .findLatestStartingScoreForQuestion(q.getId()).orElse(null);
+        if (lastScore != null && lastScore == score) {
+            return null; // same question + same score — try a different score
+        }
+        return new QuestionScorePair(q, score);
     }
 
-    /**
-     * Finds a random daily-suitable question and verifies it has at least one
-     * answer the player can play on the first turn (score ≤ startingScore +
-     * FIRST_MOVE_MARGIN, to allow checkout-window moves).
-     */
     private static Optional<Question> findViableQuestion(
-            QuestionRepository questionRepo, AnswerRepository answerRepo,
-            UUID categoryId, int startingScore
+            QuestionRepository questionRepo,
+            AnswerRepository   answerRepo,
+            UUID               categoryId,
+            int                startingScore,
+            List<UUID>         excludeIds
     ) {
         Optional<Question> questionOpt = questionRepo.findRandomDailyQuestion(
-                categoryId, startingScore,
-                DifficultyConstants.DAILY_MIN_DIFFICULTY,
-                DifficultyConstants.DAILY_MAX_DIFFICULTY);
-
+                categoryId, startingScore, excludeIds);
         if (questionOpt.isEmpty()) return Optional.empty();
 
         Question q = questionOpt.get();

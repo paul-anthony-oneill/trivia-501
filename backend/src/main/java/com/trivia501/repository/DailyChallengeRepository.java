@@ -37,4 +37,34 @@ public interface DailyChallengeRepository extends JpaRepository<DailyChallenge, 
         @Param("categoryId") UUID categoryId,
         @Param("today") LocalDate today
     );
+
+    /**
+     * Returns question IDs used for a category within a date window
+     * (inclusive start, exclusive end), for the 10-day cooldown check.
+     */
+    @Query("""
+        SELECT dc.questionId FROM DailyChallenge dc
+        WHERE dc.categoryId = :categoryId
+          AND dc.challengeDate >= :since
+          AND dc.challengeDate < :until
+        """)
+    List<UUID> findQuestionIdsUsedBetween(
+        @Param("categoryId") UUID categoryId,
+        @Param("since") LocalDate since,
+        @Param("until") LocalDate until
+    );
+
+    /**
+     * Returns the starting score the last time a specific question was used
+     * as a daily challenge, so we can avoid repeating the same score.
+     */
+    @Query("""
+        SELECT dc.startingScore FROM DailyChallenge dc
+        WHERE dc.questionId = :questionId
+        ORDER BY dc.challengeDate DESC
+        LIMIT 1
+        """)
+    Optional<Integer> findLatestStartingScoreForQuestion(
+        @Param("questionId") UUID questionId
+    );
 }

@@ -141,10 +141,11 @@ public final class DifficultyConstants {
 
     /**
      * Maximum difficulty score for daily challenge eligibility (inclusive).
-     * Capped at 3.5 so daily challenges stay in the easy-to-moderate range.
-     * Scores above this are reserved for standard ranked play.
+     * Raised to 10.0 (the scale maximum) — difficulty is no longer a meaningful
+     * filter now that composite appearance questions make all league/club questions
+     * viable. The {@code suitable_for_daily} flag is the primary gate.
      */
-    public static final double DAILY_MAX_DIFFICULTY = 3.5;
+    public static final double DAILY_MAX_DIFFICULTY = 10.0;
 
     // ── Daily challenge starting scores ───────────────────────────────────────
 
@@ -158,6 +159,12 @@ public final class DifficultyConstants {
         357, 343, 329, 315, 301, 287, 273, 259, 245, 231,
         217, 203, 189, 174, 170, 157, 141, 127, 114, 101,
     };
+
+    /**
+     * Number of days before the same question can be selected again for a daily
+     * challenge in the same category.
+     */
+    public static final int DAILY_QUESTION_COOLDOWN_DAYS = 10;
 
     /**
      * Margin added to the starting score when checking first-move viability.

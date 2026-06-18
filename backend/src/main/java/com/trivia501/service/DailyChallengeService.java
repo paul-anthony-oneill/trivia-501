@@ -65,6 +65,20 @@ public class DailyChallengeService {
     }
 
     /**
+     * Deletes today's challenge for a category so it can be regenerated.
+     * No-op if none exists.
+     */
+    @Transactional
+    public void deleteTodaysChallenge(UUID categoryId) {
+        LocalDate today = LocalDate.now();
+        challengeRepository.findByChallengeDateAndCategoryId(today, categoryId)
+                .ifPresent(challenge -> {
+                    challengeRepository.delete(challenge);
+                    log.info("Deleted daily challenge for {} / {}", today, categoryId);
+                });
+    }
+
+    /**
      * Returns today's challenge for a specific category, creating it lazily if
      * the scheduler has not run yet (or if no question was pre-selected).
      */
@@ -180,13 +194,17 @@ public class DailyChallengeService {
         }
 
         LocalDate today = LocalDate.now();
+        LocalDate cooldownStart = today.minusDays(DifficultyConstants.DAILY_QUESTION_COOLDOWN_DAYS);
+        List<UUID> recentQuestionIds = challengeRepository.findQuestionIdsUsedBetween(
+                categoryId, cooldownStart, today);
         int yesterdayScore = challengeRepository
             .findLatestStartingScoreBefore(categoryId, today)
             .orElse(-1);
 
         DailyChallengeScheduler.QuestionScorePair result =
             DailyChallengeScheduler.findViableQuestionAndScore(
-                questionRepository, answerRepository, categoryId, yesterdayScore);
+                questionRepository, answerRepository, challengeRepository,
+                categoryId, yesterdayScore, recentQuestionIds);
 
         if (result == null) {
             throw new IllegalStateException(
