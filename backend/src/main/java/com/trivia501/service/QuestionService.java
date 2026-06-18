@@ -98,6 +98,11 @@ public class QuestionService {
         return questionRepository.findById(questionId);
     }
 
+    @Transactional(readOnly = true)
+    public List<Question> getQuestionsByIds(List<UUID> questionIds) {
+        return questionRepository.findAllById(questionIds);
+    }
+
     /**
      * Check if a question has minimum number of answers.
      *

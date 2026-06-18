@@ -28,7 +28,9 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/daily-challenge")
@@ -74,10 +76,21 @@ public class DailyChallengeController {
     public ResponseEntity<DailyChallengeStatusResponse> getStatus() {
         List<DailyChallenge> challenges = dailyChallengeService.getTodaysChallenges();
 
+        // Bulk-fetch categories and questions to avoid N+1 queries
+        List<UUID> categoryIds = challenges.stream()
+                .map(DailyChallenge::getCategoryId).distinct().toList();
+        List<UUID> questionIds = challenges.stream()
+                .map(DailyChallenge::getQuestionId).distinct().toList();
+
+        Map<UUID, Category> categoriesById = categoryRepository.findAllById(categoryIds).stream()
+                .collect(Collectors.toMap(Category::getId, c -> c));
+        Map<UUID, Question> questionsById = questionService.getQuestionsByIds(questionIds).stream()
+                .collect(Collectors.toMap(Question::getId, q -> q));
+
         List<DailyChallengeStatusResponse.CategoryChallenge> items = new ArrayList<>();
         for (DailyChallenge dc : challenges) {
-            Category category = categoryRepository.findById(dc.getCategoryId()).orElse(null);
-            Question question = questionService.getQuestionById(dc.getQuestionId()).orElse(null);
+            Category category = categoriesById.get(dc.getCategoryId());
+            Question question = questionsById.get(dc.getQuestionId());
 
             items.add(DailyChallengeStatusResponse.CategoryChallenge.builder()
                     .categorySlug(category != null ? category.getSlug() : "unknown")

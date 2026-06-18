@@ -225,29 +225,45 @@ export default function LobbyView({
           </div>
 
           {/* Daily Challenges */}
-          {!dailyLoading && (dailyChallenges.length > 0 || dailyError) && (
-            <div className="mb-8">
-              <div className="flex items-center gap-2.5 mb-3">
-                <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
-                <span className="kicker">Today&apos;s Challenges</span>
-                <span className="ml-auto kicker opacity-60 hidden sm:block">
-                  Score once · Share with friends
-                </span>
-              </div>
+          <div className="mb-8">
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
+              <span className="kicker">Today&apos;s Challenges</span>
+              <span className="ml-auto kicker opacity-60 hidden sm:block">
+                Score once · Share with friends
+              </span>
+            </div>
 
-              {dailyError && (
-                <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
-                  <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
-                  <button
-                    onClick={onRetryDailies}
-                    className="kicker text-accent hover:text-ink transition-colors shrink-0"
+            {dailyLoading && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex-shrink-0 w-56 bg-surface border border-line rounded-md p-4 animate-pulse"
                   >
-                    Retry
-                  </button>
-                </div>
-              )}
+                    <div className="h-4 bg-line rounded w-3/4 mb-3" />
+                    <div className="h-8 bg-line rounded w-1/2 mb-3" />
+                    <div className="h-3 bg-line rounded w-full mb-2" />
+                    <div className="h-3 bg-line rounded w-5/6" />
+                  </div>
+                ))}
+              </div>
+            )}
 
-              {!dailyError && <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+            {dailyError && !dailyLoading && (
+              <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
+                <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
+                <button
+                  onClick={onRetryDailies}
+                  className="kicker text-accent hover:text-ink transition-colors shrink-0"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {!dailyLoading && !dailyError && dailyChallenges.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
                 {dailyChallenges.map((dc) => {
                   const isThisStarting = starting === dc.categorySlug;
                   const lock = dc.lockState;
@@ -311,9 +327,10 @@ export default function LobbyView({
                     </button>
                   );
                 })}
-              </div>}
-            </div>
-          )}
+              </div>
+            )}
+
+          </div>
 
         </div>
 
