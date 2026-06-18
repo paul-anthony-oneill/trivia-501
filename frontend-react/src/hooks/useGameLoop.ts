@@ -110,6 +110,8 @@ export interface GameLoopState {
   turnCount: number;
   /** Overall lifecycle of the game session. */
   gameStatus: GameStatus;
+  /** True when the game ended via CHECKOUT (win), false for bust-out/forfeit. */
+  isWin: boolean;
   /** Move history, newest first. */
   moves: Move[];
   /** Entity type driving the autocomplete dropdown (e.g. "footballer", "city"). */
@@ -176,6 +178,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
   const [question, setQuestion] = useState("");
   const [turnCount, setTurnCount] = useState(0);
   const [gameStatus, setGameStatus] = useState<GameStatus>("NOT_STARTED");
+  const [isWin, setIsWin] = useState(false);
   const [moves, setMoves] = useState<Move[]>([]);
   const [entityType, setEntityType] = useState("footballer");
   const [hints, setHints] = useState<GameHints | null>(null);
@@ -236,9 +239,9 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         setTurnCount(game.turnCount ?? 0);
         setEntityType(game.entityType ?? "footballer");
         setHints(game.hints ?? null);
-        setGameStatus(
-          game.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS",
-        );
+        const completed = game.status === "COMPLETED";
+        setGameStatus(completed ? "COMPLETED" : "IN_PROGRESS");
+        setIsWin(completed && game.isWin === true);
 
         // Restore categorySlug for daily challenge lock writes
         if (savedGameType === "daily-challenge" && saved.categorySlug) {
@@ -479,8 +482,12 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     else if (r.result === "INVALID")
       addToast(reasonText || "Not a valid answer — try again", "error");
 
-    if (r.isWin) {
+    const gameCompleted = (r.gameState as Record<string, unknown>)?.status === "COMPLETED";
+    const gameWasWon = r.isWin === true;
+
+    if (gameCompleted) {
       setGameStatus("COMPLETED");
+      setIsWin(gameWasWon);
       clearSavedGameState();
       if (gameType === "daily-challenge" && currentCategorySlug && gameId) {
         setDailyLockCompleted(currentCategorySlug, gameId);
@@ -498,6 +505,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     abandonCurrentGame();
     clearSavedGameState();
     setGameStatus("NOT_STARTED");
+    setIsWin(false);
     setGameId(null);
     setQuestionId(null);
     setCurrentCategorySlug(null);
@@ -515,6 +523,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     question,
     turnCount,
     gameStatus,
+    isWin,
     moves,
     entityType,
     hints,

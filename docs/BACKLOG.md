@@ -1,6 +1,6 @@
 # Trivia 501 — Backlog & Future Work
 
-**Last updated**: 2026-06-14 (added P2 item: Go Result Integrity Service)  
+**Last updated**: 2026-06-17 (added Option B player2 cleanup plan; updated multiplayer deferred entry; resolved null-player2 tension item)  
 **Purpose**: Living document capturing all deferred work, stretch goals, and improvement ideas regardless of size or urgency. Update this whenever a decision is made to defer something, or when a backlog item is completed or abandoned.
 
 **Product direction** (2026-06-08): The game is now focused on **single-player daily challenges** as the core experience — Wordle-style social trivia where everyone plays the same question with the same parameters each day and shares results with friends. A separate **Free Play** mode (formerly "practice") lets players pick any category/question to play on their own terms. Async friend challenges (play the same question and compare) are a planned social feature. The ranking/MMR/league-tier system and real-time multiplayer are deferred indefinitely.
@@ -37,6 +37,15 @@
 | MatchView 30s clock re-render | — | Resolved by the UI redesign: the teletext header status line was deleted and the `setInterval`/`setNow` state went with it. Was an Architecture & Code Quality finding (2026-06-09 review). |
 | Delete dead `questionHierarchy.ts` | — | Orphaned when the lobby drill-down nav replaced `CategoryPopup.tsx` (deleted in the UI redesign); grep confirmed zero remaining imports. Closes the "deferred cleanup" note on the lobby redesign row below. |
 | Frontend test suite — Phase 1 | — | 99 behaviour tests across 5 files: share-grid emoji encoding (21 tests, exhaustive), country/flag utilities (18 tests), `apiFetch` auth injection (7 tests), `adminApi` URL construction + error handling (24 tests), `useGameLoop` state transitions + submit + popup + session restore (29 tests). Vitest + React Testing Library + jsdom configured. Extracted `buildShareText` pure utility from `page.tsx` to make share logic testable. `package.json` scripts: `npm test` (vitest run), `npm run test:watch` (vitest). TypeScript compiles clean. |
+| `/daily` error retry button | — | `useDailyChallenge` already exposed `refresh()`; `/daily/page.tsx` now destructures it and renders a Refresh button in the error state. One extra destructure + one button. |
+| `useGameLoop.startNewGame` stale-closure bug | — | `startNewGame` now hardcodes `/api/freeplay/start` instead of calling `apiBase()` which read stale `gameType` state. `startDailyChallenge` hardcodes `/api/daily-challenge`. |
+| Enter-key collision: EntitySearch throws wrong dart | — | Added `e.stopPropagation()` in `EntitySearch.handleKeyDown` Enter path so selecting a suggestion doesn't bubble to MatchView's Enter handler and throw the old staged value. |
+| Lobby pending state (double-click guard) | — | `LobbyView` tracks `starting: string \| null`; all rows disable when any start is in flight (`disabled={starting !== null}`), individual row shows loading when it's the one in progress. |
+| Daily challenges silently disappear on API fail | — | `page.tsx` now passes `dailyError` + `onRetryDailies` to `LobbyView`; lobby shows the dailies section on error (`dailyChallenges.length > 0 \|\| dailyError`) with a Retry button instead of hiding it. |
+| Auth test suite — P0 | — | 39 new tests: `OptionalJwtFilterTest` (21 tests — JWT auth, rejection, cookie creation/reuse/rotation, HTTP/HTTPS edge cases), `SecurityConfigTest` (4 tests — admin access, permitAll endpoints, stateless session, @PreAuthorize), `AuthContext.test.tsx` (14 tests — initial state, session population, backend confirmation, sign-in/out actions, cleanup). Backend 252 tests pass (0 failures), frontend 118 tests pass (6 files). |
+| DebugPanel gated to admins | — | Frontend: `MatchView` only renders `DebugPanel` when `user?.app_metadata?.role === "admin"`. Backend: `SecurityConfig` adds admin-only URL rule for `/answers` before the broad `permitAll`; both controllers add `@PreAuthorize("hasRole('ADMIN')")`. |
+| Data population — scraper run + Supabase migration | — | Scraper was run against local Docker for all seasons since 2000; data was then migrated to Supabase. Backlog entry was stale — data has been in Supabase all along. |
+| Loss/bust-out state | — | Frontend: `isWin` tracked as first-class state in `useGameLoop`; game completion detected from `gameState.status` not `r.isWin`. `MatchView` shows loss overlay (red score, "Better luck next time") when `isGameOver && !isWin`. |
 
 ---
 
@@ -49,19 +58,11 @@ These items must be complete before real players can use the game.
 - **Why deferred**: Admin access is backed by `@PreAuthorize("hasRole('ADMIN')")` on the backend, so the link being visible is cosmetic-only and not a security risk. The metadata provisioning step is a deployment/ops task.
 - **See**: `LobbyView.tsx` (header), `AuthContext.tsx`, Supabase dashboard → Auth → Users.
 
-### SECURITY: DebugPanel ships the daily challenge answer key to all players
-- **What**: 2026-06-11 security review finding (Medium severity). The in-game `DebugPanel` (`[?] DEBUG` button + Ctrl+Shift+D) is mounted unconditionally in `MatchView.tsx` with no `NODE_ENV` guard, and is backed by two ungated endpoints — `GET /api/daily-challenge/games/{gameId}/answers` and `GET /api/freeplay/games/{gameId}/answers` — that return the complete answer key (every valid answer, score, and validity flag). The daily-challenge variant matches the `GET /api/daily-challenge/** → permitAll` rule in `SecurityConfig`, so it is reachable with no authentication at all. Any player can one-click reveal all answers for today's daily challenge, defeating the core Wordle-style mechanic. "Trust-based" design tolerates determined cheaters looking up stats externally; it does not mean shipping a frictionless built-in answer reveal to every user.
-- **Fix**: Gate the `DebugPanel` mount behind `process.env.NODE_ENV !== "production"` (or remove it), and gate both `/answers` endpoints behind `@PreAuthorize("hasRole('ADMIN')")` or a `@Profile("!prod")` dev-only controller. See also the related ownership-check item in Architecture & Code Quality.
-- **Files**: `frontend-react/src/components/game/match/MatchView.tsx:396`, `frontend-react/src/components/game/DebugPanel.tsx`, `DailyChallengeController.java:295–312`, `FreePlayController.java:306–323`, `SecurityConfig.java:85`
 
 ### Frontend test suite — Phase 2 (component & integration tests)
 - **What**: Phase 1 (behaviour tests) is complete — 99 tests covering share-grid encoding, country utilities, `apiFetch`, `adminApi`, and `useGameLoop`. Phase 2 adds component tests (answer input flow), integration tests (daily challenge browse → start → play → share), and smoke tests (auth login/logout, guest path). Deferred until visual design stabilises.
 - **See**: `__tests__/` directory under `frontend-react/`; Vitest + React Testing Library setup.
 
-### Data population — run the scraper against the live database
-- **What**: The Python scraper service (`trivia-501-scraper/`) has never been run against the Supabase production database. Geography and Film categories were only just activated. Question difficulty scores were computed on whatever data existed at the time — the scores are only as good as the underlying answer counts. Without a full data population pass, question pools are thin and difficulty ratings are unreliable.
-- **Why deferred**: The scraper is a separate Python microservice that needs its own deployment and scheduling infrastructure. Acceptable for dev; unacceptable for real players.
-- **See**: `trivia-501-scraper/`, `QuestionMaterializerService.java`, `DifficultyCalculator.java`.
 
 ---
 
@@ -70,10 +71,10 @@ These items must be complete before real players can use the game.
 The following items were previously P0/P1 launch blockers but are now parked. The product focus has shifted to single-player daily challenges and Free Play. These may return as a future phase but have no timeline.
 
 ### Real-time multiplayer (WebSocket STOMP)
-- **What**: 1v1 real-time match communication over WebSocket (STOMP protocol). `GameStateMachine` and `GameService` have hooks for it, but no WebSocket handler is wired. The two-player turn alternation, opponent tracking, and match completion logic in `GameStateMachine` are designed for this but only tested via solo play.
+- **What**: 1v1 real-time match communication over WebSocket (STOMP protocol). No WebSocket handler is wired; the game engine is solo-only.
 - **Why parked**: Focus is on single-player daily challenges and Free Play. Multiplayer adds significant complexity (matchmaking, reconnection, timeout arbitration) that doesn't serve the current product direction.
-- **What stays**: `GameStateMachine` two-player logic, `MatchFormat` best-of-3/5, `player2Id` fields — these are not being removed, just not built out.
-- **See**: `docs/design/TECHNICAL_DESIGN.md`, `CLAUDE.md` — WebSocket Protocol section.
+- **Schema/engine note** (2026-06-17): The `player2_id`, `player2_score`, `player2_games_won`, and `player2_consecutive_timeouts` columns have been removed from the schema as part of the Option B cleanup (see "Planned Refactor: Strip player2…" in Architecture & Code Quality). When multiplayer is scoped, the schema and engine will be rebuilt from a real product spec. The close-finish rule and turn-alternation design intent are documented in `docs/GAME_RULES.md` for reference.
+- **See**: `docs/design/TECHNICAL_DESIGN.md`, `docs/GAME_RULES.md` (multiplayer rules reference section), `CLAUDE.md` — WebSocket Protocol section.
 
 ### MMR, league tiers, and ranked play
 - **What**: The 9-tier × 4-subtier ranking system (Sunday League → Icon), hidden MMR, Elo-based matchmaking, and ranked/casual mode split described in the PRD.
@@ -97,17 +98,142 @@ The following items were previously P0/P1 launch blockers but are now parked. Th
 
 Findings from the 2026-06-09 architectural review. Ordered by severity. None are launch blockers but the P1 items should be addressed before the codebase grows further.
 
+### Planned Refactor: Strip `player2` from the data model, engine, and tests — clean solo-only architecture
+
+**Decision** (2026-06-17): Remove all multiplayer scaffolding. The `player2_*` fields are baked into the DB schema, game engine, and service layer — not just tests. The existing design (1v1 match, close-finish rule, synchronous turn alternation) was never shipped and never validated. When multiplayer returns, it will be designed from scratch against a real product spec. The current scaffolding is a specific, opinionated bet on an unvalidated design that adds ongoing cognitive overhead to every code review, every new feature, and every bug fix. The tests that cover multiplayer code paths are not "safe to delete" on their own — they test real production branching. The right move is to remove the production branching and rewrite the tests to match.
+
+**What the tests cover that will go away**: close-finish rule (P1 checkout → P2 gets one final turn), turn-switching on BUST/INVALID, P2 abandonment forfeit, P2 timeout forfeit (opponent wins). These are documented below and in `docs/GAME_RULES.md` before deletion.
+
+**Future multiplayer cost**: low. The genuinely hard parts of multiplayer (WebSocket infrastructure, matchmaking, concurrent state, reconnection, latency arbitration) are entirely absent from the current code. Adding `player2_id` back is one Flyway migration. The engine logic will be rewritten against a real spec anyway. The current scaffolding is not a head start.
+
+---
+
+**Pre-work — Preserve design intent before deleting code**
+
+Add the following to `docs/GAME_RULES.md` under a "Multiplayer rules (reference — not yet implemented)" section before touching any code:
+
+- **Close-finish rule**: when Player 1 checks out, Player 2 gets one final turn before a winner is declared. If P2 also checks out, the player closer to 0 wins; if equal, it is a draw.
+- **Turn alternation**: players alternate turns. A BUST or INVALID move switches the turn without changing either player's score.
+- **Opponent timeout forfeit**: three consecutive timeouts forfeit the game; the opponent is declared the winner. In solo play, three timeouts trigger a bust-out (no winner).
+
+---
+
+**Step 1 — Flyway migration (next available version, V38+)**
+
+```sql
+-- Drop multiplayer-only columns
+ALTER TABLE games   DROP COLUMN IF EXISTS player2_score;
+ALTER TABLE games   DROP COLUMN IF EXISTS player2_consecutive_timeouts;
+ALTER TABLE matches DROP COLUMN IF EXISTS player2_id;
+ALTER TABLE matches DROP COLUMN IF EXISTS player2_games_won;
+DROP INDEX IF EXISTS idx_matches_player2;
+```
+
+Before running: confirm no `matches` rows have `status = 'WAITING'` in production. If any exist, `UPDATE matches SET status = 'ABANDONED' WHERE status = 'WAITING'` first, then remove the `WAITING` enum value from `Match.MatchStatus`.
+
+---
+
+**Step 2 — Model layer**
+
+- **`Match.java`**: Remove `player2Id`, `player2GamesWon` fields and their `@Column` / `@Index` annotations. Remove `MatchStatus.WAITING`. Evaluate `MatchFormat`: `BEST_OF_3` and `BEST_OF_5` have no solo use case — remove them and keep only `BEST_OF_1`. If a future multiplayer format is different, it will be added then with a real spec.
+- **`Game.java`**: Remove `player2Score`, `player2ConsecutiveTimeouts` fields and their `@Column` annotations. Remove the `player2Score` branch in `getScoreForPlayer()` — the method becomes a direct return of `player1Score`.
+- **`GameTransition.java`**: Remove `player2ConsecutiveTimeouts` from the record definition. Update all call sites that construct a `GameTransition` to remove the parameter.
+
+---
+
+**Step 3 — Engine (`GameStateMachine.java`)**
+
+This file has the most multiplayer branching. After the cleanup it models solo play only.
+
+- Remove `boolean isSolo = match.getPlayer2Id() == null` — all games are solo; delete every `isSolo` branch and keep the solo-path behaviour.
+- Remove `opponentOf(Match match, UUID playerId)` helper entirely.
+- Remove the close-finish rule block: the `CHECKOUT → P2 gets final turn → compare scores` sequence goes away. A CHECKOUT by the player ends the game immediately with that player as the winner.
+- Remove `p2Timeouts` / `player2ConsecutiveTimeouts` tracking in `onMoveSubmitted()` and `onTurnTimeout()`.
+- `onMoveSubmitted()` on BUST: remove `nextTurnPlayerId = opponentOf(...)` — the turn stays with the same player.
+- `onTurnTimeout()` on third timeout: `winner` becomes `null` (bust-out, no opponent to hand the win to) rather than `opponentOf(...)`.
+- Remove any reference to `CLOSE_FINISH` game state if it exists.
+
+After the cleanup `GameStateMachine` should have no reference to a second player and no conditional branching on player count.
+
+---
+
+**Step 4 — Service layer**
+
+`GameService.java`:
+- Remove `isPlayer2 = match.getPlayer2Id() != null && playerId.equals(match.getPlayer2Id())` check and the `isPlayer2` branch throughout `processPlayerMove()`.
+- `startGame()`: remove `.player2Score(startingScore)` and `.player2ConsecutiveTimeouts(0)` from the `Game` builder — those fields are gone.
+- `getCurrentScore()`: simplify from the P1/P2 conditional to a direct return of `player1Score`.
+- `applyTransitionToGame()`: remove the `player2Score` and `player2ConsecutiveTimeouts` write paths.
+- `abandonGame()`: remove the P2 identity check.
+
+`MatchService.java`:
+- Remove `UUID player2Id` parameter from `createMatch()` — all callers pass `null` today; the parameter is dead.
+- Remove `player2GamesWon` tracking in `handleGameCompletion()`.
+- Simplify `isMatchOver()` — only `player1GamesWon >= requiredWins` matters.
+- Simplify `determineMatchWinner()` — only `player1GamesWon > player2GamesWon` branch applies; remove the P2 winner path.
+
+`DailyChallengeService.java`:
+- Remove the `null, // solo — no opponent` argument from the `createMatch()` call — the parameter no longer exists.
+
+---
+
+**Step 5 — Repository layer**
+
+`MatchRepository.java`:
+- Simplify every `WHERE (m.player1Id = :playerId OR m.player2Id = :playerId)` clause to `WHERE m.player1Id = :playerId`. There is only one player per match.
+- Remove `findByStatusAndPlayer2IdIsNull(MatchStatus status)` — the concept of "waiting for a second player" is gone.
+
+`GameRepository.java`:
+- Same simplification: remove `OR m.player2Id = :playerId` from all JPQL queries.
+
+---
+
+**Step 6 — Rewrite tests (do NOT just delete)**
+
+Deleting multiplayer tests without removing the underlying production code leaves untested branches. These tests exist because the production code has branches — remove both together.
+
+- **`GameStateMachineTest.java`**: Remove `player2Id` field, `multiMatch` fixture, and all tests that exercise multiplayer paths: P2 checkout winning (`checkoutByP2_multiplayer_immediateWin`), close-finish rule (`checkoutByP1_multiplayer_applyCloseFinishRule`), close-finish score comparison, P2 timeout forfeit. Keep and sharpen: solo checkout, solo BUST (no score change, same player), solo INVALID, solo timeout (player stays same), solo third-timeout (no winner). Remove `.player2Score(501)` and `.player2ConsecutiveTimeouts(0)` from the solo `Game` fixture.
+- **`GameServiceTest.java`**: Remove P2 turn-switch assertions (`assertThat(savedGame.getCurrentTurnPlayerId()).isEqualTo(player2Id)`), the close-finish setup block (`game.setPlayer2Score(50)`, `currentTurnPlayerId(player2Id)`), P2 abandonment test (`shouldAllowAbandonmentByPlayer2`), and `assertThat(savedGame.getPlayer2Score()).isEqualTo(-2)`. Keep all solo-path tests. Remove `player2Id` field from `@BeforeEach`.
+- **`MatchServiceTest.java`**: Remove `player2Id` field. Remove tests for P2 winning games within a match, P2 winning the match overall, and `shouldCreateMatchWithNullPlayer2` (the concept of null-player2 is gone — all matches are single-player). Rewrite `shouldCreateMatch` to reflect the simplified `createMatch()` signature.
+- **`FreePlayControllerTest.java`**: Remove `.player2Id(null)`, `.player2Score(501)`, `.player1Score(465).player2Score(501)`, `.player1Score(0).player2Score(501)` from all test fixture builders — those fields no longer exist on the model.
+
+---
+
+**Step 7 — Documentation and CLAUDE.md**
+
+- **`docs/GAME_RULES.md`**: Add the multiplayer reference section (from the pre-work step) before touching code.
+- **`CLAUDE.md`**: Remove or update the "Common Pitfalls" entry about `isSolo` branching; remove the WebSocket Protocol section or mark it as entirely design-reference with no corresponding code. Update "Solo vs multiplayer: null-player2 design tension" in the Backend Hardening backlog entry to "Resolved — see Option B cleanup".
+- **`GameStateMachine.java` Javadoc**: Remove the `CHECKOUT — triggers the close-finish rule in multiplayer` bullet from the class-level comment.
+- **`MatchService.java`**: Remove the `@param player2Id` Javadoc on `createMatch()`.
+- **`BACKLOG.md` (this file)**: Update "Real-time multiplayer" deferred entry — remove the "What stays: … player2Id fields — these are not being removed" note, since they are now removed.
+
+---
+
+**Verification checklist before closing**
+
+- [ ] `./mvnw test` passes with zero failures (backend)
+- [ ] `npm test` passes with zero failures (frontend)
+- [ ] `npx tsc --noEmit` clean (frontend)
+- [ ] `GET /api/daily-challenge/status` returns 200 in dev
+- [ ] `POST /api/freeplay/start` → play a game to checkout → `GET /api/freeplay/games/{id}` returns `status: COMPLETED`
+- [ ] No `player2` references remain in `src/main/java` (grep check)
+- [ ] Flyway migration applies cleanly from a fresh schema (run `mvn flyway:clean flyway:migrate` locally)
+
+**Files affected**: `Match.java`, `Game.java`, `GameTransition.java`, `GameStateMachine.java`, `GameService.java`, `MatchService.java`, `DailyChallengeService.java`, `MatchRepository.java`, `GameRepository.java`, `GameStateMachineTest.java`, `GameServiceTest.java`, `MatchServiceTest.java`, `FreePlayControllerTest.java`, `docs/GAME_RULES.md`, `CLAUDE.md`, new Flyway migration `V38__drop_player2_columns.sql`.
+
+---
+
 ### SECURITY: debug `/answers` endpoints compute `playerIdFrom(principal)` then discard it — no game-ownership check
 - **Severity**: Medium — missing authorization on a data-exposure endpoint (2026-06-11 security review)
 - **What**: Both `getGameAnswers` endpoints resolve the caller's player ID from the principal and then never compare it against the game's owner. Anyone who knows a `gameId` can dump that game's full answer key. UUIDs are unguessable so the blast radius is limited to one's own games in practice, but the pattern is a latent authorization gap — and the daily-challenge variant is `permitAll`, so not even an anonymous session is required. Contrast with the rest of the controllers, where identity from `Principal.getName()` is actually enforced.
 - **Fix**: If the endpoints survive the P0 gating fix (see "SECURITY: DebugPanel ships the daily challenge answer key" in P0), enforce ownership: load the game, compare its player ID to `playerIdFrom(principal)`, return 403 on mismatch. Apply the same check in any future per-game debug/inspection endpoint.
 - **Files**: `DailyChallengeController.java:295–312` (playerId computed at :300, unused), `FreePlayController.java:306–323` (playerId computed at :311, unused)
 
-### BUG: `useGameLoop.startNewGame` sends to wrong API path when called from a Daily Challenge game
+### ✅ BUG: `useGameLoop.startNewGame` sends to wrong API path when called from a Daily Challenge game
+- **Status**: Done.
 - **Severity**: Bug — silent failure for "Play Again" from Daily Challenge win screen
-- **What**: `startNewGame` calls `setGameType("freeplay")` then immediately calls `apiBase()` in the same synchronous function. React state updates are async, so `apiBase()` returns the **old** `gameType` ("daily-challenge"). The game start POST goes to `/api/daily-challenge/start` (non-existent) instead of `/api/freeplay/start`. The user sees "Failed to start game" with no explanation.
-- **Fix**: Don't call `apiBase()` inside `startNewGame`. Hardcode `/api/freeplay/start` and derive the abandon path from the captured `gameType` closure variable directly, not via `apiBase()`.
-- **Files**: `frontend-react/src/hooks/useGameLoop.ts:234–270`
+- **What**: `startNewGame` called `setGameType("freeplay")` then immediately called `apiBase()` in the same synchronous function. React state updates are async, so `apiBase()` returned the **old** `gameType` ("daily-challenge"). The game start POST went to `/api/daily-challenge/start` (non-existent) instead of `/api/freeplay/start`.
+- **Fix**: `startNewGame` now hardcodes `/api/freeplay/start`. `startDailyChallenge` hardcodes `/api/daily-challenge`.
 
 ### N+1 query + repository injected into `DailyChallengeController`
 - **Severity**: Performance bug + layering violation
@@ -192,7 +318,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/lobby/LobbyView.tsx:198–232`, `frontend-react/src/components/ui/ConfirmDialog.tsx`
 - **Learning notes**: "Hold a pending value in state, act on confirm" is the React equivalent of a two-phase commit in a service method. Interview angle: confirmation friction vs error prevention trade-off — when is a confirm dialog justified? (Answer: when the action is irreversible and accidental triggering is plausible.)
 
-### UX: No pending state when starting a game from the lobby — double-click fires duplicate starts
+### ✅ UX: No pending state when starting a game from the lobby — double-click fires duplicate starts
+- **Status**: Done.
 - **Severity**: 3 — Visibility of System Status + Error Prevention. The start flow is two network calls (abandon + POST start) with zero feedback; nothing disables, so users click again.
 - **Area**: Frontend-React (async state tracking, disabled patterns)
 - **What**: `LobbyView`'s `startGame` and the daily cards give no feedback between click and game start. On a slow connection users re-click — possibly a *different* row — firing overlapping starts. The `/daily` page already solves this correctly with a `starting` state; the lobby (the primary entry point) doesn't.
@@ -201,7 +328,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/lobby/LobbyView.tsx:97–102,507–546`, pattern reference: `frontend-react/src/app/daily/page.tsx:14,108–114`
 - **Learning notes**: This is the frontend half of idempotency. You know the backend half (unique constraints, `@Transactional`); the UI half is "disable the trigger while the request is in flight." Interview angle: client-side disabling is UX, not a security boundary — the server must still tolerate duplicates.
 
-### UX: The game has a win overlay but no loss state
+### ✅ UX: The game has a win overlay but no loss state
+- **Status**: Done (2026-06-16).
 - **Severity**: 3 — Visibility of System Status / Perceptibility. Bust-out (no valid moves remain) is a legal game ending with no UI; restored `COMPLETED` games always show the *win* screen.
 - **Area**: Cross-stack (API contract design + React conditional rendering)
 - **What**: `MatchView` renders an end-of-game overlay only when `isWin` is true, and `useGameLoop` only ends the game on `r.isWin`. A player who busts out of a daily sits in a dead game with no terminal feedback. Worse: the restore path maps any server `status === "COMPLETED"` to the win overlay — a restored *lost* game says "Game shot!".
@@ -219,7 +347,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/AnimatedScorePopup.tsx:35–90`
 - **Learning notes**: `requestAnimationFrame` + cleanup in `useEffect`'s return function is the React idiom for cancellable background work — conceptually like cancelling a `Future`. Interview angle: "celebration animations need a skip affordance" is a known game-UX pattern; reduced-motion support proving the short path works is a nice defence.
 
-### UX: Enter-key collision can throw the wrong dart
+### ✅ UX: Enter-key collision can throw the wrong dart
+- **Status**: Done.
 - **Severity**: 3 — Error Prevention. One keypress performs two actions, one of them irreversible.
 - **Area**: Frontend-React (event bubbling, stale closures — the best pure-React lesson in this list)
 - **What**: `MatchView` listens for Enter on the wrapper div to fire `handleThrowDart()`; `EntitySearch` handles Enter to select a suggestion and calls `preventDefault()` but **not** `stopPropagation()`. Keydown events bubble. If an answer is already staged and the player presses Enter to select a *different* suggestion, the child stages the new name **and** the bubbled event reaches the parent — which throws the dart using the **old** staged value still captured in that render's closure.
@@ -228,7 +357,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/EntitySearch.tsx:102–122`, `frontend-react/src/components/game/match/MatchView.tsx:113–117`
 - **Learning notes**: Event bubbling is the DOM's version of an exception propagating up the call stack until something catches it. Stale closures are *the* React gotcha for backend developers — state reads inside handlers are snapshots from the render that created the handler, not live references. If an interviewer asks "what's tricky about React state?", this bug is a concrete, war-story answer.
 
-### UX: Daily challenges silently disappear from the lobby when the API fails
+### ✅ UX: Daily challenges silently disappear from the lobby when the API fails
+- **Status**: Done.
 - **Severity**: 3 — Error Recovery. The product's core feature vanishes without a trace on a failed fetch.
 - **Area**: Frontend-React (error propagation through hooks and props)
 - **What**: `useDailyChallenge` exposes `error` and `refresh()`, but `page.tsx` only passes `challenges` and `loading` down to `LobbyView`, whose render condition (`!dailyLoading && dailyChallenges.length > 0`) hides the entire section. A player arriving from a share link on flaky wifi sees no dailies, assumes there's no challenge today, and leaves — and nobody ever files a bug because nothing looks broken.
@@ -327,7 +457,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/hooks/useGameLoop.ts:245–254,290–299,334–343`, `frontend-react/src/app/daily/page.tsx:22–26`, `frontend-react/src/app/daily/[category]/page.tsx:53–57`, backend: `GlobalExceptionHandler.java`
 - **Learning notes**: You own both sides of this contract — rare in tutorials, common in jobs. Interview angle: error-message taxonomy (user-actionable vs developer-diagnostic) and why the boundary belongs in the API contract, not in frontend string-matching.
 
-### UX: /daily error state offers no retry
+### ✅ UX: /daily error state offers no retry
+- **Status**: Done.
 - **Severity**: 2 — Error Recovery. One line of red text, dead end — while the hook's `refresh()` sits unused.
 - **Area**: Frontend-React (smallest hook-wiring exercise in the set)
 - **What**: On fetch failure `/daily` renders the error string and nothing else. The retry function already exists in `useDailyChallenge`.
@@ -414,6 +545,18 @@ These don't block the first players but should follow quickly.
 - **Why deferred**: Not a launch blocker without multiplayer. The client timer display works; server enforcement is a polish pass.
 - **See**: `GameStateMachine.java`, `GameService.java`.
 
+### Email/password authentication
+- **What**: Add email + password sign-up and sign-in as an alternative to Google OAuth. Supabase's built-in email provider supports this natively via `signUp()` and `signInWithPassword()`. Needs: (1) a sign-up form component (email, password, confirm password), (2) a sign-in form component (email, password), (3) `signUpWithEmail` and `signInWithEmail` methods on `AuthContext`, (4) a toggle or tab UI so `LoginButton` offers both Google and email options, and (5) the email provider enabled in the Supabase dashboard (Auth > Providers > Email — usually on by default). Error handling should cover "email already registered", "invalid credentials", and password requirements surfaced from Supabase.
+- **Why deferred**: Google OAuth covers the happy path for most users and guest play is already functional. Email/password is a fallback for users who don't use Google or prefer not to link accounts.
+- **Priority**: P1 (shortly after launch)
+- **See**: `AuthContext.tsx`, `LoginButton.tsx`, Supabase Dashboard → Auth → Providers → Email.
+
+### Auth & sign-in test suite
+- **What**: Comprehensive automated test suite for the authorization and sign-in flow. **P0 complete** (39 tests: `OptionalJwtFilterTest` 21, `SecurityConfigTest` 4, `AuthContext.test.tsx` 14). **P1–P3 remaining**: `JwtConfigTest`, `RateLimitFilterTest`, `PlayerProfileServiceTest`, `LoginButton.test.tsx`, `middleware.test.ts`, `auth/callback/route.test.ts`, backend integration, E2E Playwright tests. Estimated 8–12h for remaining tiers.
+- **Why deferred**: P0 critical paths are covered. Remaining tiers are important but don't block feature development.
+- **See**: `docs/testing/AUTH_TEST_PLAN.md` (full plan with 6 priority levels, ~50+ individual test cases, and manual runbook).
+- **Priority**: P1 (shortly after launch) — P0 done, P1-P3 remaining
+
 ### Loading, error, and empty state consistency
 - **What**: Around 60 references to loading states exist across components but there's no consistent pattern (some use inline conditionals, some use a `LoadingOverlay`, some don't handle loading at all). Certain flows lack error handling for API failures; others don't handle the empty/zero-results case (no autocomplete matches, no leagues found, no daily challenge available, no search results on admin pages). Every user-facing component must handle all three non-happy-path states.
 - **Why deferred**: Individual feature work is still adding new components; standardising patterns now would create churn. Better to audit and fix once the component landscape stabilises.
@@ -465,10 +608,8 @@ Stability and correctness improvements that are not urgently needed but should b
 - **Status**: Promoted to P0 launch blocker (see above). This item remains here as the original analysis with full context.
 - **Files**: `MatchService.java:141`, `GameStateMachine.java:138`, `GameService.java:139`.
 
-### Solo vs multiplayer: null-player2 design tension
-- **What**: Solo (Free Play) games reuse the two-player `Match`/`Game` models with `player2Id = null`. This works but creates scattered `isSolo` branching in `GameStateMachine` (4+ sites) and `GameService` (2 sites). Fields like `player2Score`, `player2GamesWon`, and `MatchFormat.BEST_OF_1` are meaningless in solo context. With multiplayer deferred indefinitely, the null-player2 approach carries dead weight — but ripping it out would be a large refactor for no user-facing gain.
-- **Verdict**: Keep the current null-based approach. The modes share ~80% of their logic and there's no third mode on the horizon. If the branching becomes a maintenance tax during Free Play work, extract it into a `TurnPolicy` strategy (SoloPolicy / TwoPlayerPolicy) that lives in one place.
-- **Files**: `GameStateMachine.java:67,123,253`, `GameService.java:209,284`, `MatchService.java:78,148`.
+### ~~Solo vs multiplayer: null-player2 design tension~~
+- **Status**: Resolved — Option B cleanup chosen (2026-06-17). See "Planned Refactor: Strip `player2` from the data model, engine, and tests" in Architecture & Code Quality above for the full implementation plan. The `player2_*` columns are being dropped via Flyway migration; `isSolo` branching in `GameStateMachine` and `GameService` is being removed; the engine becomes solo-only.
 
 ### Per-turn used-answer query grows with game length
 - **What**: `gameMoveRepository.findUsedAnswerIdsByGameId(gameId)` (called on every turn at `GameService.java:87`) fetches all used answer IDs from the start of the game. As a game progresses this set grows. Under load this is the query most likely to degrade first.
