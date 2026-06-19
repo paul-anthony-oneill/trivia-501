@@ -123,8 +123,7 @@ public class DailyChallengeController {
         for (var cat : cats) {
             if ("test".equals(cat.getSlug())) continue;
             try {
-                boolean existed = challengeRepository
-                        .findByChallengeDateAndCategoryId(today, cat.getId()).isPresent();
+                boolean existed = dailyChallengeService.todaysChallengeExists(cat.getId());
                 if (force) {
                     dailyChallengeService.deleteTodaysChallenge(cat.getId());
                     existed = false;

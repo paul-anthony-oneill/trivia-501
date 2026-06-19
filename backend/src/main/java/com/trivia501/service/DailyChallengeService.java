@@ -64,6 +64,13 @@ public class DailyChallengeService {
         return challengeRepository.findByChallengeDate(LocalDate.now());
     }
 
+    @Transactional(readOnly = true)
+    public boolean todaysChallengeExists(UUID categoryId) {
+        return challengeRepository
+                .findByChallengeDateAndCategoryId(LocalDate.now(), categoryId)
+                .isPresent();
+    }
+
     /**
      * Deletes today's challenge for a category so it can be regenerated.
      * No-op if none exists.
