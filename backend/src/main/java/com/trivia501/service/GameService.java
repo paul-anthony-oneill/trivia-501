@@ -4,14 +4,16 @@ import com.trivia501.engine.AnswerEvaluator;
 import com.trivia501.engine.AnswerResult;
 import com.trivia501.engine.GameStateMachine;
 import com.trivia501.engine.GameTransition;
+import com.trivia501.event.GameCompletedEvent;
 import com.trivia501.model.Game;
 import com.trivia501.model.GameMove;
 import com.trivia501.model.Match;
+import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.GameMoveRepository;
 import com.trivia501.repository.GameRepository;
 import com.trivia501.repository.MatchRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,29 +47,32 @@ public class GameService {
     private final GameRepository gameRepository;
     private final GameMoveRepository gameMoveRepository;
     private final MatchRepository matchRepository;
+    private final AnswerRepository answerRepository;
     private final AnswerEvaluator answerEvaluator;
     private final GameStateMachine gameStateMachine;
     private final PlayerProfileService playerProfileService;
-    private final MatchService matchService;
+    private final ApplicationEventPublisher eventPublisher;
     private final ResultSignerClient resultSignerClient;
 
     public GameService(
             GameRepository gameRepository,
             GameMoveRepository gameMoveRepository,
             MatchRepository matchRepository,
+            AnswerRepository answerRepository,
             AnswerEvaluator answerEvaluator,
             GameStateMachine gameStateMachine,
             PlayerProfileService playerProfileService,
-            @Lazy MatchService matchService,
+            ApplicationEventPublisher eventPublisher,
             ResultSignerClient resultSignerClient
     ) {
         this.gameRepository       = gameRepository;
         this.gameMoveRepository   = gameMoveRepository;
         this.matchRepository      = matchRepository;
+        this.answerRepository     = answerRepository;
         this.answerEvaluator      = answerEvaluator;
         this.gameStateMachine     = gameStateMachine;
         this.playerProfileService = playerProfileService;
-        this.matchService         = matchService;
+        this.eventPublisher       = eventPublisher;
         this.resultSignerClient   = resultSignerClient;
     }
 
@@ -102,7 +107,7 @@ public class GameService {
         validatePlayerTurn(game, playerId);
 
         List<UUID> usedAnswerIds = gameMoveRepository.findUsedAnswerIdsByGameId(gameId);
-        int currentScore = getPlayerScore(game, match, playerId);
+        int currentScore = game.getPlayer1Score();
 
         AnswerResult answerResult = answerEvaluator.evaluateAnswer(
                 game.getQuestionId(), answer, entityId, currentScore, usedAnswerIds);
@@ -117,10 +122,10 @@ public class GameService {
         gameRepository.save(game);
 
         if (transition.nextGameStatus() == Game.GameStatus.COMPLETED) {
-            matchService.handleGameCompletion(game);
+            eventPublisher.publishEvent(new GameCompletedEvent(
+                    game.getId(), game.getMatchId(), game.getWinnerId(),
+                    transition.moveResult() == GameMove.MoveResult.CHECKOUT));
         }
-
-        // Record game completion for authenticated players
         if (transition.moveResult() == GameMove.MoveResult.CHECKOUT) {
             playerProfileService.recordGameCompleted(playerId, transition.scoreAfter(), true);
 
@@ -156,7 +161,7 @@ public class GameService {
 
         validateGameInProgress(game);
 
-        int currentScore = getPlayerScore(game, match, playerId);
+        int currentScore = game.getPlayer1Score();
         GameTransition transition = gameStateMachine.onTimeout(game, match, playerId);
 
         GameMove timeoutMove = GameMove.builder()
@@ -175,7 +180,8 @@ public class GameService {
         gameRepository.save(game);
 
         if (transition.nextGameStatus() == Game.GameStatus.COMPLETED) {
-            matchService.handleGameCompletion(game);
+            eventPublisher.publishEvent(new GameCompletedEvent(
+                    game.getId(), game.getMatchId(), game.getWinnerId(), false));
         }
     }
 
@@ -198,22 +204,11 @@ public class GameService {
         Match match = getMatchOrThrow(game.getMatchId());
 
         boolean isPlayer1 = playerId.equals(match.getPlayer1Id());
-        boolean isPlayer2 = match.getPlayer2Id() != null && playerId.equals(match.getPlayer2Id());
-        if (!isPlayer1 && !isPlayer2) {
+        if (!isPlayer1) {
             throw new IllegalStateException("Player " + playerId + " is not part of match " + match.getId());
         }
 
-        if (game.getStatus() == Game.GameStatus.IN_PROGRESS) {
-            game.setStatus(Game.GameStatus.ABANDONED);
-            game.setCompletedAt(java.time.LocalDateTime.now());
-            gameRepository.save(game);
-        }
-
-        if (match.getStatus() == Match.MatchStatus.IN_PROGRESS) {
-            match.setStatus(Match.MatchStatus.ABANDONED);
-            match.setCompletedAt(java.time.LocalDateTime.now());
-            matchRepository.save(match);
-        }
+        abandonGameAndMatch(game);
 
         log.info("Game abandoned: gameId={}, matchId={}", gameId, match.getId());
     }
@@ -240,9 +235,7 @@ public class GameService {
                 .status(Game.GameStatus.IN_PROGRESS)
                 .currentTurnPlayerId(match.getPlayer1Id()) // Player 1 always goes first
                 .player1Score(startingScore)
-                .player2Score(startingScore)
                 .player1ConsecutiveTimeouts(0)
-                .player2ConsecutiveTimeouts(0)
                 .turnCount(0)
                 .turnTimerSeconds(GameStateMachine.DEFAULT_TIMER)
                 .build();
@@ -289,6 +282,27 @@ public class GameService {
     }
 
     /**
+     * Return all answers for a game's question (debug/admin endpoint).
+     * Validates that the requesting player owns the game.
+     */
+    @Transactional(readOnly = true)
+    public List<com.trivia501.dto.AnswerDebugResponse> getAnswersForGame(UUID gameId, UUID playerId) {
+        Game game = getGameOrThrow(gameId);
+        Match match = getMatchOrThrow(game.getMatchId());
+
+        if (!playerId.equals(match.getPlayer1Id())) {
+            throw new IllegalArgumentException("Player does not own game " + gameId);
+        }
+
+        return answerRepository.findByQuestionIdOrderByScoreDesc(game.getQuestionId())
+                .stream()
+                .map(a -> new com.trivia501.dto.AnswerDebugResponse(
+                        a.getId(), a.getDisplayText(), a.getScore(),
+                        a.getIsValidDarts(), a.getIsBust()))
+                .toList();
+    }
+
+    /**
      * Abandon all in-progress games for a player.
      * Safety net that prevents orphaned-game accumulation when a player
      * starts a new game without explicitly abandoning the old one.
@@ -298,16 +312,7 @@ public class GameService {
         List<Game> activeGames = gameRepository.findActiveGamesByPlayerId(playerId);
         for (Game game : activeGames) {
             log.info("Abandoning orphaned game {} for player {} before new game", game.getId(), playerId);
-            game.setStatus(Game.GameStatus.ABANDONED);
-            game.setCompletedAt(java.time.LocalDateTime.now());
-            gameRepository.save(game);
-
-            Match match = matchRepository.findById(game.getMatchId()).orElse(null);
-            if (match != null && match.getStatus() == Match.MatchStatus.IN_PROGRESS) {
-                match.setStatus(Match.MatchStatus.ABANDONED);
-                match.setCompletedAt(java.time.LocalDateTime.now());
-                matchRepository.save(match);
-            }
+            abandonGameAndMatch(game);
         }
     }
 
@@ -318,20 +323,30 @@ public class GameService {
     public void abandonStaleGames(List<Game> staleGames) {
         for (Game game : staleGames) {
             log.info("Stale-game cleanup: abandoning game {} (last activity: {})", game.getId(), game.getUpdatedAt());
-            game.setStatus(Game.GameStatus.ABANDONED);
-            game.setCompletedAt(java.time.LocalDateTime.now());
-            gameRepository.save(game);
-
-            Match match = matchRepository.findById(game.getMatchId()).orElse(null);
-            if (match != null && match.getStatus() == Match.MatchStatus.IN_PROGRESS) {
-                match.setStatus(Match.MatchStatus.ABANDONED);
-                match.setCompletedAt(java.time.LocalDateTime.now());
-                matchRepository.save(match);
-            }
+            abandonGameAndMatch(game);
         }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Mark a game and its parent match as ABANDONED.
+     * Idempotent — safe to call on already-completed or already-abandoned rows.
+     */
+    private void abandonGameAndMatch(Game game) {
+        if (game.getStatus() == Game.GameStatus.IN_PROGRESS) {
+            game.setStatus(Game.GameStatus.ABANDONED);
+            game.setCompletedAt(java.time.LocalDateTime.now());
+            gameRepository.save(game);
+        }
+
+        Match match = matchRepository.findById(game.getMatchId()).orElse(null);
+        if (match != null && match.getStatus() == Match.MatchStatus.IN_PROGRESS) {
+            match.setStatus(Match.MatchStatus.ABANDONED);
+            match.setCompletedAt(java.time.LocalDateTime.now());
+            matchRepository.save(match);
+        }
+    }
 
     /**
      * Apply a {@link GameTransition} to the mutable {@link Game} entity.
@@ -341,12 +356,8 @@ public class GameService {
      * by {@link GameStateMachine}; this method only applies the decision.
      */
     private void applyTransition(Game game, Match match, UUID activePlayerId, GameTransition t) {
-        // Update the active player's score
-        if (activePlayerId.equals(match.getPlayer1Id())) {
-            game.setPlayer1Score(t.scoreAfter());
-        } else if (match.getPlayer2Id() != null && activePlayerId.equals(match.getPlayer2Id())) {
-            game.setPlayer2Score(t.scoreAfter());
-        }
+        // Update the player's score
+        game.setPlayer1Score(t.scoreAfter());
 
         // Update game status and winner
         game.setStatus(t.nextGameStatus());
@@ -367,7 +378,6 @@ public class GameService {
         // Update timer and consecutive-timeout counters
         game.setTurnTimerSeconds(t.nextTimerSeconds());
         game.setPlayer1ConsecutiveTimeouts(t.player1ConsecutiveTimeouts());
-        game.setPlayer2ConsecutiveTimeouts(t.player2ConsecutiveTimeouts());
     }
 
     /** Build a {@link GameMove} from a transition result. */
@@ -415,11 +425,5 @@ public class GameService {
         if (!game.getCurrentTurnPlayerId().equals(playerId)) {
             throw new IllegalStateException("Not player's turn");
         }
-    }
-
-    private int getPlayerScore(Game game, Match match, UUID playerId) {
-        if (playerId.equals(match.getPlayer1Id())) return game.getPlayer1Score();
-        if (match.getPlayer2Id() != null && playerId.equals(match.getPlayer2Id())) return game.getPlayer2Score();
-        throw new IllegalArgumentException("Player " + playerId + " is not part of this match");
     }
 }

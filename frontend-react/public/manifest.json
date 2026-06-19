@@ -1,11 +1,11 @@
 {
   "name": "Trivia 501",
-  "short_name": "F501",
-  "description": "Competitive football trivia — darts 501 scoring mechanics",
+  "short_name": "Trivia 501",
+  "description": "Daily trivia with darts 501 scoring — football, geography, film & more",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#18171a",
-  "theme_color": "#18171a",
+  "background_color": "#0d0f13",
+  "theme_color": "#0d0f13",
   "orientation": "portrait-primary",
   "icons": [
     {

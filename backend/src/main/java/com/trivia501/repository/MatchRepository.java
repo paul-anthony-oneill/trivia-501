@@ -26,7 +26,7 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
      */
     @Query("""
         SELECT m FROM Match m
-        WHERE m.player1Id = :playerId OR m.player2Id = :playerId
+        WHERE m.player1Id = :playerId
         ORDER BY m.startedAt DESC
         """)
     List<Match> findByPlayerId(@Param("playerId") UUID playerId);
@@ -39,7 +39,7 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
      */
     @Query("""
         SELECT m FROM Match m
-        WHERE (m.player1Id = :playerId OR m.player2Id = :playerId)
+        WHERE m.player1Id = :playerId
           AND m.status = 'IN_PROGRESS'
         """)
     List<Match> findActiveMatchesByPlayerId(@Param("playerId") UUID playerId);
@@ -53,13 +53,6 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
     List<Match> findByStatus(MatchStatus status);
 
     /**
-     * Find waiting matches (looking for player 2).
-     *
-     * @return list of waiting matches
-     */
-    List<Match> findByStatusAndPlayer2IdIsNull(MatchStatus status);
-
-    /**
      * Find recent matches for a player (last N days).
      *
      * @param playerId the player UUID
@@ -68,7 +61,7 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
      */
     @Query("""
         SELECT m FROM Match m
-        WHERE (m.player1Id = :playerId OR m.player2Id = :playerId)
+        WHERE m.player1Id = :playerId
           AND m.startedAt >= :since
         ORDER BY m.startedAt DESC
         """)
@@ -97,7 +90,7 @@ public interface MatchRepository extends JpaRepository<Match, UUID> {
      */
     @Query("""
         SELECT COUNT(m) FROM Match m
-        WHERE (m.player1Id = :playerId OR m.player2Id = :playerId)
+        WHERE m.player1Id = :playerId
           AND m.winnerId IS NOT NULL
           AND m.winnerId != :playerId
           AND m.status = 'COMPLETED'

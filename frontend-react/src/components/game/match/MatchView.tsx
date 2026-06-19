@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState } from "react";
 import EntitySearch from "../EntitySearch";
 import HowToPlayPanel from "../HowToPlayPanel";
@@ -8,27 +6,11 @@ import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
+import type { Move, GameHints } from "@/hooks/useGameLoop";
 
 interface StagedAnswer {
   name: string;
   entityId?: string;
-}
-
-interface Move {
-  answer: string;
-  result: string;
-  scoreBefore: number;
-  scoreAfter: number;
-  matchedAnswer?: string;
-  scoreValue?: number;
-  reason?: string;
-}
-
-interface GameHints {
-  /** Remaining unused answers worth exactly 180 points. Shown while score > 180. */
-  maxScoresLeft: number;
-  /** Remaining unused answers that would win the game in one move. Shown while score ≤ 180. */
-  checkoutsLeft: number;
 }
 
 interface MatchViewProps {
@@ -55,8 +37,8 @@ interface MatchViewProps {
   flashVersion?: number;
   /** Called when the player clicks "SHARE RESULT" in the win overlay. Daily-challenge only. */
   onShare?: () => void;
-  /** True while a share copy operation is in progress. */
-  sharing?: boolean;
+  /** Share button state: idle → sharing → copied. */
+  shareState?: "idle" | "sharing" | "copied";
   /** Current game ID, used by DebugPanel to fetch all answers. */
   gameId?: string | null;
   /** Current game type */
@@ -80,7 +62,7 @@ export default function MatchView({
   disabled = false,
   flashVersion = 0,
   onShare,
-  sharing = false,
+  shareState = "idle",
   gameId = null,
   gameType = "freeplay",
 }: MatchViewProps) {
@@ -283,7 +265,7 @@ export default function MatchView({
                 </div>
                 <button
                   onClick={() => setStaged(null)}
-                  className="text-muted hover:text-danger text-lg leading-none transition-colors p-1"
+                  className="text-muted hover:text-danger text-lg leading-none transition-colors p-2.5"
                   aria-label="Clear selection"
                 >
                   ✕
@@ -406,10 +388,12 @@ export default function MatchView({
             {onShare && (
               <button
                 onClick={onShare}
-                disabled={sharing}
+                disabled={shareState !== "idle"}
                 className="btn-primary w-full h-12 text-base"
               >
-                {sharing ? "Copied!" : "Share result"}
+                {shareState === "copied" ? "Copied ✓"
+                : shareState === "sharing" ? "Sharing…"
+                : "Share result"}
               </button>
             )}
             {gameType !== "daily-challenge" && (

@@ -46,7 +46,7 @@ export function buildShareText(data: ShareData, origin: string): string {
       : String(data.finalScore).padStart(3, "0");
 
   return [
-    `⚽ FOOTBALL 501 — ${data.categoryName.toUpperCase()}`,
+    `🎯 TRIVIA 501 — ${data.categoryName.toUpperCase()}`,
     `${dateStr} — Target: ${data.startingScore}`,
     "",
     emojiLine,

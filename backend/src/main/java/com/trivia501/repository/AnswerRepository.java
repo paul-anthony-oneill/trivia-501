@@ -107,6 +107,23 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     );
 
     /**
+     * Get top N scoring answers for a question, optionally excluding invalid darts scores.
+     */
+    @Query("""
+        SELECT a
+        FROM Answer a
+        WHERE a.questionId = :questionId
+          AND (:excludeInvalidDarts = false OR a.isValidDarts = true)
+        ORDER BY a.score DESC
+        LIMIT :limit
+        """)
+    List<Answer> findTopAnswers(
+        @Param("questionId") UUID questionId,
+        @Param("excludeInvalidDarts") boolean excludeInvalidDarts,
+        @Param("limit") int limit
+    );
+
+    /**
      * Count total answers for a question.
      *
      * @param questionId the question UUID

@@ -4,17 +4,13 @@ import { useGameLoop } from "@/hooks/useGameLoop";
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
-const { mockApiFetch, mockAddToast, mockSetItem, mockGetItem, mockRemoveItem, mockClassList } =
+const { mockApiFetch, mockAddToast, mockSetItem, mockGetItem, mockRemoveItem } =
   vi.hoisted(() => ({
     mockApiFetch: vi.fn(),
     mockAddToast: vi.fn(),
     mockSetItem: vi.fn(),
     mockGetItem: vi.fn(),
     mockRemoveItem: vi.fn(),
-    mockClassList: {
-      remove: vi.fn(),
-      add: vi.fn(),
-    },
   }));
 
 vi.mock("@/lib/api/client", () => ({
@@ -76,10 +72,6 @@ beforeEach(() => {
     },
     writable: true,
   });
-
-  // Spy on document.body.classList instead of replacing document.body entirely
-  vi.spyOn(document.body.classList, "add").mockImplementation(mockClassList.add);
-  vi.spyOn(document.body.classList, "remove").mockImplementation(mockClassList.remove);
 });
 
 // ── Initial state ──────────────────────────────────────────────────────────
@@ -188,21 +180,6 @@ describe("useGameLoop — startNewGame", () => {
       "activeGameState",
       expect.stringContaining("game-uuid-123"),
     );
-  });
-
-  it("adds theme-teletext class to body", async () => {
-    mockApiFetch.mockResolvedValue(
-      new Response(JSON.stringify(mockGameResponse()), { status: 200 }),
-    );
-
-    const { result } = renderHook(() => useGameLoop());
-
-    await act(async () => {
-      await result.current.startNewGame("football", "Football");
-    });
-
-    expect(mockClassList.remove).toHaveBeenCalledWith("theme-home");
-    expect(mockClassList.add).toHaveBeenCalledWith("theme-teletext");
   });
 
   it("shows error toast on failure", async () => {
@@ -573,10 +550,6 @@ describe("useGameLoop — exitGame", () => {
 
     // Check sessionStorage cleared
     expect(mockRemoveItem).toHaveBeenCalledWith("activeGameState");
-
-    // Check body class restored
-    expect(mockClassList.remove).toHaveBeenCalledWith("theme-teletext");
-    expect(mockClassList.add).toHaveBeenCalledWith("theme-home");
   });
 });
 

@@ -79,8 +79,8 @@ export default function GamePage() {
 
   const { addToast } = useToast();
 
-  // Share state
-  const [sharing, setSharing] = useState(false);
+  // Share state: idle → sharing → copied
+  const [shareState, setShareState] = useState<"idle" | "sharing" | "copied">("idle");
 
   // Track the last selection so we can replay and display in MatchView.
   // On mount, try to recover the label from a saved game (refresh recovery).
@@ -111,8 +111,8 @@ export default function GamePage() {
   };
 
   const handleShare = async () => {
-    if (!gameId || sharing) return;
-    setSharing(true);
+    if (!gameId || shareState !== "idle") return;
+    setShareState("sharing");
     try {
       const res = await apiFetch(`/api/daily-challenge/share/${gameId}`);
       if (!res.ok) throw new Error("Failed to get share data");
@@ -126,14 +126,15 @@ export default function GamePage() {
       } else {
         await navigator.clipboard.writeText(shareText);
       }
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2000);
       addToast("Result copied to clipboard!", "success");
     } catch (err) {
       // User cancelled share — not an error
       if ((err as Error).name !== "AbortError") {
         addToast("Failed to share result", "error");
       }
-    } finally {
-      setSharing(false);
+      setShareState("idle");
     }
   };
 
@@ -202,7 +203,7 @@ export default function GamePage() {
         disabled={isAnimating}
         flashVersion={flashVersion}
         onShare={gameType === "daily-challenge" ? handleShare : undefined}
-        sharing={sharing}
+        shareState={shareState}
         gameId={gameId}
         gameType={gameType}
       />

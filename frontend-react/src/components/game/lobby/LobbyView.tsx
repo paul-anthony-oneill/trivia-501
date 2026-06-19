@@ -109,6 +109,7 @@ export default function LobbyView({
   const [animKey, setAnimKey] = useState(0);
 
   const push = useCallback((screen: NavScreen) => {
+    window.history.pushState(null, "", "");
     setSlideDir(1);
     setAnimKey((k) => k + 1);
     setStack((s) => [...s, screen]);
@@ -119,6 +120,18 @@ export default function LobbyView({
     setSlideDir(-1);
     setAnimKey((k) => k + 1);
     setStack((s) => s.slice(0, -1));
+  }, [stack.length]);
+
+  // Sync browser back button with drill-down navigation stack
+  useEffect(() => {
+    const onPopState = () => {
+      if (stack.length <= 1) return;
+      setSlideDir(-1);
+      setAnimKey((k) => k + 1);
+      setStack((s) => s.slice(0, -1));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, [stack.length]);
 
   const startGame = useCallback(

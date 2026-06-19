@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,6 +63,30 @@ public class DailyChallengeService {
     @Transactional(readOnly = true)
     public List<DailyChallenge> getTodaysChallenges() {
         return challengeRepository.findByChallengeDate(LocalDate.now());
+    }
+
+    /** Pass-through to {@code CategoryRepository.findAll()} so controllers don't inject repositories directly. */
+    @Transactional(readOnly = true)
+    public List<Category> getAllCategories() {
+        return categoryRepository.findAll();
+    }
+
+    /** Pass-through to {@code CategoryRepository.findAllById()} so controllers don't inject repositories directly. */
+    @Transactional(readOnly = true)
+    public Map<UUID, Category> getCategoriesByIds(List<UUID> ids) {
+        return categoryRepository.findAllById(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(Category::getId, c -> c));
+    }
+
+    /** Pass-through to {@code CategoryRepository.findById()}. */
+    @Transactional(readOnly = true)
+    public Optional<Category> getCategoryById(UUID id) {
+        return categoryRepository.findById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<DailyChallenge> findByChallengeDateAndQuestionId(LocalDate date, UUID questionId) {
+        return challengeRepository.findByChallengeDateAndQuestionId(date, questionId);
     }
 
     @Transactional(readOnly = true)
@@ -155,7 +180,6 @@ public class DailyChallengeService {
 
         Match match = matchService.createMatch(
                 playerId,
-                null, // solo — no opponent
                 category.getId(),
                 Match.MatchType.DAILY_CHALLENGE,
                 Match.MatchFormat.BEST_OF_1,

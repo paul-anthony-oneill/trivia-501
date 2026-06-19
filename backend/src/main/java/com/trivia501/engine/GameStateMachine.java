@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * Pure game-state-transition coordinator.
+ * Pure game-state-transition coordinator for solo play.
  *
  * <p>This class owns all Football 501 turn-machine rules and produces an immutable
  * {@link GameTransition} that describes exactly what should change. It has
@@ -17,18 +17,20 @@ import java.util.UUID;
  * {@link com.trivia501.service.GameService}, which is also responsible for
  * persisting the returned transition.
  *
- * <h3>State machine rules</h3>
+ * <h3>State machine rules (solo)</h3>
  * <ul>
  *   <li><b>INVALID</b>  — same player retries; nothing changes (timer keeps running)</li>
- *   <li><b>BUST</b>     — no score change; turn switches to opponent</li>
- *   <li><b>VALID</b>    — score deducted; turn switches; timeout counter resets</li>
- *   <li><b>CHECKOUT</b> — triggers the close-finish rule in multiplayer</li>
- *   <li><b>TIMEOUT</b>  — increments consecutive counter; reduces timer; forfeits at threshold</li>
+ *   <li><b>BUST</b>     — no score change; same player retries</li>
+ *   <li><b>VALID</b>    — score deducted; timeout counter resets; same player continues</li>
+ *   <li><b>CHECKOUT</b> — immediate win</li>
+ *   <li><b>TIMEOUT</b>  — increments consecutive counter; reduces timer;
+ *                         forfeits as bust-out (no winner) at threshold</li>
  * </ul>
  *
- * <h3>Close-finish rule</h3>
- * If Player 1 checks out, the game is not immediately over. Player 2 receives one
- * final turn to get closer to 0. The player nearer to 0 wins.
+ * <p>Multiplayer rules (close-finish, turn alternation, opponent forfeit) are
+ * documented in {@code docs/GAME_RULES.md} for reference. This engine is
+ * intentionally solo-only — when multiplayer returns, it will be rebuilt
+ * from a real product spec.
  */
 @Component
 @Slf4j
@@ -64,7 +66,6 @@ public class GameStateMachine {
             AnswerResult answerResult
     ) {
         GameMove.MoveResult moveResult = classifyMove(answerResult);
-        boolean isSolo = match.getPlayer2Id() == null;
         int currentScore = getPlayerScore(game, match, playerId);
 
         // ── default values (for INVALID: nothing changes) ──────────────────
@@ -75,40 +76,33 @@ public class GameStateMachine {
         UUID winnerId              = game.getWinnerId();
         int nextTimer              = game.getTurnTimerSeconds();
         int p1Timeouts             = game.getPlayer1ConsecutiveTimeouts();
-        int p2Timeouts             = game.getPlayer2ConsecutiveTimeouts();
 
         if (moveResult == GameMove.MoveResult.INVALID) {
-            // Same player retries; return immediately with unchanged defaults
             return new GameTransition(moveResult, scoreAfter, turnAdvanced, nextTurnPlayerId,
-                    nextStatus, winnerId, nextTimer, p1Timeouts, p2Timeouts);
+                    nextStatus, winnerId, nextTimer, p1Timeouts);
         }
 
         if (moveResult == GameMove.MoveResult.CHECKOUT) {
-            // Reset timeout tracking before handling the checkout branch
-            if (playerId.equals(match.getPlayer1Id())) p1Timeouts = 0;
-            else                                       p2Timeouts = 0;
-            return handleCheckout(game, match, playerId, answerResult, isSolo,
-                    p1Timeouts, p2Timeouts);
+            log.info("Solo checkout: player {} wins", playerId);
+            return new GameTransition(
+                    GameMove.MoveResult.CHECKOUT, answerResult.getNewTotal(), false, null,
+                    Game.GameStatus.COMPLETED, playerId,
+                    DEFAULT_TIMER, 0);
         }
 
         // ── VALID or BUST ─────────────────────────────────────────────────
         if (moveResult == GameMove.MoveResult.VALID) {
             scoreAfter = answerResult.getNewTotal();
-            // Reset consecutive timeouts and restore default timer on success
-            if (playerId.equals(match.getPlayer1Id())) p1Timeouts = 0;
-            else                                       p2Timeouts = 0;
+            p1Timeouts = 0;
             nextTimer = DEFAULT_TIMER;
         }
         // For BUST: scoreAfter stays = currentScore (no score change)
 
         turnAdvanced = true;
-        if (!isSolo) {
-            nextTurnPlayerId = opponentOf(match, playerId);
-        }
-        // In solo mode, nextTurnPlayerId remains the same player.
+        // Solo mode: same player always continues
 
         return new GameTransition(moveResult, scoreAfter, turnAdvanced, nextTurnPlayerId,
-                nextStatus, winnerId, nextTimer, p1Timeouts, p2Timeouts);
+                nextStatus, winnerId, nextTimer, p1Timeouts);
     }
 
     /**
@@ -120,41 +114,29 @@ public class GameStateMachine {
      * @return an immutable transition descriptor; never {@code null}
      */
     public GameTransition onTimeout(Game game, Match match, UUID playerId) {
-        boolean isSolo = match.getPlayer2Id() == null;
-        int currentScore   = getPlayerScore(game, match, playerId);
+        int currentScore = getPlayerScore(game, match, playerId);
+        int p1Timeouts = game.getPlayer1ConsecutiveTimeouts() + 1;
 
-        int p1Timeouts = game.getPlayer1ConsecutiveTimeouts();
-        int p2Timeouts = game.getPlayer2ConsecutiveTimeouts();
-
-        // Increment the timed-out player's counter
-        if (playerId.equals(match.getPlayer1Id())) p1Timeouts++;
-        else                                       p2Timeouts++;
-
-        int consecutiveTimeouts = playerId.equals(match.getPlayer1Id()) ? p1Timeouts : p2Timeouts;
-
-        // Forfeit threshold reached
-        if (consecutiveTimeouts >= FORFEIT_TIMEOUT_THRESHOLD) {
-            log.warn("Player {} forfeited after {} consecutive timeouts", playerId, consecutiveTimeouts);
-            UUID winner = isSolo ? null : opponentOf(match, playerId);
+        // Forfeit threshold reached — solo bust-out, no winner
+        if (p1Timeouts >= FORFEIT_TIMEOUT_THRESHOLD) {
+            log.warn("Player {} busted out after {} consecutive timeouts", playerId, p1Timeouts);
             return new GameTransition(
                     GameMove.MoveResult.TIMEOUT, currentScore, true, null,
-                    Game.GameStatus.COMPLETED, winner,
-                    game.getTurnTimerSeconds(), // timer irrelevant when game ends
-                    p1Timeouts, p2Timeouts
+                    Game.GameStatus.COMPLETED, null,
+                    game.getTurnTimerSeconds(),
+                    p1Timeouts
             );
         }
 
         // Reduce timer based on accumulated consecutive timeouts
         int nextTimer = game.getTurnTimerSeconds();
-        if (consecutiveTimeouts == 1)      nextTimer = REDUCED_TIMER_1;
-        else if (consecutiveTimeouts == 2) nextTimer = REDUCED_TIMER_2;
-
-        UUID nextTurnPlayerId = isSolo ? playerId : opponentOf(match, playerId);
+        if (p1Timeouts == 1)      nextTimer = REDUCED_TIMER_1;
+        else if (p1Timeouts == 2) nextTimer = REDUCED_TIMER_2;
 
         return new GameTransition(
-                GameMove.MoveResult.TIMEOUT, currentScore, true, nextTurnPlayerId,
+                GameMove.MoveResult.TIMEOUT, currentScore, true, playerId,
                 game.getStatus(), game.getWinnerId(),
-                nextTimer, p1Timeouts, p2Timeouts
+                nextTimer, p1Timeouts
         );
     }
 
@@ -171,91 +153,8 @@ public class GameStateMachine {
         return GameMove.MoveResult.VALID;
     }
 
-    /**
-     * Apply the checkout / close-finish logic and return the resulting transition.
-     *
-     * <h3>Cases</h3>
-     * <ol>
-     *   <li><b>Solo mode</b> — immediate win.</li>
-     *   <li><b>P2 responding to P1's close-finish turn</b> — compare distances to 0.</li>
-     *   <li><b>P1 checks out first</b> — grant P2 one final turn (close-finish rule).</li>
-     *   <li><b>P2 checks out first</b> — immediate win (no close-finish needed).</li>
-     * </ol>
-     */
-    private GameTransition handleCheckout(
-            Game game,
-            Match match,
-            UUID playerId,
-            AnswerResult answerResult,
-            boolean isSolo,
-            int p1Timeouts,
-            int p2Timeouts
-    ) {
-        int scoreAfter = answerResult.getNewTotal();
-
-        // ── Case 1: Solo mode ───────────────────────────────────────────
-        if (isSolo) {
-            log.info("Solo checkout: player {} wins", playerId);
-            return new GameTransition(
-                    GameMove.MoveResult.CHECKOUT, scoreAfter, false, null,
-                    Game.GameStatus.COMPLETED, playerId,
-                    DEFAULT_TIMER, p1Timeouts, p2Timeouts
-            );
-        }
-
-        // ── Case 2: P2 responding to P1's tentative close-finish win ────────
-        if (game.getWinnerId() != null && !game.getWinnerId().equals(playerId)) {
-            int p1Score = game.getPlayer1Score();
-            int p2Score = scoreAfter;
-
-            UUID winner;
-            if (Math.abs(p2Score) < Math.abs(p1Score)) {
-                log.info("P2 beat P1's checkout ({} vs {})", p2Score, p1Score);
-                winner = match.getPlayer2Id();
-            } else {
-                log.info("P1 wins close finish ({} vs {})", p1Score, p2Score);
-                winner = game.getWinnerId(); // P1 retains tentative win
-            }
-            return new GameTransition(
-                    GameMove.MoveResult.CHECKOUT, scoreAfter, false, null,
-                    Game.GameStatus.COMPLETED, winner,
-                    DEFAULT_TIMER, p1Timeouts, p2Timeouts
-            );
-        }
-
-        // ── Case 3: P1 checks out first — grant P2 a close-finish turn ──────
-        if (playerId.equals(match.getPlayer1Id())) {
-            log.debug("Close-finish rule applied — P2 gets final turn");
-            return new GameTransition(
-                    GameMove.MoveResult.CHECKOUT, scoreAfter, false,
-                    match.getPlayer2Id(),        // P2's final turn
-                    Game.GameStatus.IN_PROGRESS, // not over yet
-                    playerId,                    // P1 is tentative winner
-                    DEFAULT_TIMER, p1Timeouts, p2Timeouts
-            );
-        }
-
-        // ── Case 4: P2 checks out first — no close-finish needed ────────────
-        log.info("P2 checks out first: player {} wins", playerId);
-        return new GameTransition(
-                GameMove.MoveResult.CHECKOUT, scoreAfter, false, null,
-                Game.GameStatus.COMPLETED, playerId,
-                DEFAULT_TIMER, p1Timeouts, p2Timeouts
-        );
-    }
-
     private int getPlayerScore(Game game, Match match, UUID playerId) {
         if (playerId.equals(match.getPlayer1Id())) return game.getPlayer1Score();
-        if (match.getPlayer2Id() != null && playerId.equals(match.getPlayer2Id())) return game.getPlayer2Score();
         throw new IllegalArgumentException("Player " + playerId + " is not part of match " + match.getId());
-    }
-
-    private UUID opponentOf(Match match, UUID playerId) {
-        if (match.getPlayer2Id() == null) {
-            throw new IllegalStateException(
-                    "opponentOf called on a solo match (no player2). " +
-                    "Callers must check isSolo before invoking this method.");
-        }
-        return playerId.equals(match.getPlayer1Id()) ? match.getPlayer2Id() : match.getPlayer1Id();
     }
 }

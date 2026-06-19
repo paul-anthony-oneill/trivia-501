@@ -100,7 +100,7 @@ export default function EntitySearch({
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (val.length < 4) {
+    if (val.length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -136,7 +136,7 @@ export default function EntitySearch({
       if (showSuggestions && suggestions.length > 0) {
         const idx = activeIndex >= 0 ? activeIndex : 0;
         selectSuggestion(suggestions[idx]);
-      } else if (!showSuggestions && value.trim().length >= 4) {
+      } else if (!showSuggestions && value.trim().length >= 2) {
         setNoMatch(true);
       }
     } else if (e.key === "ArrowDown") {
@@ -181,20 +181,20 @@ export default function EntitySearch({
         autoComplete="off"
         disabled={disabled}
         className={className}
-        aria-label="Search player name"
+        aria-label={`Search ${entityType} name`}
       />
 
-      {value.length > 0 && value.length < 4 && (
+      {value.length > 0 && value.length < 2 && (
         <p className="mt-1.5 font-mono text-[11px] text-muted px-1">
           Keep typing for suggestions…
         </p>
       )}
 
-      {loading && value.length >= 4 && (
+      {loading && value.length >= 2 && (
         <p className="mt-1.5 font-mono text-[11px] text-muted px-1">Loading…</p>
       )}
 
-      {noMatch && !loading && value.length >= 4 && (
+      {noMatch && !loading && value.length >= 2 && (
         <p className="mt-1.5 font-mono text-[11px] text-danger px-1">
           No match — try a different spelling
         </p>

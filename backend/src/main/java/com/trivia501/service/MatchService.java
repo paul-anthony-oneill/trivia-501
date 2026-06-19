@@ -1,12 +1,14 @@
 package com.trivia501.service;
 
 import com.trivia501.dto.FootballFilter;
+import com.trivia501.event.GameCompletedEvent;
 import com.trivia501.model.Game;
 import com.trivia501.model.Match;
 import com.trivia501.model.Question;
 import com.trivia501.repository.GameRepository;
 import com.trivia501.repository.MatchRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,44 +56,37 @@ public class MatchService {
     }
 
     /**
-     * Create a new match.
+     * Create a new solo match.
      *
-     * @param player1Id the first player UUID
-     * @param player2Id the second player UUID (can be null for waiting matches)
+     * @param player1Id the player UUID
      * @param categoryId the category UUID
      * @param type the match type
-     * @param format the match format (best-of-1/3/5)
+     * @param format the match format
      * @return the created match
      */
     @Transactional
     public Match createMatch(
         UUID player1Id,
-        UUID player2Id,
         UUID categoryId,
         Match.MatchType type,
         Match.MatchFormat format,
         Integer difficulty
     ) {
-        log.debug("Creating match: player1={}, player2={}, format={}, difficulty={}", 
-            player1Id, player2Id, format, difficulty);
+        log.debug("Creating match: player1={}, format={}, difficulty={}",
+            player1Id, format, difficulty);
 
         Match match = Match.builder()
             .player1Id(player1Id)
-            .player2Id(player2Id)
             .categoryId(categoryId)
             .type(type)
             .format(format)
             .difficulty(difficulty != null ? difficulty : 2)
-            // Solo (CASUAL with no opponent) starts immediately; ranked matchmaking waits for p2
-            .status(player2Id != null || type == Match.MatchType.CASUAL
-                ? Match.MatchStatus.IN_PROGRESS
-                : Match.MatchStatus.WAITING)
+            .status(Match.MatchStatus.IN_PROGRESS)
             .player1GamesWon(0)
-            .player2GamesWon(0)
             .build();
 
         Match savedMatch = matchRepository.save(match);
-        log.info("Match created: id={}, format={}, difficulty={}", 
+        log.info("Match created: id={}, format={}, difficulty={}",
             savedMatch.getId(), format, difficulty);
 
         return savedMatch;
@@ -192,9 +187,6 @@ public class MatchService {
             return;
         } else if (completedGame.getWinnerId().equals(match.getPlayer1Id())) {
             match.setPlayer1GamesWon(match.getPlayer1GamesWon() + 1);
-        } else if (match.getPlayer2Id() != null
-                && completedGame.getWinnerId().equals(match.getPlayer2Id())) {
-            match.setPlayer2GamesWon(match.getPlayer2GamesWon() + 1);
         }
 
         // Check if match is complete
@@ -203,8 +195,8 @@ public class MatchService {
         }
 
         matchRepository.save(match);
-        log.info("Match updated: matchId={}, score={}-{}, status={}",
-            match.getId(), match.getPlayer1GamesWon(), match.getPlayer2GamesWon(), match.getStatus());
+        log.info("Match updated: matchId={}, player1GamesWon={}, status={}",
+            match.getId(), match.getPlayer1GamesWon(), match.getStatus());
     }
 
     /**
@@ -214,9 +206,7 @@ public class MatchService {
      * @return true if match is complete
      */
     public boolean isMatchComplete(Match match) {
-        int requiredWins = match.getFormat().getGamesToWin();
-        return match.getPlayer1GamesWon() >= requiredWins
-            || match.getPlayer2GamesWon() >= requiredWins;
+        return match.getPlayer1GamesWon() >= match.getFormat().getGamesToWin();
     }
 
     /**
@@ -287,17 +277,23 @@ public class MatchService {
 
     private void completeMatch(Match match) {
         match.setStatus(Match.MatchStatus.COMPLETED);
+        match.setWinnerId(match.getPlayer1Id());
 
-        // Determine winner
-        if (match.getPlayer1GamesWon() > match.getPlayer2GamesWon()) {
-            match.setWinnerId(match.getPlayer1Id());
-        } else {
-            match.setWinnerId(match.getPlayer2Id());
-        }
+        log.info("Match completed: matchId={}, winner={}, player1GamesWon={}",
+            match.getId(), match.getWinnerId(), match.getPlayer1GamesWon());
+    }
 
-        log.info("Match completed: matchId={}, winner={}, score={}-{}",
-            match.getId(), match.getWinnerId(),
-            match.getPlayer1GamesWon(), match.getPlayer2GamesWon());
+    /**
+     * Handle a game-completion event published by {@link GameService}.
+     * Replaces the former direct {@code matchService.handleGameCompletion()}
+     * call that created a circular dependency.
+     */
+    @EventListener
+    @Transactional
+    public void onGameCompleted(GameCompletedEvent event) {
+        Game game = gameService.getGameById(event.gameId())
+                .orElseThrow(() -> new IllegalArgumentException("Game not found: " + event.gameId()));
+        handleGameCompletion(game);
     }
 
     /**

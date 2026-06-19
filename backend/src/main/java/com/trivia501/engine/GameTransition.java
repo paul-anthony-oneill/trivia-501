@@ -29,7 +29,6 @@ import java.util.UUID;
  * @param winnerId                  set when the game concludes; {@code null} otherwise
  * @param nextTimerSeconds          timer duration (seconds) for the next turn
  * @param player1ConsecutiveTimeouts updated timeout count for Player 1
- * @param player2ConsecutiveTimeouts updated timeout count for Player 2
  */
 public record GameTransition(
         GameMove.MoveResult moveResult,
@@ -39,6 +38,5 @@ public record GameTransition(
         Game.GameStatus nextGameStatus,
         UUID winnerId,
         int nextTimerSeconds,
-        int player1ConsecutiveTimeouts,
-        int player2ConsecutiveTimeouts
+        int player1ConsecutiveTimeouts
 ) {}

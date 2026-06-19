@@ -115,12 +115,12 @@ body {
 @layer utilities {
   /* Small uppercase mono label */
   .kicker {
-    @apply font-mono text-[10px] tracking-[0.22em] uppercase text-muted;
+    @apply font-mono text-[0.625rem] tracking-[0.22em] uppercase text-muted;
   }
 
   /* Quiet mono helper text — like .kicker but sentence case */
   .hint {
-    @apply font-mono text-[11px] tracking-[0.06em] text-muted;
+    @apply font-mono text-[0.6875rem] tracking-[0.06em] text-muted;
   }
 
   /* Big condensed display numerals (score, target) */

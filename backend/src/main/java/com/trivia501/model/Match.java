@@ -10,14 +10,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Represents a match between two players.
- * A match consists of multiple games (best-of-3 or best-of-5).
+ * Represents a single-player match. Multiplayer is deferred indefinitely;
+ * when it returns, the schema and engine will be rebuilt from a real product spec.
  */
 @Entity
 @Table(name = "matches", indexes = {
     @Index(name = "idx_matches_status", columnList = "status"),
-    @Index(name = "idx_matches_player1", columnList = "player1_id"),
-    @Index(name = "idx_matches_player2", columnList = "player2_id")
+    @Index(name = "idx_matches_player1", columnList = "player1_id")
 })
 @EntityListeners(AuditingEntityListener.class)
 @Getter
@@ -34,9 +33,6 @@ public class Match {
     @Column(name = "player1_id")
     private UUID player1Id;
 
-    @Column(name = "player2_id")
-    private UUID player2Id;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
@@ -45,7 +41,7 @@ public class Match {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private MatchFormat format = MatchFormat.BEST_OF_3;
+    private MatchFormat format = MatchFormat.BEST_OF_1;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -58,10 +54,6 @@ public class Match {
     @Column(name = "player1_games_won")
     @Builder.Default
     private Integer player1GamesWon = 0;
-
-    @Column(name = "player2_games_won")
-    @Builder.Default
-    private Integer player2GamesWon = 0;
 
     @Column(name = "category_id")
     private UUID categoryId;
@@ -104,9 +96,7 @@ public class Match {
     }
 
     public enum MatchFormat {
-        BEST_OF_1(1),
-        BEST_OF_3(2),
-        BEST_OF_5(3);
+        BEST_OF_1(1);
 
         private final int gamesToWin;
 
@@ -120,7 +110,6 @@ public class Match {
     }
 
     public enum MatchStatus {
-        WAITING,        // Waiting for player2
         IN_PROGRESS,
         COMPLETED,
         ABANDONED
