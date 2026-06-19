@@ -474,6 +474,7 @@ describe("useGameLoop — onPopupComplete", () => {
       scoreValue: 10,
       scoreAfter: 0,
       isWin: true,
+      gameState: { status: "COMPLETED" },
     });
 
     await act(async () => {
@@ -481,6 +482,7 @@ describe("useGameLoop — onPopupComplete", () => {
     });
 
     expect(result.current.gameStatus).toBe("COMPLETED");
+    expect(result.current.isWin).toBe(true);
     expect(mockRemoveItem).toHaveBeenCalledWith("activeGameState");
   });
 

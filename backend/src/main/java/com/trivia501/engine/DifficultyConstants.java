@@ -1,7 +1,5 @@
 package com.trivia501.engine;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -141,10 +139,11 @@ public final class DifficultyConstants {
 
     /**
      * Maximum difficulty score for daily challenge eligibility (inclusive).
-     * Capped at 3.5 so daily challenges stay in the easy-to-moderate range.
-     * Scores above this are reserved for standard ranked play.
+     * Raised to 10.0 (the scale maximum) — difficulty is no longer a meaningful
+     * filter now that composite appearance questions make all league/club questions
+     * viable. The {@code suitable_for_daily} flag is the primary gate.
      */
-    public static final double DAILY_MAX_DIFFICULTY = 3.5;
+    public static final double DAILY_MAX_DIFFICULTY = 10.0;
 
     // ── Daily challenge starting scores ───────────────────────────────────────
 
@@ -158,6 +157,12 @@ public final class DifficultyConstants {
         357, 343, 329, 315, 301, 287, 273, 259, 245, 231,
         217, 203, 189, 174, 170, 157, 141, 127, 114, 101,
     };
+
+    /**
+     * Number of days before the same question can be selected again for a daily
+     * challenge in the same category.
+     */
+    public static final int DAILY_QUESTION_COOLDOWN_DAYS = 10;
 
     /**
      * Margin added to the starting score when checking first-move viability.
@@ -174,12 +179,14 @@ public final class DifficultyConstants {
      * pool has at least 2 values to choose from.
      */
     public static int pickDailyStartingScore(int yesterdayScore) {
-        List<Integer> pool = new ArrayList<>(DAILY_STARTING_SCORES.length);
-        for (int s : DAILY_STARTING_SCORES) pool.add(s);
-        if (pool.size() > 1 && yesterdayScore > 0) {
-            pool.removeIf(s -> s == yesterdayScore);
+        int idx = ThreadLocalRandom.current().nextInt(DAILY_STARTING_SCORES.length);
+        int picked = DAILY_STARTING_SCORES[idx];
+        // Avoid repeating yesterday's score if the pool has alternatives
+        if (picked == yesterdayScore && DAILY_STARTING_SCORES.length > 1) {
+            idx = (idx + 1) % DAILY_STARTING_SCORES.length;
+            picked = DAILY_STARTING_SCORES[idx];
         }
-        return pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
+        return picked;
     }
 
     /** Picks a random starting score from the full pool (no exclusion). */

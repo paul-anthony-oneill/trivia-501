@@ -53,6 +53,7 @@ export default function GamePage() {
     question,
     turnCount,
     gameStatus,
+    isWin,
     moves,
     entityType,
     hints,
@@ -195,7 +196,8 @@ export default function GamePage() {
         categoryName={catName}
         categorySub={catSub}
         entityType={entityType}
-        isWin={gameStatus === "COMPLETED"}
+        isWin={isWin}
+        isGameOver={gameStatus === "COMPLETED"}
         hints={hints}
         disabled={isAnimating}
         flashVersion={flashVersion}

@@ -11,6 +11,7 @@ import com.trivia501.dto.SubmitAnswerResponse;
 import com.trivia501.model.*;
 import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.CategoryRepository;
+import com.trivia501.scheduler.DailyChallengeScheduler;
 import com.trivia501.service.DailyChallengeService;
 import com.trivia501.service.GameHintsService;
 import com.trivia501.service.GameService;
@@ -21,12 +22,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/daily-challenge")
@@ -34,6 +38,7 @@ import java.util.UUID;
 public class DailyChallengeController {
 
     private final DailyChallengeService dailyChallengeService;
+    private final DailyChallengeScheduler dailyChallengeScheduler;
     private final GameService gameService;
     private final MatchService matchService;
     private final QuestionService questionService;
@@ -44,6 +49,7 @@ public class DailyChallengeController {
 
     public DailyChallengeController(
             DailyChallengeService dailyChallengeService,
+            DailyChallengeScheduler dailyChallengeScheduler,
             GameService gameService,
             MatchService matchService,
             QuestionService questionService,
@@ -53,6 +59,7 @@ public class DailyChallengeController {
             AnswerRepository answerRepository
     ) {
         this.dailyChallengeService = dailyChallengeService;
+        this.dailyChallengeScheduler = dailyChallengeScheduler;
         this.gameService = gameService;
         this.matchService = matchService;
         this.questionService = questionService;
@@ -69,10 +76,21 @@ public class DailyChallengeController {
     public ResponseEntity<DailyChallengeStatusResponse> getStatus() {
         List<DailyChallenge> challenges = dailyChallengeService.getTodaysChallenges();
 
+        // Bulk-fetch categories and questions to avoid N+1 queries
+        List<UUID> categoryIds = challenges.stream()
+                .map(DailyChallenge::getCategoryId).distinct().toList();
+        List<UUID> questionIds = challenges.stream()
+                .map(DailyChallenge::getQuestionId).distinct().toList();
+
+        Map<UUID, Category> categoriesById = categoryRepository.findAllById(categoryIds).stream()
+                .collect(Collectors.toMap(Category::getId, c -> c));
+        Map<UUID, Question> questionsById = questionService.getQuestionsByIds(questionIds).stream()
+                .collect(Collectors.toMap(Question::getId, q -> q));
+
         List<DailyChallengeStatusResponse.CategoryChallenge> items = new ArrayList<>();
         for (DailyChallenge dc : challenges) {
-            Category category = categoryRepository.findById(dc.getCategoryId()).orElse(null);
-            Question question = questionService.getQuestionById(dc.getQuestionId()).orElse(null);
+            Category category = categoriesById.get(dc.getCategoryId());
+            Question question = questionsById.get(dc.getQuestionId());
 
             items.add(DailyChallengeStatusResponse.CategoryChallenge.builder()
                     .categorySlug(category != null ? category.getSlug() : "unknown")
@@ -87,6 +105,62 @@ public class DailyChallengeController {
                 .date(java.time.LocalDate.now())
                 .challenges(items)
                 .build());
+    }
+
+    /**
+     * Generates today's daily challenge for all categories.
+     * Pass ?force=true to delete any existing challenge and regenerate.
+     */
+    @PostMapping("/admin/generate-today")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, Object>> generateToday(
+            @RequestParam(defaultValue = "false") boolean force) {
+        var cats = categoryRepository.findAll();
+        int created = 0;
+        int alreadyExisted = 0;
+        int failed = 0;
+        var today = java.time.LocalDate.now();
+        for (var cat : cats) {
+            if ("test".equals(cat.getSlug())) continue;
+            try {
+                boolean existed = dailyChallengeService.todaysChallengeExists(cat.getId());
+                if (force) {
+                    dailyChallengeService.deleteTodaysChallenge(cat.getId());
+                    existed = false;
+                }
+                if (existed) {
+                    alreadyExisted++;
+                } else {
+                    dailyChallengeService.getTodaysChallenge(cat.getId());
+                    created++;
+                }
+            } catch (IllegalStateException e) {
+                log.warn("No viable question for category '{}' today — {}", cat.getSlug(), e.getMessage());
+                failed++;
+            }
+        }
+        return ResponseEntity.ok(java.util.Map.of(
+                "status", "generation complete",
+                "created", created,
+                "alreadyExisted", alreadyExisted,
+                "failed", failed
+        ));
+    }
+
+    /**
+     * Triggers monthly daily challenge generation for all categories.
+     * Idempotent — skips days that already have a challenge.
+     */
+    @PostMapping("/admin/generate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, Object>> generateChallenges() {
+        var summary = dailyChallengeScheduler.selectDailyChallenges();
+        return ResponseEntity.ok(java.util.Map.of(
+                "status", "generation complete",
+                "created", summary.created(),
+                "skipped", summary.skipped(),
+                "failed", summary.failed()
+        ));
     }
 
     /**
@@ -286,8 +360,10 @@ public class DailyChallengeController {
 
     /**
      * Debug endpoint: returns all answers for the game's question.
+     * Restricted to admins only — this is the answer key.
      */
     @GetMapping("/games/{gameId}/answers")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AnswerDebugResponse>> getGameAnswers(
         @PathVariable UUID gameId,
         Principal principal

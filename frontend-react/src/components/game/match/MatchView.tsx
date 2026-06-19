@@ -7,6 +7,7 @@ import DebugPanel from "../DebugPanel";
 import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useAuth } from "@/context/AuthContext";
 
 interface StagedAnswer {
   name: string;
@@ -42,8 +43,10 @@ interface MatchViewProps {
   categorySub: string;
   /** Entity type passed to autocomplete (e.g. "footballer", "city"). */
   entityType?: string;
-  /** True once the player has checked out (game over). */
+  /** True when the game ended via CHECKOUT (win), false for bust-out/forfeit. */
   isWin?: boolean;
+  /** True when the game has ended for any reason (win, bust-out, forfeit). */
+  isGameOver?: boolean;
   /** In-game hint stats from the server. Null until the first response arrives. */
   hints?: GameHints | null;
   /** Disables the answer input while an animation is playing. */
@@ -72,6 +75,7 @@ export default function MatchView({
   categorySub,
   entityType = "footballer",
   isWin = false,
+  isGameOver = false,
   hints = null,
   disabled = false,
   flashVersion = 0,
@@ -80,6 +84,8 @@ export default function MatchView({
   gameId = null,
   gameType = "freeplay",
 }: MatchViewProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.app_metadata?.role === "admin";
   const [staged, setStaged] = useState<StagedAnswer | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
@@ -365,7 +371,7 @@ export default function MatchView({
       </main>
 
       {/* ── Win overlay ─────────────────────────────────────────────────────── */}
-      {isWin && (
+      {isGameOver && isWin && (
         <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-7 p-6 animate-fade-in">
           <div className="relative flex items-center justify-center w-56 h-56">
             <span className="ring-burst" aria-hidden="true" />
@@ -424,6 +430,53 @@ export default function MatchView({
         </div>
       )}
 
+      {/* ── Loss overlay (bust-out / forfeit) ───────────────────────────────── */}
+      {isGameOver && !isWin && (
+        <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-6 p-6 animate-fade-in">
+          <div className="text-center animate-rise">
+            <div
+              className="display-num text-danger"
+              style={{ fontSize: "clamp(80px, 16vw, 130px)" }}
+            >
+              {score}
+            </div>
+            <div className="kicker text-danger mt-2">Game over</div>
+          </div>
+
+          <div
+            className="text-center animate-rise"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <div className="font-display font-extrabold text-2xl md:text-3xl tracking-tight">
+              Better luck next time
+            </div>
+            <div className="kicker mt-2">
+              {turnCount} {turnCount === 1 ? "dart" : "darts"} thrown · finished on {score}
+            </div>
+          </div>
+
+          <div
+            className="flex flex-col gap-3 items-center mt-2 w-full max-w-xs animate-rise"
+            style={{ animationDelay: "0.2s" }}
+          >
+            {gameType !== "daily-challenge" && (
+              <button
+                onClick={onPlayAgain}
+                className="btn-primary w-full h-12 text-base"
+              >
+                Play again
+              </button>
+            )}
+            <button
+              onClick={() => onExit()}
+              className="kicker hover:text-ink transition-colors py-2"
+            >
+              Exit to lobby
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Exit confirmation dialog ─────────────────────────────────────────── */}
       <ConfirmDialog
         open={showExitConfirm}
@@ -439,8 +492,8 @@ export default function MatchView({
         onCancel={() => setShowExitConfirm(false)}
       />
 
-      {/* ── Debug panel (Ctrl+Shift+D) ────────────────────────────────────────── */}
-      <DebugPanel gameId={gameId} gameType={gameType} />
+      {/* ── Debug panel (admin only, Ctrl+Shift+D) ──────────────────────────────── */}
+      {isAdmin && <DebugPanel gameId={gameId} gameType={gameType} />}
     </div>
   );
 }

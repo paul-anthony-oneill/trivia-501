@@ -191,14 +191,15 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
      *   <li>{@code status = 'active'}</li>
      *   <li>{@code total_score_pool >= :startingScore} — question must have enough
      *       total answer points to support the chosen starting score</li>
-     *   <li>{@code difficulty_score} in [{@code :minScore}, {@code :maxScore}] —
-     *       easy/medium only for daily challenges</li>
      * </ul>
      *
      * @param categoryId    category UUID
-     * @param startingScore the target score for today's challenge
-     * @param minScore      minimum difficulty score (inclusive, typically 0.0)
-     * @param maxScore      maximum difficulty score (inclusive, typically 5.5 for easy/medium)
+     * @param startingScore the target score for the challenge
+     * @param excludeIds    question IDs to exclude (e.g. used in the last 10 days).
+     *                      Must not be empty — pass a single sentinel UUID
+     *                      ({@code 00000000-0000-0000-0000-000000000000}) when
+     *                      there is nothing to exclude, because {@code NOT IN (empty)}
+     *                      returns zero rows in PostgreSQL.
      * @return a random matching question, or empty if none qualify
      */
     @Query(value = """
@@ -207,15 +208,14 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
           AND q.status                  = 'active'
           AND q.suitable_for_daily      = true
           AND q.total_score_pool       >= :startingScore
-          AND q.difficulty_score        BETWEEN :minScore AND :maxScore
+          AND q.id                     NOT IN (:excludeIds)
         ORDER BY RANDOM()
         LIMIT 1
         """, nativeQuery = true)
     Optional<Question> findRandomDailyQuestion(
-        @Param("categoryId")    UUID   categoryId,
-        @Param("startingScore") int    startingScore,
-        @Param("minScore")      double minScore,
-        @Param("maxScore")      double maxScore
+        @Param("categoryId")    UUID        categoryId,
+        @Param("startingScore") int         startingScore,
+        @Param("excludeIds")    List<UUID>  excludeIds
     );
 
     // ── Football template lookups (V24 columns) ───────────────────────────────

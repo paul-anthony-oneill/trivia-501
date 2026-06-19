@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -296,9 +297,10 @@ public class FreePlayController {
 
     /**
      * Debug endpoint: returns all answers for the game's question.
-     * Used by the in-game debug panel to surface valid checkout targets.
+     * Restricted to admins only — this is the answer key.
      */
     @GetMapping("/games/{gameId}/answers")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AnswerDebugResponse>> getGameAnswers(
         @PathVariable UUID gameId,
         Principal principal

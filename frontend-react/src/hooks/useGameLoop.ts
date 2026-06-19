@@ -37,6 +37,34 @@ export type GameStatus =
   | "RESTORING";
 export type GameType = "freeplay" | "daily-challenge";
 
+/** Matches backend {@code com.trivia501.dto.GameStateResponse}. */
+export interface GameStateResponse {
+  gameId: string;
+  matchId: string;
+  questionId: string;
+  questionText: string;
+  currentScore: number;
+  turnCount: number;
+  status: "IN_PROGRESS" | "COMPLETED";
+  isWin?: boolean;
+  turnTimerSeconds?: number;
+  entityType?: string;
+  hints?: GameHints;
+  moves?: Move[];
+}
+
+/** Matches backend {@code com.trivia501.dto.SubmitAnswerResponse}. */
+export interface SubmitAnswerResponse {
+  result: string;
+  matchedAnswer?: string;
+  scoreValue?: number;
+  scoreBefore?: number;
+  scoreAfter?: number;
+  reason?: string;
+  isWin?: boolean;
+  gameState: GameStateResponse;
+}
+
 // ─── sessionStorage helpers ────────────────────────────────────────────────────
 
 const GAME_STORAGE_KEY = "activeGameState";
@@ -110,6 +138,8 @@ export interface GameLoopState {
   turnCount: number;
   /** Overall lifecycle of the game session. */
   gameStatus: GameStatus;
+  /** True when the game ended via CHECKOUT (win), false for bust-out/forfeit. */
+  isWin: boolean;
   /** Move history, newest first. */
   moves: Move[];
   /** Entity type driving the autocomplete dropdown (e.g. "footballer", "city"). */
@@ -176,6 +206,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
   const [question, setQuestion] = useState("");
   const [turnCount, setTurnCount] = useState(0);
   const [gameStatus, setGameStatus] = useState<GameStatus>("NOT_STARTED");
+  const [isWin, setIsWin] = useState(false);
   const [moves, setMoves] = useState<Move[]>([]);
   const [entityType, setEntityType] = useState("footballer");
   const [hints, setHints] = useState<GameHints | null>(null);
@@ -202,7 +233,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
   // Holds the full server response while the popup is playing
   const pendingResultRef = useRef<{
     answer: string;
-    result: Record<string, unknown>;
+    result: SubmitAnswerResponse;
   } | null>(null);
 
   // ── Restore on mount ───────────────────────────────────────────────────────
@@ -236,9 +267,9 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         setTurnCount(game.turnCount ?? 0);
         setEntityType(game.entityType ?? "footballer");
         setHints(game.hints ?? null);
-        setGameStatus(
-          game.status === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS",
-        );
+        const completed = game.status === "COMPLETED";
+        setGameStatus(completed ? "COMPLETED" : "IN_PROGRESS");
+        setIsWin(completed && game.isWin === true);
 
         // Restore categorySlug for daily challenge lock writes
         if (savedGameType === "daily-challenge" && saved.categorySlug) {
@@ -255,7 +286,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         if (game.moves && Array.isArray(game.moves)) {
           const restoredMoves: Move[] = [...game.moves]
             .reverse()
-            .map((m: Record<string, unknown>) => ({
+            .map((m) => ({
               answer: (m.answer as string) ?? "",
               result: (m.result as string) ?? "UNKNOWN",
               scoreBefore: (m.scoreBefore as number) ?? 0,
@@ -263,7 +294,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
               matchedAnswer: (m.matchedAnswer as string) ?? undefined,
               scoreValue: (m.scoreValue as number) ?? undefined,
               reason: (m.reason as string) ?? undefined,
-            }));
+            } as Move));
           setMoves(restoredMoves);
         }
 
@@ -430,7 +461,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         throw new Error(msg);
       }
 
-      const result = await res.json();
+      const result: SubmitAnswerResponse = await res.json();
 
       // Stash the full response and show the popup — the popup calls
       // handlePopupComplete when it finishes.
@@ -453,25 +484,22 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     pendingResultRef.current = null;
     setPopup(null);
 
-    const reasonText = (r.reason as string) ?? undefined;
+    const reasonText = r.reason ?? undefined;
 
     const newMove: Move = {
       answer,
-      result: (r.result as string) ?? "UNKNOWN",
+      result: r.result ?? "UNKNOWN",
       scoreBefore: score,
-      scoreAfter: (r.scoreAfter as number) ?? score,
-      matchedAnswer: (r.matchedAnswer as string) ?? undefined,
-      scoreValue: (r.scoreValue as number) ?? undefined,
+      scoreAfter: r.scoreAfter ?? score,
+      matchedAnswer: r.matchedAnswer ?? undefined,
+      scoreValue: r.scoreValue ?? undefined,
       reason: reasonText,
     };
 
     setMoves((prev) => [newMove, ...prev]);
-    setScore((r.scoreAfter as number) ?? score);
+    setScore(r.scoreAfter ?? score);
     setTurnCount((prev) => prev + 1);
-    setHints(
-      ((r.gameState as Record<string, unknown>)?.hints as GameHints | null) ??
-        null,
-    );
+    setHints(r.gameState?.hints ?? null);
 
     if (r.result === "VALID") addToast(`Correct! -${r.scoreValue}`, "success");
     else if (r.result === "BUST")
@@ -479,8 +507,12 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     else if (r.result === "INVALID")
       addToast(reasonText || "Not a valid answer — try again", "error");
 
-    if (r.isWin) {
+    const gameCompleted = r.gameState?.status === "COMPLETED";
+    const gameWasWon = r.isWin === true;
+
+    if (gameCompleted) {
       setGameStatus("COMPLETED");
+      setIsWin(gameWasWon);
       clearSavedGameState();
       if (gameType === "daily-challenge" && currentCategorySlug && gameId) {
         setDailyLockCompleted(currentCategorySlug, gameId);
@@ -498,6 +530,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     abandonCurrentGame();
     clearSavedGameState();
     setGameStatus("NOT_STARTED");
+    setIsWin(false);
     setGameId(null);
     setQuestionId(null);
     setCurrentCategorySlug(null);
@@ -515,6 +548,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     question,
     turnCount,
     gameStatus,
+    isWin,
     moves,
     entityType,
     hints,
