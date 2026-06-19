@@ -47,7 +47,7 @@ public class SecurityConfig {
 
     private final OptionalJwtFilter optionalJwtFilter;
     private final java.util.Optional<RateLimitFilter> rateLimitFilter;
-    private final boolean testProfile;
+    private final boolean useDevModeAuth;
 
     public SecurityConfig(JwtDecoder jwtDecoder,
                           JwtAuthenticationConverter jwtConverter,
@@ -60,9 +60,9 @@ public class SecurityConfig {
         // DevModeAuthFilter on every non-prod profile (default, dev, test).
         // Only OptionalJwtFilter when SPRING_PROFILES_ACTIVE includes "prod".
         var profiles = Arrays.asList(environment.getActiveProfiles());
-        this.testProfile = !profiles.contains("prod");
+        this.useDevModeAuth = !profiles.contains("prod");
         log.info("SecurityConfig: auth filter = {} (JWT {}configured)",
-                testProfile ? "DevModeAuthFilter" : "OptionalJwtFilter",
+                useDevModeAuth ? "DevModeAuthFilter" : "OptionalJwtFilter",
                 jwtConfigured ? "" : "NOT ");
     }
 
@@ -86,6 +86,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/football/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/daily-challenge/games/*/answers").hasRole("ADMIN")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/freeplay/games/*/answers").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/daily-challenge/**").permitAll()
                 .requestMatchers("/api/daily-challenge/**").authenticated()
                 .requestMatchers("/api/freeplay/**").hasAnyRole("USER", "ADMIN")
@@ -93,9 +94,10 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             );
 
-        // Auth filter: DevModeAuthFilter in test profile (grants ROLE_USER+ROLE_ADMIN to all
-        // requests); OptionalJwtFilter on every other profile (JWT + anonymous cookie fallback).
-        if (testProfile) {
+        // Auth filter: DevModeAuthFilter on every non-prod profile (default, dev, test)
+        // grants ROLE_USER+ROLE_ADMIN to all requests. OptionalJwtFilter on prod only
+        // (JWT + anonymous cookie fallback).
+        if (useDevModeAuth) {
             http.addFilterBefore(new DevModeAuthFilter(),
                 org.springframework.security.web.access.intercept.AuthorizationFilter.class);
         } else {

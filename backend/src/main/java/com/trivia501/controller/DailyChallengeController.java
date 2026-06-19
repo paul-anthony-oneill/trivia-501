@@ -112,25 +112,40 @@ public class DailyChallengeController {
      * Pass ?force=true to delete any existing challenge and regenerate.
      */
     @PostMapping("/admin/generate-today")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<java.util.Map<String, Object>> generateToday(
             @RequestParam(defaultValue = "false") boolean force) {
         var cats = categoryRepository.findAll();
         int created = 0;
+        int alreadyExisted = 0;
+        int failed = 0;
         var today = java.time.LocalDate.now();
         for (var cat : cats) {
             if ("test".equals(cat.getSlug())) continue;
             try {
+                boolean existed = challengeRepository
+                        .findByChallengeDateAndCategoryId(today, cat.getId()).isPresent();
                 if (force) {
                     dailyChallengeService.deleteTodaysChallenge(cat.getId());
+                    existed = false;
                 }
-                dailyChallengeService.getTodaysChallenge(cat.getId());
-                created++;
-            } catch (Exception e) {
-                // challenge already exists or no viable question
+                if (existed) {
+                    alreadyExisted++;
+                } else {
+                    dailyChallengeService.getTodaysChallenge(cat.getId());
+                    created++;
+                }
+            } catch (IllegalStateException e) {
+                log.warn("No viable question for category '{}' today — {}", cat.getSlug(), e.getMessage());
+                failed++;
             }
         }
-        return ResponseEntity.ok(java.util.Map.of("status", "generation complete", "created", created));
+        return ResponseEntity.ok(java.util.Map.of(
+                "status", "generation complete",
+                "created", created,
+                "alreadyExisted", alreadyExisted,
+                "failed", failed
+        ));
     }
 
     /**
@@ -138,10 +153,15 @@ public class DailyChallengeController {
      * Idempotent — skips days that already have a challenge.
      */
     @PostMapping("/admin/generate")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<java.util.Map<String, String>> generateChallenges() {
-        dailyChallengeScheduler.selectDailyChallenges();
-        return ResponseEntity.ok(java.util.Map.of("status", "generation complete"));
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, Object>> generateChallenges() {
+        var summary = dailyChallengeScheduler.selectDailyChallenges();
+        return ResponseEntity.ok(java.util.Map.of(
+                "status", "generation complete",
+                "created", summary.created(),
+                "skipped", summary.skipped(),
+                "failed", summary.failed()
+        ));
     }
 
     /**

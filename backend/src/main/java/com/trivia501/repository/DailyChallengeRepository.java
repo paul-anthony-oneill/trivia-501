@@ -56,15 +56,18 @@ public interface DailyChallengeRepository extends JpaRepository<DailyChallenge, 
 
     /**
      * Returns the starting score the last time a specific question was used
-     * as a daily challenge, so we can avoid repeating the same score.
+     * as a daily challenge within a 90-day lookback window, so the anti-repeat
+     * rule does not saturate as history accumulates.
      */
     @Query("""
         SELECT dc.startingScore FROM DailyChallenge dc
         WHERE dc.questionId = :questionId
+          AND dc.challengeDate >= :since
         ORDER BY dc.challengeDate DESC
         LIMIT 1
         """)
-    Optional<Integer> findLatestStartingScoreForQuestion(
-        @Param("questionId") UUID questionId
+    Optional<Integer> findLatestStartingScoreForQuestionSince(
+        @Param("questionId") UUID questionId,
+        @Param("since") LocalDate since
     );
 }

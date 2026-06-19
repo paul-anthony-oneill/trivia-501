@@ -145,8 +145,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, [supabase]);
 
+  const value = useMemo(() => ({
+    user, session, loading, backendConfirmed, profile,
+    signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
+  }), [user, session, loading, backendConfirmed, profile,
+    signInWithGoogle, signInWithEmail, signUpWithEmail, signOut]);
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, backendConfirmed, profile, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

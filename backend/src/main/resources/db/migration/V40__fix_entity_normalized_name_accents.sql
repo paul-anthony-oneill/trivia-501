@@ -46,7 +46,7 @@ UPDATE entities
 SET    normalized_name = unaccent(normalized_name)
 WHERE  normalized_name != unaccent(normalized_name);
 
--- Step 5: Delete plain duplicates (both rows already unaccented) that 2a missed.
+-- Step 5: Delete plain duplicates (both rows already unaccented) that Step 2 missed.
 --          Keep the row with the lower ID.
 DELETE FROM entities bad
 WHERE  EXISTS (

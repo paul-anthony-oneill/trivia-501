@@ -46,6 +46,8 @@ export default function EmailAuthForm({ onCancel }: { onCancel: () => void }) {
           setSuccess("Check your email for a confirmation link.");
         }
       }
+    } catch {
+      setError("Something went wrong — please try again.");
     } finally {
       setSubmitting(false);
     }

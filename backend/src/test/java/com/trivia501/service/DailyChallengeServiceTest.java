@@ -83,7 +83,7 @@ class DailyChallengeServiceTest {
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(challengeRepository.findLatestStartingScoreForQuestion(any(UUID.class)))
+        when(challengeRepository.findLatestStartingScoreForQuestionSince(any(UUID.class), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
                 .thenReturn(Optional.of(question));
@@ -153,7 +153,7 @@ class DailyChallengeServiceTest {
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(challengeRepository.findLatestStartingScoreForQuestion(any(UUID.class)))
+        when(challengeRepository.findLatestStartingScoreForQuestionSince(any(UUID.class), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
                 .thenReturn(Optional.of(question));

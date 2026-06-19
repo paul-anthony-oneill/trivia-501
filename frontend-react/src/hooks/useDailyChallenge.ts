@@ -52,9 +52,8 @@ function setCachedStatus(status: CachedStatus): void {
 }
 
 export function useDailyChallenge(): DailyChallengeState & { refresh: () => void } {
-  const cached = getCachedStatus();
-
   const [challenges, setChallenges] = useState<CategoryChallenge[]>(() => {
+    const cached = getCachedStatus();
     if (cached) {
       pruneStaleDailyLocks();
       return cached.challenges.map((c) => ({
@@ -64,11 +63,11 @@ export function useDailyChallenge(): DailyChallengeState & { refresh: () => void
     }
     return [];
   });
-  const [date, setDate] = useState<string | null>(cached?.date ?? null);
-  const [loading, setLoading] = useState(!cached);
+  const [date, setDate] = useState<string | null>(() => getCachedStatus()?.date ?? null);
+  const [loading, setLoading] = useState(() => !getCachedStatus());
   const [error, setError] = useState<string | null>(null);
   const reqId = useRef(0);
-  const hasData = useRef(!!cached);
+  const hasData = useRef(challenges.length > 0);
 
   const fetchStatus = useCallback((signal?: AbortSignal) => {
     const id = ++reqId.current;

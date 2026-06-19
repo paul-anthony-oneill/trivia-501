@@ -84,8 +84,12 @@ export default function EntitySearch({
       if (!signal.aborted && mountedRef.current) {
         applyResults(searchEntities(entities, query));
       }
-    } catch {
-      // aborted or network error — either way, no-op
+    } catch (err) {
+      if (!signal.aborted && mountedRef.current) {
+        setLoading(false);
+        setSuggestions([]);
+        setNoMatch(true);
+      }
     }
   }
 

@@ -204,7 +204,7 @@ public class DailyChallengeService {
         DailyChallengeScheduler.QuestionScorePair result =
             DailyChallengeScheduler.findViableQuestionAndScore(
                 questionRepository, answerRepository, challengeRepository,
-                categoryId, yesterdayScore, recentQuestionIds);
+                categoryId, yesterdayScore, today, recentQuestionIds);
 
         if (result == null) {
             throw new IllegalStateException(
