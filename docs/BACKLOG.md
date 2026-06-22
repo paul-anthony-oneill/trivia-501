@@ -336,7 +336,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/match/MatchView.tsx:335–381`, `frontend-react/src/hooks/useGameLoop.ts:190–196,390–393`, backend: `GameService.java`, `GameStateMachine.java`
 - **Learning notes**: This is an API-contract gap surfacing as a UI bug — a great interview story about why response DTOs should model *all* terminal states, not just the happy one. The React lesson: deriving `isWin` from a status enum collapses two distinct states into one boolean; booleans in props are often a smell when the domain has 3+ states.
 
-### UX: Every throw forces a 2–4.5 second un-skippable animation
+### ✅ UX: Every throw forces a 2–4.5 second un-skippable animation
+- **Status**: Done. Click anywhere on the popup or press any key to skip. A `skipRef` holds the latest skip logic (registered once on mount) so no re-registration is needed as phases change. Skip during `counting` cancels the rAF and jumps to `flashing` (BUST) or `showing` (VALID); skip during `flashing` advances to `showing`; skip during `showing`/`invalid` calls `onComplete` immediately. Hint text "Tap or press any key to skip" shown during the counting phase.
 - **Severity**: 3 — Flexibility and Efficiency / User Control. Up to ~45s of forced waiting per game, every game, hitting daily players hardest.
 - **Area**: Frontend-React (requestAnimationFrame lifecycle, escape hatches)
 - **What**: `AnimatedScorePopup` counts up for `2000 + Math.random() * 2000` ms plus hold phases, with input disabled throughout and no way to skip. Suspense is great the first five times; after that it's friction for your most loyal players.
