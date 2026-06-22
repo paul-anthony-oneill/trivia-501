@@ -88,3 +88,5 @@ graphify-out/
 
 # Next.js build output (stray folder in backend/)
 backend/.next/
+logs.md
+test-data.sql

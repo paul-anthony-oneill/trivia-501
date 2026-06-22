@@ -5,7 +5,6 @@ import com.trivia501.dto.admin.BulkCreateAnswersRequest;
 import com.trivia501.dto.admin.BulkCreateAnswersResponse;
 import com.trivia501.dto.admin.CreateAnswerRequest;
 import com.trivia501.engine.DartsValidator;
-import com.trivia501.mapper.AnswerMapper;
 import com.trivia501.model.Answer;
 import com.trivia501.model.EntityType;
 import com.trivia501.repository.AnswerRepository;
@@ -29,7 +28,6 @@ public class AdminAnswerService {
     private final AnswerRepository answerRepository;
     private final QuestionRepository questionRepository;
     private final EntitySearchService entitySearchService;
-    private final AnswerMapper answerMapper;
 
     @Transactional
     public AnswerResponse createAnswer(UUID questionId, CreateAnswerRequest request) {
@@ -56,7 +54,7 @@ public class AdminAnswerService {
         // Register in the global entity autocomplete registry (idempotent).
         entitySearchService.upsertEntity(request.getDisplayText(), EntityType.FOOTBALLER, null);
         log.info("Created answer '{}' for question {}", saved.getDisplayText(), questionId);
-        return answerMapper.toResponse(saved);
+        return AnswerResponse.from(saved);
     }
 
     @Transactional
@@ -105,7 +103,7 @@ public class AdminAnswerService {
             throw new IllegalArgumentException("Question not found with id: " + questionId);
         }
         return answerRepository.findByQuestionIdOrderByScoreDesc(questionId).stream()
-                .map(answerMapper::toResponse)
+                .map(AnswerResponse::from)
                 .collect(Collectors.toList());
     }
 
@@ -132,7 +130,7 @@ public class AdminAnswerService {
 
         Answer saved = answerRepository.save(answer);
         log.info("Updated answer: {}", saved.getId());
-        return answerMapper.toResponse(saved);
+        return AnswerResponse.from(saved);
     }
 
     @Transactional

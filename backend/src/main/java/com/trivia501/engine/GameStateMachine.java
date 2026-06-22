@@ -75,7 +75,7 @@ public class GameStateMachine {
         Game.GameStatus nextStatus = game.getStatus();
         UUID winnerId              = game.getWinnerId();
         int nextTimer              = game.getTurnTimerSeconds();
-        int p1Timeouts             = game.getPlayer1ConsecutiveTimeouts();
+        int p1Timeouts             = game.getPlayerConsecutiveTimeouts();
 
         if (moveResult == GameMove.MoveResult.INVALID) {
             return new GameTransition(moveResult, scoreAfter, turnAdvanced, nextTurnPlayerId,
@@ -115,7 +115,7 @@ public class GameStateMachine {
      */
     public GameTransition onTimeout(Game game, Match match, UUID playerId) {
         int currentScore = getPlayerScore(game, match, playerId);
-        int p1Timeouts = game.getPlayer1ConsecutiveTimeouts() + 1;
+        int p1Timeouts = game.getPlayerConsecutiveTimeouts() + 1;
 
         // Forfeit threshold reached — solo bust-out, no winner
         if (p1Timeouts >= FORFEIT_TIMEOUT_THRESHOLD) {
