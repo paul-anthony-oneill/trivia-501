@@ -18,6 +18,8 @@ public interface DailyChallengeRepository extends JpaRepository<DailyChallenge, 
 
     List<DailyChallenge> findByChallengeDate(LocalDate challengeDate);
 
+    Optional<DailyChallenge> findByChallengeDateAndQuestionId(LocalDate challengeDate, UUID questionId);
+
     Optional<DailyChallenge> findTopByCategoryIdOrderByChallengeDateDesc(UUID categoryId);
 
     List<DailyChallenge> findByChallengeDateAndStatus(LocalDate challengeDate, String status);

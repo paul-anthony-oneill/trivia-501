@@ -3,19 +3,15 @@ package com.trivia501.controller;
 import com.trivia501.dto.AnswerDebugResponse;
 import com.trivia501.dto.DailyChallengeShareResponse;
 import com.trivia501.dto.DailyChallengeStatusResponse;
-import com.trivia501.dto.GameHints;
 import com.trivia501.dto.GameStateResponse;
-import com.trivia501.dto.MoveDto;
 import com.trivia501.dto.SubmitAnswerRequest;
 import com.trivia501.dto.SubmitAnswerResponse;
 import com.trivia501.model.*;
-import com.trivia501.repository.AnswerRepository;
-import com.trivia501.repository.CategoryRepository;
 import com.trivia501.scheduler.DailyChallengeScheduler;
 import com.trivia501.service.DailyChallengeService;
-import com.trivia501.service.GameHintsService;
 import com.trivia501.service.GameService;
 import com.trivia501.service.MatchService;
+import com.trivia501.service.PlayerProfileService;
 import com.trivia501.service.QuestionService;
 import com.trivia501.security.OptionalJwtFilter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,10 +38,8 @@ public class DailyChallengeController {
     private final GameService gameService;
     private final MatchService matchService;
     private final QuestionService questionService;
-    private final GameHintsService gameHintsService;
-    private final CategoryRepository categoryRepository;
-    private final com.trivia501.service.PlayerProfileService playerProfileService;
-    private final AnswerRepository answerRepository;
+    private final PlayerProfileService playerProfileService;
+    private final GameResponseAssembler assembler;
 
     public DailyChallengeController(
             DailyChallengeService dailyChallengeService,
@@ -53,20 +47,16 @@ public class DailyChallengeController {
             GameService gameService,
             MatchService matchService,
             QuestionService questionService,
-            GameHintsService gameHintsService,
-            CategoryRepository categoryRepository,
-            com.trivia501.service.PlayerProfileService playerProfileService,
-            AnswerRepository answerRepository
+            PlayerProfileService playerProfileService,
+            GameResponseAssembler assembler
     ) {
         this.dailyChallengeService = dailyChallengeService;
         this.dailyChallengeScheduler = dailyChallengeScheduler;
         this.gameService = gameService;
         this.matchService = matchService;
         this.questionService = questionService;
-        this.gameHintsService = gameHintsService;
-        this.categoryRepository = categoryRepository;
         this.playerProfileService = playerProfileService;
-        this.answerRepository = answerRepository;
+        this.assembler = assembler;
     }
 
     /**
@@ -76,16 +66,14 @@ public class DailyChallengeController {
     public ResponseEntity<DailyChallengeStatusResponse> getStatus() {
         List<DailyChallenge> challenges = dailyChallengeService.getTodaysChallenges();
 
-        // Bulk-fetch categories and questions to avoid N+1 queries
         List<UUID> categoryIds = challenges.stream()
                 .map(DailyChallenge::getCategoryId).distinct().toList();
         List<UUID> questionIds = challenges.stream()
                 .map(DailyChallenge::getQuestionId).distinct().toList();
 
-        Map<UUID, Category> categoriesById = categoryRepository.findAllById(categoryIds).stream()
-                .collect(Collectors.toMap(Category::getId, c -> c));
+        Map<UUID, Category> categoriesById = dailyChallengeService.getCategoriesByIds(categoryIds);
         Map<UUID, Question> questionsById = questionService.getQuestionsByIds(questionIds).stream()
-                .collect(Collectors.toMap(Question::getId, q -> q));
+                .collect(java.util.stream.Collectors.toMap(Question::getId, q -> q));
 
         List<DailyChallengeStatusResponse.CategoryChallenge> items = new ArrayList<>();
         for (DailyChallenge dc : challenges) {
@@ -115,7 +103,7 @@ public class DailyChallengeController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<java.util.Map<String, Object>> generateToday(
             @RequestParam(defaultValue = "false") boolean force) {
-        var cats = categoryRepository.findAll();
+        var cats = dailyChallengeService.getAllCategories();
         int created = 0;
         int alreadyExisted = 0;
         int failed = 0;
@@ -172,7 +160,7 @@ public class DailyChallengeController {
     ) {
         try {
             DailyChallenge dc = dailyChallengeService.getTodaysChallenge(categorySlug);
-            Category category = categoryRepository.findById(dc.getCategoryId()).orElse(null);
+            Category category = dailyChallengeService.getCategoryById(dc.getCategoryId()).orElse(null);
             Question question = questionService.getQuestionById(dc.getQuestionId()).orElse(null);
 
             return ResponseEntity.ok(DailyChallengeStatusResponse.CategoryChallenge.builder()
@@ -195,7 +183,7 @@ public class DailyChallengeController {
             @PathVariable String categorySlug,
             Principal principal
     ) {
-        UUID playerId = playerIdFrom(principal);
+        UUID playerId = assembler.playerIdFrom(principal);
         playerProfileService.ensureProfile(playerId);
 
         log.debug("Starting daily challenge for player {} in category '{}'", playerId, categorySlug);
@@ -206,12 +194,12 @@ public class DailyChallengeController {
         Game game = startRecord.game();
         Question question = startRecord.question();
 
-        gameHintsService.loadScoreCache(question.getId());
+        assembler.loadScoreCache(question.getId());
 
         log.info("Daily challenge game started: gameId={}, playerId={}, category={}, startingScore={}",
                 game.getId(), playerId, categorySlug, startRecord.challenge().getStartingScore());
 
-        return ResponseEntity.ok(buildGameStateResponse(game, question, startRecord.match(), List.of(), List.of()));
+        return ResponseEntity.ok(assembler.buildGameStateResponse(game, question, startRecord.match(), List.of(), List.of()));
     }
 
     /**
@@ -224,7 +212,7 @@ public class DailyChallengeController {
             Principal principal,
             HttpServletRequest httpRequest
     ) {
-        UUID playerId = playerIdFrom(principal);
+        UUID playerId = assembler.playerIdFrom(principal);
         log.debug("Submitting daily challenge answer for game {}: '{}'", gameId, request.getAnswer());
 
         GameService.MoveRecord result = gameService.processPlayerMove(
@@ -252,7 +240,7 @@ public class DailyChallengeController {
                 .scoreAfter(move.getScoreAfter())
                 .reason(result.reason())
                 .isWin(move.getResult() == GameMove.MoveResult.CHECKOUT)
-                .gameState(buildGameStateResponse(game, question, match, result.usedAnswerIds(), List.of()))
+                .gameState(assembler.buildGameStateResponse(game, question, match, result.usedAnswerIds(), List.of()))
                 .build();
 
         return ResponseEntity.ok(response);
@@ -266,7 +254,7 @@ public class DailyChallengeController {
             @PathVariable UUID gameId,
             Principal principal
     ) {
-        UUID playerId = playerIdFrom(principal);
+        UUID playerId = assembler.playerIdFrom(principal);
         log.debug("Abandoning daily challenge game {} for player {}", gameId, playerId);
         gameService.abandonGame(gameId, playerId);
         return ResponseEntity.noContent().build();
@@ -280,7 +268,7 @@ public class DailyChallengeController {
             @PathVariable UUID gameId,
             Principal principal
     ) {
-        UUID playerId = playerIdFrom(principal);
+        UUID playerId = assembler.playerIdFrom(principal);
         log.debug("Getting daily challenge game state for game {} (requestedBy={})", gameId, playerId);
 
         Game game = gameService.getGameById(gameId).orElse(null);
@@ -296,7 +284,7 @@ public class DailyChallengeController {
 
         List<GameMove> moves = gameService.getMovesForGame(gameId);
 
-        return ResponseEntity.ok(buildGameStateResponse(game, question, match, moves));
+        return ResponseEntity.ok(assembler.buildGameStateResponse(game, question, match, moves));
     }
 
     /**
@@ -311,11 +299,8 @@ public class DailyChallengeController {
 
         List<GameMove> moves = gameService.getMovesForGame(gameId);
 
-        // Match the game to today's daily challenge for the same question
-        DailyChallenge challenge = dailyChallengeService.getTodaysChallenges().stream()
-                .filter(dc -> dc.getQuestionId().equals(game.getQuestionId()))
-                .findFirst()
-                .orElse(null);
+        DailyChallenge challenge = dailyChallengeService.findByChallengeDateAndQuestionId(
+                java.time.LocalDate.now(), game.getQuestionId()).orElse(null);
 
         String categoryName = "Unknown";
         String categorySlug = "unknown";
@@ -325,7 +310,7 @@ public class DailyChallengeController {
         if (challenge != null) {
             startingScore = challenge.getStartingScore();
             challengeDate = challenge.getChallengeDate();
-            Category category = categoryRepository.findById(challenge.getCategoryId()).orElse(null);
+            Category category = dailyChallengeService.getCategoryById(challenge.getCategoryId()).orElse(null);
             if (category != null) {
                 categoryName = category.getName();
                 categorySlug = category.getSlug();
@@ -368,80 +353,7 @@ public class DailyChallengeController {
         @PathVariable UUID gameId,
         Principal principal
     ) {
-        UUID playerId = playerIdFrom(principal);
-        Game game = gameService.getGameById(gameId).orElse(null);
-        if (game == null) return ResponseEntity.notFound().build();
-
-        return ResponseEntity.ok(
-            answerRepository.findByQuestionIdOrderByScoreDesc(game.getQuestionId())
-                .stream()
-                .map(a -> new AnswerDebugResponse(
-                    a.getId(), a.getDisplayText(), a.getScore(),
-                    a.getIsValidDarts(), a.getIsBust()))
-                .toList()
-        );
+        UUID playerId = assembler.playerIdFrom(principal);
+        return ResponseEntity.ok(gameService.getAnswersForGame(gameId, playerId));
     }
-
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    private UUID playerIdFrom(Principal principal) {
-        return UUID.fromString(principal.getName());
-    }
-
-    private GameStateResponse buildGameStateResponse(Game game, Question question, Match match,
-                                                      List<GameMove> moves) {
-        return buildGameStateResponse(game, question, match, null, moves);
-    }
-
-    private GameStateResponse buildGameStateResponse(Game game, Question question, Match match,
-                                                      List<UUID> usedAnswerIds, List<GameMove> moves) {
-        int currentScore = game.getPlayer1Score();
-
-        boolean isWin = game.getStatus() == Game.GameStatus.COMPLETED
-                && game.getWinnerId() != null
-                && game.getWinnerId().equals(match.getPlayer1Id());
-
-        String entityType = EntityType.FOOTBALLER;
-        if (question.getConfig() != null) {
-            Object configEntityType = question.getConfig().get("entity_type");
-            if (configEntityType instanceof String s && !s.isBlank()) {
-                entityType = s;
-            }
-        }
-
-        GameHints hints = usedAnswerIds != null
-                ? gameHintsService.computeHintsFromCache(game.getQuestionId(), usedAnswerIds, currentScore)
-                : gameHintsService.computeHints(game.getId(), game.getQuestionId(), currentScore);
-
-        List<MoveDto> moveDtos = moves != null
-                ? moves.stream().map(this::toMoveDto).toList()
-                : null;
-
-        return GameStateResponse.builder()
-                .gameId(game.getId())
-                .matchId(game.getMatchId())
-                .questionId(game.getQuestionId())
-                .questionText(question.getQuestionText())
-                .currentScore(currentScore)
-                .turnCount(game.getTurnCount())
-                .status(game.getStatus().name())
-                .isWin(isWin)
-                .turnTimerSeconds(game.getTurnTimerSeconds())
-                .entityType(entityType)
-                .hints(hints)
-                .moves(moveDtos)
-                .build();
-    }
-
-    private MoveDto toMoveDto(GameMove move) {
-        return new MoveDto(
-                move.getSubmittedAnswer(),
-                move.getResult().name(),
-                move.getScoreBefore(),
-                move.getScoreAfter(),
-                move.getMatchedDisplayText(),
-                move.getScoreValue()
-        );
-    }
-
 }

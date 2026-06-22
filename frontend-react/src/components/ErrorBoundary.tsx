@@ -40,25 +40,22 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="min-h-[50vh] flex items-center justify-center bg-gray-950 px-6">
+        <div className="min-h-[50vh] flex items-center justify-center bg-bg px-6">
           <div className="text-center max-w-md">
-            <div className="text-red-500 text-lg font-semibold mb-2">
+            <div className="text-danger text-lg font-semibold mb-2">
               Something went wrong
             </div>
             {this.props.section && (
-              <p className="text-gray-400 text-sm mb-4">
-                The {this.props.section} section encountered an error.
+              <p className="text-muted text-sm mb-4">
+                The {this.props.section} section encountered an error. Try again in a moment.
               </p>
             )}
-            <p className="text-gray-500 text-xs mb-6 font-mono break-all">
-              {this.state.error.message}
-            </p>
             <button
               onClick={() => {
                 this.setState({ error: null });
                 (this.props.onRetry ?? (() => window.location.reload()))();
               }}
-              className="border border-gray-500 text-gray-300 px-6 py-2 text-sm hover:bg-gray-800 transition-colors"
+              className="btn-ghost px-6 py-2"
             >
               Reload this section
             </button>

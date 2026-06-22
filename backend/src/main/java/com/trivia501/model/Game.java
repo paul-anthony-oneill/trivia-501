@@ -51,17 +51,9 @@ public class Game {
     @Builder.Default
     private Integer player1Score = 501;
 
-    @Column(name = "player2_score", nullable = false)
-    @Builder.Default
-    private Integer player2Score = 501;
-
     @Column(name = "player1_consecutive_timeouts")
     @Builder.Default
     private Integer player1ConsecutiveTimeouts = 0;
-
-    @Column(name = "player2_consecutive_timeouts")
-    @Builder.Default
-    private Integer player2ConsecutiveTimeouts = 0;
 
     @Column(name = "winner_id")
     private UUID winnerId;
@@ -103,7 +95,6 @@ public class Game {
     }
 
     public enum GameStatus {
-        WAITING,        // Waiting to start
         IN_PROGRESS,
         COMPLETED,
         ABANDONED
@@ -114,28 +105,5 @@ public class Game {
      */
     public boolean isCheckoutScore(int score) {
         return score >= -10 && score <= 0;
-    }
-
-    /**
-     * Get current score for specified player.
-     */
-    public Integer getScoreForPlayer(UUID playerId) {
-        if (playerId.equals(getPlayerIdFromMatch(1))) {
-            return player1Score;
-        } else if (playerId.equals(getPlayerIdFromMatch(2))) {
-            return player2Score;
-        }
-        return null;
-    }
-
-    /**
-     * Helper to get player ID based on player number (1 or 2).
-     * Note: This requires the match context, so it's a placeholder.
-     * In actual usage, you'd pass player IDs or use match entity.
-     */
-    private UUID getPlayerIdFromMatch(int playerNumber) {
-        // This is a placeholder - actual implementation would need Match reference
-        // or pass player IDs directly in the service layer
-        return null;
     }
 }

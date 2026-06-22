@@ -362,7 +362,7 @@ class AnswerEvaluatorTest {
             createAnswer(UUID.randomUUID(), "Player 3", 100, true, false)
         );
 
-        when(answerRepository.findTopAnswers(QUESTION_ID, true))
+        when(answerRepository.findTopAnswers(QUESTION_ID, true, 3))
             .thenReturn(topAnswers);
 
         List<Answer> results = evaluator.getTopAnswers(QUESTION_ID, 3, true);

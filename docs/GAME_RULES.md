@@ -507,6 +507,23 @@ Each player's timeout consequences are **independent**. If both players hit 4 co
 
 ---
 
+---
+
+## Multiplayer Rules (Reference — Not Yet Implemented)
+
+Multiplayer has been deferred indefinitely (2026-06-08). The rules below are retained for design reference only. No code currently implements them. When multiplayer returns, the schema and engine will be rebuilt from a real product spec.
+
+### Close-Finish Rule
+When Player 1 checks out, Player 2 gets one final turn before a winner is declared. If P2 also checks out, the player closer to 0 wins; if equal, it is a draw.
+
+### Turn Alternation
+Players alternate turns. A BUST or INVALID move switches the turn without changing either player's score.
+
+### Opponent Timeout Forfeit
+Three consecutive timeouts forfeit the game; the opponent is declared the winner. In solo play, three timeouts trigger a bust-out (no winner).
+
+---
+
 ## Rule Updates
 
 This document represents the **official** game rules as of **2026-01-17**.

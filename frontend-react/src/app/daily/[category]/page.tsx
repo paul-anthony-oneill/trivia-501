@@ -152,7 +152,7 @@ export default function DailyCategoryPage() {
       <footer className="mt-8 kicker">
         Shared via Trivia 501 ·{" "}
         <a href="/daily" className="text-accent hover:underline">
-          trivia501.com/daily
+          /daily
         </a>
       </footer>
     </div>

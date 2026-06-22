@@ -80,7 +80,7 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
     @Query("""
         SELECT g FROM Game g
         JOIN Match m ON g.matchId = m.id
-        WHERE (m.player1Id = :playerId OR m.player2Id = :playerId)
+        WHERE m.player1Id = :playerId
           AND g.status = 'IN_PROGRESS'
         ORDER BY g.updatedAt DESC
         LIMIT 1
@@ -103,7 +103,7 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
     @Query("""
         SELECT g FROM Game g
         JOIN Match m ON g.matchId = m.id
-        WHERE (m.player1Id = :playerId OR m.player2Id = :playerId)
+        WHERE m.player1Id = :playerId
           AND g.status = 'IN_PROGRESS'
         """)
     List<Game> findActiveGamesByPlayerId(@Param("playerId") UUID playerId);

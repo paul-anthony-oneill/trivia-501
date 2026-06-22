@@ -222,11 +222,11 @@ public class AnswerEvaluator {
         int limit,
         boolean excludeInvalidDarts
     ) {
-        List<Answer> results = answerRepository.findTopAnswers(
+        return answerRepository.findTopAnswers(
             questionId,
-            excludeInvalidDarts
+            excludeInvalidDarts,
+            limit
         );
-        return results.stream().limit(limit).toList();
     }
 
     /**

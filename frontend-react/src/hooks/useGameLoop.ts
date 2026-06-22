@@ -298,8 +298,6 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
           setMoves(restoredMoves);
         }
 
-        document.body.classList.remove("theme-home");
-        document.body.classList.add("theme-teletext");
         addToast("Game restored!", "success");
       })
       .catch(() => {
@@ -365,9 +363,6 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
 
       saveGameState(game.gameId, label, "freeplay");
 
-      document.body.classList.remove("theme-home");
-      document.body.classList.add("theme-teletext");
-
       addToast("Game started!", "success");
     } catch (err) {
       addToast((err as Error).message || "Error starting game", "error");
@@ -418,9 +413,6 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
       if ((game.turnCount ?? 0) > 0) {
         setDailyLockInProgress(categorySlug, game.gameId);
       }
-
-      document.body.classList.remove("theme-home");
-      document.body.classList.add("theme-teletext");
 
       addToast(
         (game.turnCount ?? 0) > 0 ?
@@ -534,8 +526,6 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     setGameId(null);
     setQuestionId(null);
     setCurrentCategorySlug(null);
-    document.body.classList.remove("theme-teletext");
-    document.body.classList.add("theme-home");
   }
 
   // ── Return ───────────────────────────────────────────────────────────────────

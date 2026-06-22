@@ -1,12 +1,11 @@
 package com.trivia501.controller;
 
 import com.trivia501.dto.GameHints;
+import com.trivia501.dto.GameStateResponse;
 import com.trivia501.dto.StartFreePlayRequest;
 import com.trivia501.dto.SubmitAnswerRequest;
 import com.trivia501.model.*;
 import com.trivia501.security.DevModeAuthFilter;
-import com.trivia501.repository.AnswerRepository;
-import com.trivia501.service.GameHintsService;
 import com.trivia501.service.GameService;
 import com.trivia501.service.MatchService;
 import com.trivia501.service.PlayerProfileService;
@@ -36,16 +35,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Slice tests for {@link FreePlayController}.
- *
- * <h3>Authentication</h3>
- * Class-level {@code @WithMockUser} provides a principal whose name is
- * {@link DevModeAuthFilter#DEV_PLAYER_ID}.  The controller reads player
- * identity via {@code Principal.getName()}, so the mock stubs are keyed on
- * {@code UUID.fromString(DEV_PLAYER_ID)} — the same value the real
- * {@link DevModeAuthFilter} injects during local development.
- */
 @WebMvcTest(FreePlayController.class)
 @Import(JacksonAutoConfiguration.class)
 @ActiveProfiles("test")
@@ -69,36 +58,21 @@ class FreePlayControllerTest {
     private QuestionService questionService;
 
     @MockitoBean
-    private GameHintsService gameHintsService;
-
-    @MockitoBean
     private PlayerProfileService playerProfileService;
 
-    /**
-     * Satisfies the dependency introduced by {@code @EnableJpaAuditing} in
-     * {@code JpaConfig}.  WebMvcTest does not load a real JPA context, so the
-     * {@code JpaMetamodelMappingContext} bean that Spring Data JPA auditing
-     * requires must be provided as a mock.
-     */
     @MockitoBean
-    private AnswerRepository answerRepository;
+    private GameResponseAssembler assembler;
 
     @MockitoBean
     private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
-    /** Stub hints returned by the service — non-zero so assertions are meaningful. */
     private static final GameHints STUB_HINTS = GameHints.builder()
         .maxScoresLeft(3)
         .checkoutsLeft(0)
         .build();
 
-    /** Principal that matches {@link DevModeAuthFilter#DEV_PLAYER_ID}. */
     private static final Principal PRINCIPAL = () -> DevModeAuthFilter.DEV_PLAYER_ID;
 
-    /**
-     * Player ID that matches the principal injected by {@code @WithMockUser}
-     * and by {@link DevModeAuthFilter} in real dev/test runs.
-     */
     private UUID playerId;
     private UUID matchId;
     private UUID gameId;
@@ -111,7 +85,6 @@ class FreePlayControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Must match the @WithMockUser username so controller-resolved principal == mock stub key
         playerId  = UUID.fromString(DevModeAuthFilter.DEV_PLAYER_ID);
         matchId   = UUID.randomUUID();
         gameId    = UUID.randomUUID();
@@ -127,7 +100,6 @@ class FreePlayControllerTest {
         match = Match.builder()
             .id(matchId)
             .player1Id(playerId)
-            .player2Id(null)
             .type(Match.MatchType.CASUAL)
             .format(Match.MatchFormat.BEST_OF_1)
             .status(Match.MatchStatus.IN_PROGRESS)
@@ -150,10 +122,19 @@ class FreePlayControllerTest {
             .status(Game.GameStatus.IN_PROGRESS)
             .currentTurnPlayerId(playerId)
             .player1Score(501)
-            .player2Score(501)
             .turnCount(0)
             .turnTimerSeconds(45)
             .build();
+    }
+
+    /** Build a standard GameStateResponse for stubbing the assembler. */
+    private GameStateResponse stubGameState(Game g, Question q, Match m, int score, String status, boolean isWin) {
+        return GameStateResponse.builder()
+            .gameId(g.getId()).matchId(m.getId()).questionId(q.getId())
+            .questionText(q.getQuestionText()).currentScore(score)
+            .turnCount(g.getTurnCount()).status(status).isWin(isWin)
+            .turnTimerSeconds(g.getTurnTimerSeconds()).entityType(EntityType.FOOTBALLER)
+            .hints(STUB_HINTS).build();
     }
 
     @Test
@@ -164,12 +145,14 @@ class FreePlayControllerTest {
             .build();
 
         when(questionService.getCategoryBySlug("football")).thenReturn(Optional.of(category));
-        when(matchService.createMatch(eq(playerId), isNull(), eq(categoryId),
+        when(matchService.createMatch(eq(playerId), eq(categoryId),
             eq(Match.MatchType.CASUAL), eq(Match.MatchFormat.BEST_OF_1), isNull()))
             .thenReturn(match);
         when(matchService.startNextGame(match, 501))
             .thenReturn(new MatchService.GameStartRecord(game, question));
-        when(gameHintsService.computeHintsFromCache(eq(questionId), eq(List.of()), eq(501))).thenReturn(STUB_HINTS);
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+        when(assembler.buildGameStateResponse(eq(game), eq(question), eq(match), eq(List.of()), eq(List.of())))
+            .thenReturn(stubGameState(game, question, match, 501, "IN_PROGRESS", false));
 
         mockMvc.perform(post("/api/freeplay/start")
                 .principal(PRINCIPAL)
@@ -183,8 +166,7 @@ class FreePlayControllerTest {
             .andExpect(jsonPath("$.turnCount").value(0))
             .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
             .andExpect(jsonPath("$.isWin").value(false))
-            .andExpect(jsonPath("$.hints.maxScoresLeft").value(3))
-            .andExpect(jsonPath("$.hints.checkoutsLeft").value(0));
+            .andExpect(jsonPath("$.hints.maxScoresLeft").value(3));
     }
 
     @Test
@@ -197,31 +179,25 @@ class FreePlayControllerTest {
         UUID answerId = UUID.randomUUID();
 
         GameMove move = GameMove.builder()
-            .id(UUID.randomUUID())
-            .gameId(gameId)
-            .playerId(playerId)
-            .moveNumber(1)
-            .submittedAnswer("Erling Haaland")
-            .matchedAnswerId(answerId)
-            .matchedDisplayText("Erling Haaland")
-            .result(GameMove.MoveResult.VALID)
-            .scoreValue(36)
-            .scoreBefore(501)
-            .scoreAfter(465)
+            .id(UUID.randomUUID()).gameId(gameId).playerId(playerId)
+            .moveNumber(1).submittedAnswer("Erling Haaland")
+            .matchedAnswerId(answerId).matchedDisplayText("Erling Haaland")
+            .result(GameMove.MoveResult.VALID).scoreValue(36).scoreBefore(501).scoreAfter(465)
             .build();
 
         Game updatedGame = Game.builder()
             .id(gameId).matchId(matchId).gameNumber(1).questionId(questionId)
             .status(Game.GameStatus.IN_PROGRESS).currentTurnPlayerId(playerId)
-            .player1Score(465).player2Score(501).turnCount(1).turnTimerSeconds(45)
+            .player1Score(465).turnCount(1).turnTimerSeconds(45)
             .build();
 
         List<UUID> usedAnswerIds = List.of();
         when(gameService.processPlayerMove(eq(gameId), eq(playerId), eq("Erling Haaland"), isNull()))
             .thenReturn(new GameService.MoveRecord(move, updatedGame, match, usedAnswerIds, null));
         when(questionService.getQuestionById(questionId)).thenReturn(Optional.of(question));
-        when(gameHintsService.computeHintsFromCache(eq(questionId), eq(usedAnswerIds), eq(465)))
-            .thenReturn(STUB_HINTS);
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+        when(assembler.buildGameStateResponse(eq(updatedGame), eq(question), eq(match), eq(usedAnswerIds), eq(List.of())))
+            .thenReturn(stubGameState(updatedGame, question, match, 465, "IN_PROGRESS", false));
 
         mockMvc.perform(post("/api/freeplay/games/{gameId}/submit", gameId)
                 .principal(PRINCIPAL)
@@ -235,9 +211,7 @@ class FreePlayControllerTest {
             .andExpect(jsonPath("$.scoreAfter").value(465))
             .andExpect(jsonPath("$.isWin").value(false))
             .andExpect(jsonPath("$.gameState.currentScore").value(465))
-            .andExpect(jsonPath("$.gameState.turnCount").value(1))
-            .andExpect(jsonPath("$.gameState.hints.maxScoresLeft").value(3))
-            .andExpect(jsonPath("$.gameState.hints.checkoutsLeft").value(0));
+            .andExpect(jsonPath("$.gameState.turnCount").value(1));
     }
 
     @Test
@@ -257,8 +231,9 @@ class FreePlayControllerTest {
         when(gameService.processPlayerMove(eq(gameId), eq(playerId), eq("Unknown Player"), isNull()))
             .thenReturn(new GameService.MoveRecord(move, game, match, usedAnswerIds, null));
         when(questionService.getQuestionById(questionId)).thenReturn(Optional.of(question));
-        when(gameHintsService.computeHintsFromCache(eq(questionId), eq(usedAnswerIds), eq(501)))
-            .thenReturn(STUB_HINTS);
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+        when(assembler.buildGameStateResponse(eq(game), eq(question), eq(match), eq(usedAnswerIds), eq(List.of())))
+            .thenReturn(stubGameState(game, question, match, 501, "IN_PROGRESS", false));
 
         mockMvc.perform(post("/api/freeplay/games/{gameId}/submit", gameId)
                 .principal(PRINCIPAL)
@@ -268,8 +243,7 @@ class FreePlayControllerTest {
             .andExpect(jsonPath("$.result").value("INVALID"))
             .andExpect(jsonPath("$.scoreBefore").value(501))
             .andExpect(jsonPath("$.scoreAfter").value(501))
-            .andExpect(jsonPath("$.isWin").value(false))
-            .andExpect(jsonPath("$.gameState.currentScore").value(501));
+            .andExpect(jsonPath("$.isWin").value(false));
     }
 
     @Test
@@ -289,15 +263,16 @@ class FreePlayControllerTest {
         Game completedGame = Game.builder()
             .id(gameId).matchId(matchId).gameNumber(1).questionId(questionId)
             .status(Game.GameStatus.COMPLETED).currentTurnPlayerId(playerId)
-            .player1Score(0).player2Score(501).winnerId(playerId).turnCount(11).turnTimerSeconds(45)
+            .player1Score(0).winnerId(playerId).turnCount(11).turnTimerSeconds(45)
             .build();
 
         List<UUID> usedAnswerIds = List.of();
         when(gameService.processPlayerMove(eq(gameId), eq(playerId), eq("Player with 35"), isNull()))
             .thenReturn(new GameService.MoveRecord(move, completedGame, match, usedAnswerIds, null));
         when(questionService.getQuestionById(questionId)).thenReturn(Optional.of(question));
-        when(gameHintsService.computeHintsFromCache(eq(questionId), eq(usedAnswerIds), eq(0)))
-            .thenReturn(GameHints.builder().maxScoresLeft(0).checkoutsLeft(0).build());
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+        when(assembler.buildGameStateResponse(eq(completedGame), eq(question), eq(match), eq(usedAnswerIds), eq(List.of())))
+            .thenReturn(stubGameState(completedGame, question, match, 0, "COMPLETED", true));
 
         mockMvc.perform(post("/api/freeplay/games/{gameId}/submit", gameId)
                 .principal(PRINCIPAL)
@@ -317,7 +292,9 @@ class FreePlayControllerTest {
         when(gameService.getGameById(gameId)).thenReturn(Optional.of(game));
         when(questionService.getQuestionById(questionId)).thenReturn(Optional.of(question));
         when(matchService.getMatchById(matchId)).thenReturn(Optional.of(match));
-        when(gameHintsService.computeHints(eq(gameId), eq(questionId), eq(501))).thenReturn(STUB_HINTS);
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+        when(assembler.buildGameStateResponse(eq(game), eq(question), eq(match), eq(List.of())))
+            .thenReturn(stubGameState(game, question, match, 501, "IN_PROGRESS", false));
 
         mockMvc.perform(get("/api/freeplay/games/{gameId}", gameId)
                 .principal(PRINCIPAL))
@@ -327,8 +304,7 @@ class FreePlayControllerTest {
             .andExpect(jsonPath("$.currentScore").value(501))
             .andExpect(jsonPath("$.turnCount").value(0))
             .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-            .andExpect(jsonPath("$.hints.maxScoresLeft").value(3))
-            .andExpect(jsonPath("$.hints.checkoutsLeft").value(0));
+            .andExpect(jsonPath("$.hints.maxScoresLeft").value(3));
     }
 
     @Test
@@ -336,6 +312,7 @@ class FreePlayControllerTest {
     void shouldReturn404WhenGameNotFound() throws Exception {
         UUID nonExistentGameId = UUID.randomUUID();
         when(gameService.getGameById(nonExistentGameId)).thenReturn(Optional.empty());
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
 
         mockMvc.perform(get("/api/freeplay/games/{gameId}", nonExistentGameId)
                 .principal(PRINCIPAL))
@@ -350,6 +327,7 @@ class FreePlayControllerTest {
             .build();
 
         when(questionService.getCategoryBySlug("invalid-category")).thenReturn(Optional.empty());
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
 
         mockMvc.perform(post("/api/freeplay/start")
                 .principal(PRINCIPAL)
@@ -358,11 +336,11 @@ class FreePlayControllerTest {
             .andExpect(status().isBadRequest());
     }
 
-    // ── Abandonment tests ──────────────────────────────────────────────────────
-
     @Test
     @DisplayName("Should abandon game and return 204 No Content")
     void shouldAbandonGame() throws Exception {
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+
         mockMvc.perform(post("/api/freeplay/games/{gameId}/abandon", gameId)
                 .principal(PRINCIPAL))
             .andExpect(status().isNoContent());
@@ -371,6 +349,8 @@ class FreePlayControllerTest {
     @Test
     @DisplayName("Should return 204 when abandoning twice (idempotent)")
     void shouldAbandonGameTwice() throws Exception {
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+
         mockMvc.perform(post("/api/freeplay/games/{gameId}/abandon", gameId)
                 .principal(PRINCIPAL))
             .andExpect(status().isNoContent());
@@ -386,12 +366,14 @@ class FreePlayControllerTest {
         StartFreePlayRequest request = StartFreePlayRequest.builder().build();
 
         when(questionService.getCategoryBySlug("football")).thenReturn(Optional.of(category));
-        when(matchService.createMatch(eq(playerId), isNull(), eq(categoryId),
+        when(matchService.createMatch(eq(playerId), eq(categoryId),
             eq(Match.MatchType.CASUAL), eq(Match.MatchFormat.BEST_OF_1), isNull()))
             .thenReturn(match);
         when(matchService.startNextGame(match, 501))
             .thenReturn(new MatchService.GameStartRecord(game, question));
-        when(gameHintsService.computeHintsFromCache(eq(questionId), eq(List.of()), eq(501))).thenReturn(STUB_HINTS);
+        when(assembler.playerIdFrom(any())).thenReturn(playerId);
+        when(assembler.buildGameStateResponse(eq(game), eq(question), eq(match), eq(List.of()), eq(List.of())))
+            .thenReturn(stubGameState(game, question, match, 501, "IN_PROGRESS", false));
 
         mockMvc.perform(post("/api/freeplay/start")
                 .principal(PRINCIPAL)

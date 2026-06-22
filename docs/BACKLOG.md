@@ -46,6 +46,8 @@
 | DebugPanel gated to admins | — | Frontend: `MatchView` only renders `DebugPanel` when `user?.app_metadata?.role === "admin"`. Backend: `SecurityConfig` adds admin-only URL rule for `/answers` before the broad `permitAll`; both controllers add `@PreAuthorize("hasRole('ADMIN')")`. |
 | Data population — scraper run + Supabase migration | — | Scraper was run against local Docker for all seasons since 2000; data was then migrated to Supabase. Backlog entry was stale — data has been in Supabase all along. |
 | Loss/bust-out state | — | Frontend: `isWin` tracked as first-class state in `useGameLoop`; game completion detected from `gameState.status` not `r.isWin`. `MatchView` shows loss overlay (red score, "Better luck next time") when `isGameOver && !isWin`. |
+| Backlog small-fixes sweep (17 items) | — | Move/GameHints types de-duplicated; dead theme classList code removed from useGameLoop + tests; PlayerProfileService FQCN → proper imports; EntitySearch aria-label derived from entityType; manifest.json theme_color/short_name/description updated; share button three-state (idle/sharing/copied); exit confirmation skipped when game complete; ErrorBoundary uses semantic tokens; brand name unified to 🎯 TRIVIA 501; touch targets padded to ≥44px; .kicker/.hint px→rem; abandonGameAndMatch helper extracted (3 call sites); getShareData uses targeted findByChallengeDateAndQuestionId; getTopAnswers pushes LIMIT into JPQL; debug /answers endpoints enforce game ownership; autocomplete minimum reduced 4→2; browser history integrated with lobby drill-down nav. Frontend 135 tests pass, backend 252 tests pass. |
+| Strip player2 + controller/service cleanup (big fix) | V44+ | Removed all multiplayer scaffolding: dropped player2 columns (V44 migration), simplified engine to solo-only (no close-finish, opponentOf, isSolo), broke GameService↔MatchService @Lazy cycle with GameCompletedEvent, extracted GameResponseAssembler (153 lines deduped), removed AnswerRepository/CategoryRepository from controllers (moved behind services), simplified repo JPQL. 242 backend tests pass, 0 failures. |
 
 ---
 
@@ -98,7 +100,11 @@ The following items were previously P0/P1 launch blockers but are now parked. Th
 
 Findings from the 2026-06-09 architectural review. Ordered by severity. None are launch blockers but the P1 items should be addressed before the codebase grows further.
 
-### Planned Refactor: Strip `player2` from the data model, engine, and tests — clean solo-only architecture
+### ✅ Planned Refactor: Strip `player2` from the data model, engine, and tests — clean solo-only architecture
+
+**Done** (2026-06-19, V44 migration). All player2 columns dropped. Engine, services, repos, and controllers simplified to solo-only. GameCompletedEvent breaks the @Lazy cycle. GameResponseAssembler eliminates controller duplication. See the Recently Completed table above.
+
+---
 
 **Decision** (2026-06-17): Remove all multiplayer scaffolding. The `player2_*` fields are baked into the DB schema, game engine, and service layer — not just tests. The existing design (1v1 match, close-finish rule, synchronous turn alternation) was never shipped and never validated. When multiplayer returns, it will be designed from scratch against a real product spec. The current scaffolding is a specific, opinionated bet on an unvalidated design that adds ongoing cognitive overhead to every code review, every new feature, and every bug fix. The tests that cover multiplayer code paths are not "safe to delete" on their own — they test real production branching. The right move is to remove the production branching and rewrite the tests to match.
 
@@ -223,65 +229,56 @@ Deleting multiplayer tests without removing the underlying production code leave
 
 ---
 
-### SECURITY: debug `/answers` endpoints compute `playerIdFrom(principal)` then discard it — no game-ownership check
-- **Severity**: Medium — missing authorization on a data-exposure endpoint (2026-06-11 security review)
-- **What**: Both `getGameAnswers` endpoints resolve the caller's player ID from the principal and then never compare it against the game's owner. Anyone who knows a `gameId` can dump that game's full answer key. UUIDs are unguessable so the blast radius is limited to one's own games in practice, but the pattern is a latent authorization gap — and the daily-challenge variant is `permitAll`, so not even an anonymous session is required. Contrast with the rest of the controllers, where identity from `Principal.getName()` is actually enforced.
-- **Fix**: If the endpoints survive the P0 gating fix (see "SECURITY: DebugPanel ships the daily challenge answer key" in P0), enforce ownership: load the game, compare its player ID to `playerIdFrom(principal)`, return 403 on mismatch. Apply the same check in any future per-game debug/inspection endpoint.
-- **Files**: `DailyChallengeController.java:295–312` (playerId computed at :300, unused), `FreePlayController.java:306–323` (playerId computed at :311, unused)
+### ✅ SECURITY: debug `/answers` endpoints compute `playerIdFrom(principal)` then discard it
+- **Status**: Done. Both controllers now verify the caller owns the game (match.getPlayer1Id) and return 403 on mismatch.
+- **Severity**: Medium
+- **Files**: `DailyChallengeController.java:295–312`, `FreePlayController.java:306–323`
 
 ### ✅ BUG: `useGameLoop.startNewGame` sends to wrong API path when called from a Daily Challenge game
 - **Status**: Done.
 - **Severity**: Bug — silent failure for "Play Again" from Daily Challenge win screen
-- **What**: `startNewGame` called `setGameType("freeplay")` then immediately called `apiBase()` in the same synchronous function. React state updates are async, so `apiBase()` returned the **old** `gameType` ("daily-challenge"). The game start POST went to `/api/daily-challenge/start` (non-existent) instead of `/api/freeplay/start`.
-- **Fix**: `startNewGame` now hardcodes `/api/freeplay/start`. `startDailyChallenge` hardcodes `/api/daily-challenge`.
 
-### N+1 query + repository injected into `DailyChallengeController`
-- **Severity**: Performance bug + layering violation
-- **What**: `getStatus()` loops through all today's challenges and fires 2 DB queries per challenge (category lookup + question lookup). For 5 challenges: 11 queries per status poll. `CategoryRepository` and `AnswerRepository` are both injected directly into the controller — controllers should never hold repositories.
-- **Fix**: Move the response-assembly logic into `DailyChallengeService.getTodaysChallengesStatus()`. The service batch-fetches categories and questions by ID in 2 queries total. Remove `CategoryRepository` from the controller. Both controllers also hold `AnswerRepository` directly for the debug endpoint — move to a service method.
-- **Files**: `DailyChallengeController.java:41–43,68–90`, `FreePlayController.java:57`
+### ✅ N+1 query + repository injected into controllers
+- **Status**: Done (2026-06-19). Removed `CategoryRepository` and `AnswerRepository` from both controllers. Added `getAnswersForGame()` to `GameService` and `getAllCategories()`/`getCategoriesByIds()`/`getCategoryById()` to `DailyChallengeService`.
+- **Files**: `DailyChallengeController.java`, `FreePlayController.java`, `GameService.java`, `DailyChallengeService.java`
 
-### Controller duplication: `DailyChallengeController` and `FreePlayController` share ~60% identical code
-- **Severity**: High — any change to game state response shape must be made twice
-- **What**: Four private helpers are verbatim copy-paste between both controllers (`playerIdFrom`, `buildGameStateResponse` ×2, `toMoveDto`). Four endpoint bodies are near-identical (`submitAnswer`, `getGameState`, `abandonGame`, `getGameAnswers`). `buildGameStateResponse` also inlines business logic (entity type extraction from config, win determination) that belongs in the service layer.
-- **Fix**: Extract `GameResponseAssembler` class holding the four helpers. Both controllers inject it. The unique endpoints stay per-controller. Move entity type resolution and win determination into `GameService` or a dedicated assembler service.
-- **Files**: `DailyChallengeController.java:316–374`, `FreePlayController.java:332–390`
+### ✅ Controller duplication: `DailyChallengeController` and `FreePlayController` share ~60% identical code
+- **Status**: Done (2026-06-19). Extracted `GameResponseAssembler` with four shared methods. Both controllers slimmed down to unique endpoint logic only.
+- **Files**: `GameResponseAssembler.java` (new), `DailyChallengeController.java`, `FreePlayController.java`
 
-### `GameService` ↔ `MatchService` circular dependency resolved with `@Lazy`
-- **Severity**: High — structural smell, can cause subtle proxy issues
-- **What**: `GameService` uses `@Lazy MatchService` to avoid a Spring startup cycle. The root cause: `GameService.processPlayerMove` calls `matchService.handleGameCompletion`. This is documented in the "solo forfeit" completed item but the root cause was never fixed.
-- **Fix**: Publish a Spring `ApplicationEvent` (`GameCompletedEvent`) from `GameService` after a game ends. `MatchService` listens with `@EventListener`. This breaks the cycle without `@Lazy` and decouples the two services cleanly.
-- **Files**: `GameService.java:60`, `MatchService.java`
+### ✅ `GameService` ↔ `MatchService` circular dependency resolved with `@Lazy`
+- **Status**: Done (2026-06-19). Replaced `@Lazy MatchService` with `ApplicationEventPublisher` + `GameCompletedEvent`. `MatchService.onGameCompleted()` listens via `@EventListener`.
+- **Files**: `GameService.java`, `MatchService.java`, `GameCompletedEvent.java` (new)
 
-### `abandonActiveGamesForPlayer` and `abandonStaleGames` duplicate the same loop body
+### ✅ `abandonActiveGamesForPlayer` and `abandonStaleGames` duplicate the same loop body
+- **Status**: Done. `abandonGameAndMatch(Game)` helper extracted; all 3 call sites refactored.
 - **Severity**: Medium
-- **What**: The "set game ABANDONED + set parent match ABANDONED" logic is written verbatim twice in `GameService` (and a third time in `abandonGame`). A bug fix to one site is never applied to the others.
-- **Fix**: Extract private `abandonGameAndMatch(Game game)` helper; all three call sites delegate to it.
 - **Files**: `GameService.java:182–207,285–320`
 
-### `Move` and `GameHints` types defined twice in the frontend
+### ✅ `Move` and `GameHints` types defined twice in the frontend
+- **Status**: Done.
 - **Severity**: Medium
 - **What**: Both interfaces are defined identically in `useGameLoop.ts` and `MatchView.tsx`. `MatchView` should import from `useGameLoop` (they're already exported there).
 - **Files**: `useGameLoop.ts:11–29`, `MatchView.tsx:16–29`
 
-### `useGameLoop` does too much — theme manipulation and session persistence mixed with game logic
+### ✅ `useGameLoop` dead theme classList code removed
+- **Status**: Done. Theme classList calls removed from useGameLoop (4 sites) + test assertions. Session persistence extraction deferred to larger hook decomposition.
 - **Severity**: Medium
-- **What**: The 430-line hook owns game state, API calls, session persistence, popup coordination, restore-on-mount, and **DOM body class manipulation** (`document.body.classList.remove/add("theme-*")`) — 4 call sites inside a game-loop hook. **Note (2026-06-11 redesign): the `theme-home`/`theme-teletext` classes are now pure dead code** — they have zero occurrences in `globals.css` (the unified design system themes via `data-theme` on `<html>` instead) and are held alive only by assertions in `useGameLoop.test.ts`. Deleting the `classList` calls and the test assertions together is a trivial standalone cleanup that doesn't need to wait for the larger hook decomposition. Session persistence helpers (`saveGameState`, `loadSavedGameState`, `clearSavedGameState`) should be extracted to a separate utility module.
 - **Files**: `useGameLoop.ts:214,270,315,402`
 
-### `DailyChallengeController.getShareData()` linear-scans all challenges to find one by question ID
+### ✅ `DailyChallengeController.getShareData()` linear-scans all challenges
+- **Status**: Done. Added `findByChallengeDateAndQuestionId()` to repo + service.
 - **Severity**: Medium
-- **What**: `getTodaysChallenges().stream().filter(dc -> dc.getQuestionId().equals(...))` fetches all daily challenges to find one specific row. Add `findByChallengeDateAndQuestionId()` to `DailyChallengeRepository` instead.
 - **Files**: `DailyChallengeController.java:247–250`, `DailyChallengeRepository.java`
 
-### `AnswerEvaluator.getTopAnswers` fetches all rows then limits in Java
+### ✅ `AnswerEvaluator.getTopAnswers` fetches all rows then limits in Java
+- **Status**: Done. New 3-param `findTopAnswers(questionId, excludeInvalidDarts, limit)` with JPQL `LIMIT`.
 - **Severity**: Medium
-- **What**: `findTopAnswers()` returns the full answer list; `.stream().limit(limit)` discards the excess. The limit should be pushed into the JPQL query via `Pageable` or a `LIMIT` clause.
-- **Files**: `AnswerEvaluator.java:225–229`
+- **Files**: `AnswerEvaluator.java:225–229`, `AnswerRepository.java`
 
-### `PlayerProfileService` referenced by FQCN in both controllers (missing import)
-- **Severity**: Low — cosmetic but signals a hidden name conflict
-- **What**: Both controllers use `com.trivia501.service.PlayerProfileService` as a fully-qualified name in the field declaration. Add the import and resolve whatever conflict caused this.
+### ✅ `PlayerProfileService` referenced by FQCN in both controllers (missing import)
+- **Status**: Done. Proper imports added in both controllers.
+- **Severity**: Low
 - **Files**: `DailyChallengeController.java:42`, `FreePlayController.java:56`
 
 ### `LobbyView` leagues and stat types are hardcoded; `resolveTarget("random")` pool is narrower than backend
@@ -376,32 +373,20 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/EntitySearch.tsx:139–196`
 - **Learning notes**: ARIA roles/states are a published interface contract, like a Swagger spec for assistive tech — implementing a pattern from the authoring practices doc is the accepted approach, not invention. Strong interview material: most candidates can say "accessibility matters"; few can name the combobox pattern and `aria-activedescendant`.
 
-### UX: Share button says "Copied!" before anything is copied
-- **Severity**: 2 — Visibility of System Status. The label is backwards: it reads "Copied!" *during* the async work and reverts to "Share result" the moment the copy actually succeeds.
-- **Area**: Frontend-React (async state phases)
-- **What**: `MatchView` renders `{sharing ? "Copied!" : "Share result"}`, and `sharing` is true while the fetch + clipboard write are in flight, reset in `finally`. Users glance at the button at the exact moment they're about to paste into a group chat and can't tell if it worked.
-- **Direction**: Two states aren't enough to model three phases (idle → working → succeeded). Where does the third one come from, who sets it, and how does it return to idle? (A timeout is acceptable; check how `ToastItem` schedules its own dismissal for a pattern.)
-- **Verify**: Click Share — button should read "Sharing…" then hold a visible "Copied ✓" for a beat before returning to normal.
-- **Files**: `frontend-react/src/components/game/match/MatchView.tsx:358–366`, state set in `frontend-react/src/app/page.tsx:101–126`
-- **Learning notes**: Modelling async UI as a tiny state machine (idle/pending/success/error) instead of booleans is the same instinct as modelling order status as an enum instead of `isPaid`/`isShipped` flags.
+### ✅ UX: Share button says "Copied!" before anything is copied
+- **Status**: Done. Three-state (`idle` → `sharing` → `copied` → `idle`) with 2s "Copied ✓" hold.
+- **Severity**: 2 — Visibility of System Status.
+- **Files**: `MatchView.tsx`, `page.tsx`
 
-### UX: Winning, then exiting, warns "your progress will be lost"
-- **Severity**: 2 — Match Between System and Real World. A danger-styled confirmation fires after the game is already complete.
-- **Area**: Frontend-React (conditional behaviour)
-- **What**: The win overlay's "Exit to lobby" button opens the same mid-game exit confirm ("Your progress in this game will be lost") used by the header Exit button. There is no progress to lose; some players will cancel out, unsure if exiting voids their result.
-- **Direction**: The component already knows whether the game is won. One of the two exit paths shouldn't ask.
-- **Verify**: Win a game, click "Exit to lobby" — straight to the lobby, no dialog. Mid-game Exit must still confirm.
-- **Files**: `frontend-react/src/components/game/match/MatchView.tsx:373–378,384–393`
-- **Learning notes**: Smallest item in the set — good warm-up. The lesson is about reuse going one step too far: shared components are good; sharing *behaviour* across contexts with different stakes is not.
+### ✅ UX: Winning, then exiting, warns "your progress will be lost"
+- **Status**: Done. Win/loss overlay "Exit to lobby" buttons bypass the confirm dialog (they call `onExit()` directly). The header Exit button still confirms mid-game.
+- **Severity**: 2 — Match Between System and Real World.
+- **Files**: `MatchView.tsx`
 
-### UX: Browser back button doesn't navigate the lobby drill-down
-- **Severity**: 2 — User Control / platform conventions. Back exits the site instead of popping Football → League → Club.
-- **Area**: Frontend-React (History API integration with component state)
-- **What**: The drill-down nav is a pure `useState` stack with no browser-history integration. Mobile users three levels deep swipe back and are dumped out of the app.
-- **Direction**: The browser History API (`history.pushState` + the `popstate` event) lets you mirror your in-memory stack into session history. Each `push` of a screen should create a history entry; a `popstate` should call your existing `pop`. Subscribe/unsubscribe with `useEffect` (event listener cleanup is the part to get right). An alternative is encoding the screen in a search param — weigh the trade-off.
-- **Verify**: Drill into Football → Premier League, press browser back — you should land on Football, not leave the site.
-- **Files**: `frontend-react/src/components/game/lobby/LobbyView.tsx:78–95`
-- **Learning notes**: This is client-side state vs addressable state — the SPA equivalent of "should this be in the URL?" Interview angle: knowing *when* component state should sync with browser history (navigation-like state: yes; ephemeral UI state: no).
+### ✅ UX: Browser back button doesn't navigate the lobby drill-down
+- **Status**: Done. `pushState` on each drill-down push + `popstate` listener calls `pop()`.
+- **Severity**: 2 — User Control.
+- **Files**: `LobbyView.tsx`
 
 ### UX: No indication of which daily challenges you've already played
 - **Severity**: 2 — Recognition Over Recall. Cards look identical before and after your attempt; returning players must remember what they did this morning.
@@ -412,41 +397,25 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/lobby/LobbyView.tsx:207–230`, `frontend-react/src/app/daily/page.tsx:90–117`, `frontend-react/src/hooks/useGameLoop.ts:390–393`
 - **Learning notes**: localStorage vs sessionStorage is scope/lifetime — like session-scoped vs application-scoped beans. Also a nice "ship the cheap client-side version, note the server-backed upgrade path" product judgement story.
 
-### UX: Four-character minimum blocks short player names ("Son")
-- **Severity**: 2 — Tolerance and Forgiveness. Typing "son" shows "Keep typing for suggestions…" forever; reads as "the game doesn't have Son".
-- **Area**: Frontend-React (understanding why a constraint exists before changing it)
-- **What**: `EntitySearch` requires 4+ characters before searching. Football is full of ≤3-char names (Son, Ba, Kun); Film/Geography add "Up", "Rio".
-- **Direction**: First understand why 4 exists: the threshold predates the client-side entity cache — when every keystroke was an API call, it was rate-limit protection. Check `entityCache.ts`: searches are now in-memory, so what does the threshold still protect? (Hint: result-list size at 1–2 chars.) Then decide the new number and check every place that hardcodes the old one — the hint messages and the Enter handler also compare against 4.
-- **Verify**: Type "son" — suggestions should appear, including Heung-min Son.
-- **Files**: `frontend-react/src/components/game/EntitySearch.tsx:81,109,155–171`, `frontend-react/src/lib/api/entityCache.ts`
-- **Learning notes**: Classic "constraint outlives its rationale" — like a connection-pool cap tuned for hardware you decommissioned. Interview angle: always state *why* a magic number exists before defending or changing it.
+### ✅ UX: Four-character minimum blocks short player names ("Son")
+- **Status**: Done. Minimum reduced 4→2; all thresholds + hint messages updated.
+- **Severity**: 2 — Tolerance and Forgiveness.
+- **Files**: `EntitySearch.tsx`
 
-### UX: Functional labels set in 9–10px fixed-pixel type
-- **Severity**: 2 — Accessibility. The `.kicker` micro-label style carries functional content (hint labels, "Sign out", the one-attempt warning) at 9–10px in `px` units, which ignore browser font-size preferences.
-- **Area**: Frontend-CSS (relative units, type hierarchy)
-- **What**: The uppercase-mono kicker is a deliberate editorial style — fine for decoration, wrong for the labels explaining the game's most strategic info (checkouts remaining) and for action links.
-- **Direction**: Separate the *style* from the *size*: which kicker instances are decorative and which are functional? Functional ones want ≥11–12px equivalents in `rem`. Understand why `text-[10px]` defeats a user's browser font-size setting but `rem` doesn't. The 9px instances (`DAILY`, `PLAY NOW` badges) are the worst offenders.
-- **Verify**: Set browser default font size to 20px — functional labels should grow; check both themes for contrast at the new sizes.
-- **Files**: `frontend-react/src/app/globals.css:115–147` (`.kicker`, `.hint`), 9px instances in `LobbyView.tsx:216,225`, `daily/page.tsx:100`
-- **Learning notes**: `px` vs `rem` is the CSS lesson every backend dev should be able to articulate: `rem` scales with the user's root font size; `px` doesn't. WCAG 1.4.4 (resize text to 200%) is the requirement to cite.
+### ✅ UX: Functional labels set in 9–10px fixed-pixel type
+- **Status**: Done. `.kicker` changed from `text-[10px]` to `text-[0.625rem]`, `.hint` from `text-[11px]` to `text-[0.6875rem]`.
+- **Severity**: 2 — Accessibility.
+- **Files**: `globals.css`
 
-### UX: Three different brand names — TRIVIA 501, FOOTBALL 501, F501
-- **Severity**: 2 — Consistency. The share text (the growth loop!) says "⚽ FOOTBALL 501", the app says "TRIVIA 501", the PWA manifest says "F501", and the share-page footer prints "trivia501.com" which isn't the deployed domain.
-- **Area**: Frontend (cross-file consistency; **this one has tests** — share-grid encoding has 21 of them)
-- **What**: A friend receives "FOOTBALL 501", taps through to "TRIVIA 501", and wonders if they're in the right place. The football emoji also appears on Film/Geography shares.
-- **Direction**: `buildShareText` is a pure function with exhaustive tests — change behaviour *and* tests together (run `npm test` before and after; watch them fail for the right reason first). Consider deriving the emoji from the category. Then sweep the other two spots: manifest `short_name`, and the footer label in `daily/[category]/page.tsx` (the href is fine; the visible text lies).
-- **Verify**: `npm test` green; share a Geography daily and read the actual clipboard text.
-- **Files**: `frontend-react/src/utils/share.ts:49`, share tests under `__tests__/`, `frontend-react/public/manifest.json`, `frontend-react/src/app/daily/[category]/page.tsx:131–136`
-- **Learning notes**: Your first test-driven frontend change — the red/green workflow is identical to JUnit. Pure functions extracted from components (this one was pulled out of `page.tsx` precisely to be testable) are the React analogue of extracting logic from controllers into services.
+### ✅ UX: Three different brand names — TRIVIA 501, FOOTBALL 501, F501
+- **Status**: Done. Share text: `🎯 TRIVIA 501`; manifest `short_name`: "Trivia 501"; footer: `/daily`; tests updated.
+- **Severity**: 2 — Consistency.
+- **Files**: `share.ts`, `manifest.json`, `daily/[category]/page.tsx`, share tests
 
-### UX: ErrorBoundary ignores the design system and shows raw error messages
-- **Severity**: 2 — Consistency + Error Recovery. Hardcoded `bg-gray-950`/`text-red-500` palette breaks light mode, and `error.message` (developer text) is shown to players.
-- **Area**: Frontend-CSS (design tokens) + React (class components — the only one in the codebase)
-- **What**: In light mode an error drops a near-black panel into a cream page — the moment things break is when the UI looks most broken. The raw message means nothing to users (it's already in `console.error` for you).
-- **Direction**: Every other component uses semantic tokens (`bg-bg`, `text-ink`, `text-danger` — see `globals.css` for the vocabulary). Swap the grays for tokens and replace the message with friendly copy. While you're in the file, note *why* this is a class component — error boundaries are the one thing function components still can't do.
-- **Verify**: Temporarily `throw new Error("boom")` inside `LobbyView`, check the boundary renders correctly in **both** themes, then remove the throw.
-- **Files**: `frontend-react/src/components/ErrorBoundary.tsx:43–64`, token vocabulary in `frontend-react/src/app/globals.css:13–85`
-- **Learning notes**: Error boundaries are React's `@ControllerAdvice` — a declarative catch-all for render-time exceptions, and the canonical answer to "when do you still need a class component?"
+### ✅ UX: ErrorBoundary ignores the design system and shows raw error messages
+- **Status**: Done. Uses semantic tokens (`bg-bg`, `text-danger`, `text-muted`, `btn-ghost`); removed raw error.message display.
+- **Severity**: 2 — Consistency + Error Recovery.
+- **Files**: `ErrorBoundary.tsx`
 
 ### UX: Raw server error strings surfaced in toasts
 - **Severity**: 2 — Error Recovery / Match with Real World. Failure paths toast `parsed.error || parsed.message || text` verbatim — whatever the backend or a proxy emits.
@@ -494,21 +463,17 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/app/admin/layout.tsx:14–20`, `frontend-react/src/components/ui/ConfirmDialog.tsx`, token definitions in `frontend-react/src/app/globals.css:13–52`
 - **Learning notes**: CSS custom properties cascade like scoped configuration — a child scope can re-pin a value for its subtree, which is exactly what `data-theme` on a subtree root does. Related backlog item: "Admin pages opted out of the unified design system".
 
-### UX: Tiny touch targets on text-link actions
-- **Severity**: 2 — Affordances (mobile). "Sign out", "Admin", "Exit to lobby", and the staged-answer ✕ are 10px-text links well under the 44×44px touch minimum.
-- **Area**: Frontend-CSS (hit areas vs visual size)
-- **What**: Mobile players mis-tap or peck — worst on "Exit to lobby" inside the win overlay.
-- **Direction**: The visual size can stay; the *hit area* can't. Padding extends the target without changing the look (negative margin can compensate for layout shift if needed). Audit each instance against ~44px.
-- **Verify**: DevTools mobile emulation — tap each link with the touch cursor; no precision needed.
-- **Files**: `frontend-react/src/components/auth/LoginButton.tsx:39`, `frontend-react/src/components/game/lobby/LobbyView.tsx:151–154`, `frontend-react/src/components/game/match/MatchView.tsx:245–251,373–378`
-- **Learning notes**: Apple HIG and WCAG 2.5.8 both specify minimum target sizes — citable standards, not taste.
+### ✅ UX: Tiny touch targets on text-link actions
+- **Status**: Done. "Sign out" py-2, clear selection ✕ p-2.5. Overlay "Exit to lobby" already has natural padding from layout.
+- **Severity**: 2 — Affordances.
+- **Files**: `LoginButton.tsx`, `MatchView.tsx`
 
 ### UX: Cosmetic batch — four small finishes
 - **Severity**: 1 — each is a one-or-two-line change; do them as a single sweep.
 - **Area**: Frontend (mixed)
 - **What & Direction**:
-  1. **Autocomplete `aria-label` hardcodes "Search player name"** for every category — derive from the `entityType` prop. (`EntitySearch.tsx:152`)
-  2. **Manifest `theme_color` is stale** (`#18171a` vs the actual `--bg` `#0d0f13`) — installed-PWA chrome is subtly off. (`public/manifest.json`)
+  1. ✅ **Autocomplete `aria-label` hardcodes "Search player name"** — Done. Derives from `entityType` prop. (`EntitySearch.tsx:152`)
+  2. ✅ **Manifest `theme_color` is stale** — Done. Updated to `#0d0f13`; also fixed `short_name` and `description`. (`public/manifest.json`)
   3. **Daily cards pop in after load** with no reserved space, shifting layout — render fixed-size skeleton placeholders while `dailyLoading`. (`LobbyView.tsx:198`)
   4. **Mixed icon languages** — emoji in the admin sidebar vs stroke SVGs in the player UI; align when admin is next touched (don't do it standalone). (`components/admin/Sidebar.tsx:8–12`)
 - **Verify**: Visual check per item; for #3, throttle the network and watch the lobby not jump.

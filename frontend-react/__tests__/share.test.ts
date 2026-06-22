@@ -146,7 +146,7 @@ describe("buildShareText — header and footer", () => {
       makeData({ categoryName: "Geography" }),
       origin,
     );
-    expect(text).toContain("⚽ FOOTBALL 501 — GEOGRAPHY");
+    expect(text).toContain("🎯 TRIVIA 501 — GEOGRAPHY");
   });
 
   it("includes starting score in header", () => {
@@ -196,7 +196,7 @@ describe("buildShareText — full output structure", () => {
     );
     expect(text).toBe(
       [
-        "⚽ FOOTBALL 501 — FOOTBALL",
+        "🎯 TRIVIA 501 — FOOTBALL",
         "9 Jun 2026 — Target: 501",
         "",
         "🟩🟩🟥🟩🟩🎯",

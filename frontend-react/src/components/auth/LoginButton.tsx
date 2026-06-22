@@ -39,7 +39,7 @@ export default function LoginButton() {
         <span className="kicker max-w-32 truncate hidden sm:block">
           {user.user_metadata?.full_name || user.email}
         </span>
-        <button onClick={signOut} className="kicker hover:text-ink transition-colors">
+        <button onClick={signOut} className="kicker hover:text-ink transition-colors py-2">
           Sign out
         </button>
       </div>
