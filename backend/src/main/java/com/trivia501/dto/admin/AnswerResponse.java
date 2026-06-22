@@ -1,5 +1,6 @@
 package com.trivia501.dto.admin;
 
+import com.trivia501.model.Answer;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -16,4 +17,19 @@ public class AnswerResponse {
     private Boolean isBust;
     private Map<String, Object> metadata;
     private LocalDateTime createdAt;
+
+    /** MapStruct-free 1:1 mapping — ponytail: this exists, add MapStruct when mapping diverges from 1:1. */
+    public static AnswerResponse from(Answer answer) {
+        AnswerResponse r = new AnswerResponse();
+        r.setId(answer.getId());
+        r.setQuestionId(answer.getQuestionId());
+        r.setAnswerKey(answer.getAnswerKey());
+        r.setDisplayText(answer.getDisplayText());
+        r.setScore(answer.getScore());
+        r.setIsValidDarts(answer.getIsValidDarts());
+        r.setIsBust(answer.getIsBust());
+        r.setMetadata(answer.getMetadata());
+        r.setCreatedAt(answer.getCreatedAt());
+        return r;
+    }
 }

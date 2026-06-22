@@ -31,19 +31,19 @@ class ScoringServiceTest {
         ScoreResult result = scoringService.calculateScore(currentScore, answerScore);
 
         assertFalse(result.isBust());
-        assertEquals(465, result.getNewScore());
+        assertEquals(465, result.newScore());
     }
 
     @Test
     @DisplayName("Multiple valid scores deduct sequentially")
     void shouldDeductSequentially() {
-        int score1 = scoringService.calculateScore(501, 60).getNewScore();
+        int score1 = scoringService.calculateScore(501, 60).newScore();
         assertEquals(441, score1);
 
-        int score2 = scoringService.calculateScore(score1, 100).getNewScore();
+        int score2 = scoringService.calculateScore(score1, 100).newScore();
         assertEquals(341, score2);
 
-        int score3 = scoringService.calculateScore(score2, 41).getNewScore();
+        int score3 = scoringService.calculateScore(score2, 41).newScore();
         assertEquals(300, score3);
     }
 
@@ -53,7 +53,7 @@ class ScoringServiceTest {
         ScoreResult result = scoringService.calculateScore(100, 1);
 
         assertFalse(result.isBust());
-        assertEquals(99, result.getNewScore());
+        assertEquals(99, result.newScore());
     }
 
     @Test
@@ -62,7 +62,7 @@ class ScoringServiceTest {
         ScoreResult result = scoringService.calculateScore(501, 180);
 
         assertFalse(result.isBust());
-        assertEquals(321, result.getNewScore());
+        assertEquals(321, result.newScore());
     }
 
     // ==========================================================================
@@ -81,7 +81,7 @@ class ScoringServiceTest {
         ScoreResult result = scoringService.calculateScore(currentScore, invalidScore);
 
         assertTrue(result.isBust(), "Score " + invalidScore + " should be bust");
-        assertEquals(currentScore, result.getNewScore());
+        assertEquals(currentScore, result.newScore());
     }
 
     @Test
@@ -91,7 +91,7 @@ class ScoringServiceTest {
         ScoreResult result = scoringService.calculateScore(15, 30);
 
         assertTrue(result.isBust());
-        assertEquals(15, result.getNewScore());
+        assertEquals(15, result.newScore());
     }
 
     @Test
@@ -101,7 +101,7 @@ class ScoringServiceTest {
         ScoreResult result = scoringService.calculateScore(-5, 10);
 
         assertTrue(result.isBust());
-        assertEquals(-5, result.getNewScore());
+        assertEquals(-5, result.newScore());
     }
 
     // ==========================================================================
@@ -125,7 +125,7 @@ class ScoringServiceTest {
 
         assertFalse(result.isBust());
         assertTrue(result.isCheckout());
-        assertEquals(targetScore, result.getNewScore());
+        assertEquals(targetScore, result.newScore());
     }
 
     @Test
@@ -138,6 +138,6 @@ class ScoringServiceTest {
 
         assertTrue(result.isBust());
         assertFalse(result.isCheckout());
-        assertEquals(currentScore, result.getNewScore());
+        assertEquals(currentScore, result.newScore());
     }
 }

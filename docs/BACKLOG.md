@@ -306,7 +306,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 
 **Not in this list**: the Severity-4 finding (DebugPanel ships the answer key) is already a P0 launch blocker — see "SECURITY: DebugPanel ships the daily challenge answer key to all players" above. Items overlapping the P1 "Loading, error, and empty state consistency" item are listed individually here because they are concrete, self-contained exercises.
 
-### UX: One click on a daily challenge card consumes the day's only attempt — no confirmation
+### ✅ UX: One click on a daily challenge card consumes the day's only attempt — no confirmation
+- **Status**: Done. `pendingDaily` state intercepts fresh-start clicks in both `LobbyView` and `/daily/page.tsx`; a `ConfirmDialog` ("You only get one attempt per day…") gates the actual start call. In-progress cards bypass the dialog (resuming an existing game, not consuming a new attempt).
 - **Severity**: 3 — Error Prevention. Irreversible action (the daily is one-attempt-per-day) triggered by a single tap, with the only warning in a 10px label that is `hidden sm:block` (invisible on mobile).
 - **Area**: Frontend-React (conditional rendering, component reuse)
 - **What**: Clicking a daily card in `LobbyView` calls `onStartDailyChallenge` immediately. A player tapping a card just to *see* the challenge has spent their attempt. For a Wordle-style game, accidentally burning the daily is the most rage-inducing failure mode possible.
@@ -335,7 +336,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 - **Files**: `frontend-react/src/components/game/match/MatchView.tsx:335–381`, `frontend-react/src/hooks/useGameLoop.ts:190–196,390–393`, backend: `GameService.java`, `GameStateMachine.java`
 - **Learning notes**: This is an API-contract gap surfacing as a UI bug — a great interview story about why response DTOs should model *all* terminal states, not just the happy one. The React lesson: deriving `isWin` from a status enum collapses two distinct states into one boolean; booleans in props are often a smell when the domain has 3+ states.
 
-### UX: Every throw forces a 2–4.5 second un-skippable animation
+### ✅ UX: Every throw forces a 2–4.5 second un-skippable animation
+- **Status**: Done. Click anywhere on the popup or press any key to skip. A `skipRef` holds the latest skip logic (registered once on mount) so no re-registration is needed as phases change. Skip during `counting` cancels the rAF and jumps to `flashing` (BUST) or `showing` (VALID); skip during `flashing` advances to `showing`; skip during `showing`/`invalid` calls `onComplete` immediately. Hint text "Tap or press any key to skip" shown during the counting phase.
 - **Severity**: 3 — Flexibility and Efficiency / User Control. Up to ~45s of forced waiting per game, every game, hitting daily players hardest.
 - **Area**: Frontend-React (requestAnimationFrame lifecycle, escape hatches)
 - **What**: `AnimatedScorePopup` counts up for `2000 + Math.random() * 2000` ms plus hold phases, with input disabled throughout and no way to skip. Suspense is great the first five times; after that it's friction for your most loyal players.

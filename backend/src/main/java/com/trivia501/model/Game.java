@@ -53,7 +53,7 @@ public class Game {
 
     @Column(name = "player1_consecutive_timeouts")
     @Builder.Default
-    private Integer player1ConsecutiveTimeouts = 0;
+    private Integer playerConsecutiveTimeouts = 0;
 
     @Column(name = "winner_id")
     private UUID winnerId;
