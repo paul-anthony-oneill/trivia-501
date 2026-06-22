@@ -9,12 +9,14 @@ import {
 import { apiFetch } from "@/lib/api/client";
 import { useToast } from "@/context/ToastContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function DailyPage() {
   const router = useRouter();
   const { challenges, loading, error, date, refresh } = useDailyChallenge();
   const { addToast } = useToast();
   const [starting, setStarting] = useState<string | null>(null);
+  const [pendingDaily, setPendingDaily] = useState<{ slug: string; label: string } | null>(null);
 
   const handlePlay = async (slug: string, label: string) => {
     setStarting(slug);
@@ -163,7 +165,13 @@ export default function DailyPage() {
                     View result →
                   </a>
                 : <button
-                    onClick={() => handlePlay(dc.categorySlug, dc.categoryName)}
+                    onClick={() => {
+                      if (isInProgress) {
+                        handlePlay(dc.categorySlug, dc.categoryName);
+                      } else {
+                        setPendingDaily({ slug: dc.categorySlug, label: dc.categoryName });
+                      }
+                    }}
                     disabled={starting === dc.categorySlug}
                     className="btn-primary mt-auto h-12 text-base w-full"
                   >
@@ -183,6 +191,22 @@ export default function DailyPage() {
           </a>
         </footer>
       </div>
+
+      <ConfirmDialog
+        open={pendingDaily !== null}
+        title={`Play today's ${pendingDaily?.label} challenge?`}
+        message="You only get one attempt per day. Once you start, this is your shot."
+        confirmText="Let's go"
+        cancelText="Not yet"
+        type="info"
+        onConfirm={() => {
+          if (pendingDaily) {
+            handlePlay(pendingDaily.slug, pendingDaily.label);
+          }
+          setPendingDaily(null);
+        }}
+        onCancel={() => setPendingDaily(null)}
+      />
     </div>
   );
 }

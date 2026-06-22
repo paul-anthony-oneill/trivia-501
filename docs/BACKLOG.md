@@ -306,7 +306,8 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 
 **Not in this list**: the Severity-4 finding (DebugPanel ships the answer key) is already a P0 launch blocker — see "SECURITY: DebugPanel ships the daily challenge answer key to all players" above. Items overlapping the P1 "Loading, error, and empty state consistency" item are listed individually here because they are concrete, self-contained exercises.
 
-### UX: One click on a daily challenge card consumes the day's only attempt — no confirmation
+### ✅ UX: One click on a daily challenge card consumes the day's only attempt — no confirmation
+- **Status**: Done. `pendingDaily` state intercepts fresh-start clicks in both `LobbyView` and `/daily/page.tsx`; a `ConfirmDialog` ("You only get one attempt per day…") gates the actual start call. In-progress cards bypass the dialog (resuming an existing game, not consuming a new attempt).
 - **Severity**: 3 — Error Prevention. Irreversible action (the daily is one-attempt-per-day) triggered by a single tap, with the only warning in a 10px label that is `hidden sm:block` (invisible on mobile).
 - **Area**: Frontend-React (conditional rendering, component reuse)
 - **What**: Clicking a daily card in `LobbyView` calls `onStartDailyChallenge` immediately. A player tapping a card just to *see* the challenge has spent their attempt. For a Wordle-style game, accidentally burning the daily is the most rage-inducing failure mode possible.

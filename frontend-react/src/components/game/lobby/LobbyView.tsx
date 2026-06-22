@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { fetchClubs, type FootballClub, type FootballFilter } from "@/lib/api/footballApi";
 import type { CategoryChallenge } from "@/hooks/useDailyChallenge";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -99,6 +100,8 @@ export default function LobbyView({
   // Slug of the row that's currently starting a game (null = nothing in flight).
   // Used to disable every row while a start is pending, preventing duplicate POSTs.
   const [starting, setStarting] = useState<string | null>(null);
+  // Pending daily challenge — set when a card is clicked; cleared on confirm or cancel.
+  const [pendingDaily, setPendingDaily] = useState<{ slug: string; label: string } | null>(null);
   const { user, loading } = useAuth();
   const isAdmin = !loading && user?.app_metadata?.role === "admin";
 
@@ -313,7 +316,13 @@ export default function LobbyView({
                   return (
                     <button
                       key={dc.categorySlug}
-                      onClick={() => startDailyChallenge(dc.categorySlug, dc.categoryName)}
+                      onClick={() => {
+                        if (isInProgress) {
+                          startDailyChallenge(dc.categorySlug, dc.categoryName);
+                        } else {
+                          setPendingDaily({ slug: dc.categorySlug, label: dc.categoryName });
+                        }
+                      }}
                       disabled={starting !== null}
                       className="group flex-shrink-0 flex flex-col bg-surface border border-line rounded-md p-4 w-56 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
@@ -371,6 +380,22 @@ export default function LobbyView({
           </div>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={pendingDaily !== null}
+        title={`Play today's ${pendingDaily?.label} challenge?`}
+        message="You only get one attempt per day. Once you start, this is your shot."
+        confirmText="Let's go"
+        cancelText="Not yet"
+        type="info"
+        onConfirm={() => {
+          if (pendingDaily) {
+            startDailyChallenge(pendingDaily.slug, pendingDaily.label);
+          }
+          setPendingDaily(null);
+        }}
+        onCancel={() => setPendingDaily(null)}
+      />
     </div>
   );
 }
