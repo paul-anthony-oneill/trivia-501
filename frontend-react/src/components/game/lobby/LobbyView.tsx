@@ -361,9 +361,10 @@ export default function LobbyView({
           {stack.length > 1 && (
             <button
               onClick={pop}
-              className="flex items-center gap-2 kicker mb-4 hover:text-ink transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-surface hover:border-line-strong hover:-translate-x-0.5 transition-all mb-4 font-display font-bold text-sm text-muted hover:text-ink"
             >
-              ← {breadcrumb || "Back"}
+              <span aria-hidden="true" className="text-base">←</span>
+              {breadcrumb || "Back"}
             </button>
           )}
 
