@@ -9,11 +9,8 @@ import com.trivia501.dto.SubmitAnswerResponse;
 import com.trivia501.model.*;
 import com.trivia501.scheduler.DailyChallengeScheduler;
 import com.trivia501.service.DailyChallengeService;
-import com.trivia501.service.GameService;
-import com.trivia501.service.MatchService;
 import com.trivia501.service.PlayerProfileService;
 import com.trivia501.service.QuestionService;
-import com.trivia501.security.OptionalJwtFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/daily-challenge")
@@ -35,28 +31,25 @@ public class DailyChallengeController {
 
     private final DailyChallengeService dailyChallengeService;
     private final DailyChallengeScheduler dailyChallengeScheduler;
-    private final GameService gameService;
-    private final MatchService matchService;
     private final QuestionService questionService;
     private final PlayerProfileService playerProfileService;
     private final GameResponseAssembler assembler;
+    private final GameEndpointHandler gameEndpointHandler;
 
     public DailyChallengeController(
             DailyChallengeService dailyChallengeService,
             DailyChallengeScheduler dailyChallengeScheduler,
-            GameService gameService,
-            MatchService matchService,
             QuestionService questionService,
             PlayerProfileService playerProfileService,
-            GameResponseAssembler assembler
+            GameResponseAssembler assembler,
+            GameEndpointHandler gameEndpointHandler
     ) {
         this.dailyChallengeService = dailyChallengeService;
         this.dailyChallengeScheduler = dailyChallengeScheduler;
-        this.gameService = gameService;
-        this.matchService = matchService;
         this.questionService = questionService;
         this.playerProfileService = playerProfileService;
         this.assembler = assembler;
+        this.gameEndpointHandler = gameEndpointHandler;
     }
 
     /**
@@ -212,38 +205,7 @@ public class DailyChallengeController {
             Principal principal,
             HttpServletRequest httpRequest
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        log.debug("Submitting daily challenge answer for game {}: '{}'", gameId, request.getAnswer());
-
-        GameService.MoveRecord result = gameService.processPlayerMove(
-                gameId, playerId, request.getAnswer(), request.getEntityId());
-
-        Game game = result.game();
-        Match match = result.match();
-
-        Question question = questionService.getQuestionById(game.getQuestionId())
-                .orElseThrow(() -> new IllegalStateException("Question not found"));
-
-        GameMove move = result.move();
-
-        // Rotate anonymous session cookie on game completion to limit exfiltration window
-        if (move.getResult() == GameMove.MoveResult.CHECKOUT
-                && OptionalJwtFilter.AUTH_TYPE_ANON.equals(httpRequest.getAttribute(OptionalJwtFilter.AUTH_TYPE_ATTR))) {
-            httpRequest.setAttribute(OptionalJwtFilter.ROTATE_ANON_ATTR, "true");
-        }
-
-        SubmitAnswerResponse response = SubmitAnswerResponse.builder()
-                .result(move.getResult().name())
-                .matchedAnswer(move.getMatchedDisplayText())
-                .scoreValue(move.getScoreValue())
-                .scoreBefore(move.getScoreBefore())
-                .scoreAfter(move.getScoreAfter())
-                .reason(result.reason())
-                .isWin(move.getResult() == GameMove.MoveResult.CHECKOUT)
-                .gameState(assembler.buildGameStateResponse(game, question, match, result.usedAnswerIds(), List.of()))
-                .build();
-
-        return ResponseEntity.ok(response);
+        return gameEndpointHandler.submitAnswer(gameId, request, principal, httpRequest);
     }
 
     /**
@@ -254,10 +216,7 @@ public class DailyChallengeController {
             @PathVariable UUID gameId,
             Principal principal
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        log.debug("Abandoning daily challenge game {} for player {}", gameId, playerId);
-        gameService.abandonGame(gameId, playerId);
-        return ResponseEntity.noContent().build();
+        return gameEndpointHandler.abandonGame(gameId, principal);
     }
 
     /**
@@ -268,23 +227,7 @@ public class DailyChallengeController {
             @PathVariable UUID gameId,
             Principal principal
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        log.debug("Getting daily challenge game state for game {} (requestedBy={})", gameId, playerId);
-
-        Game game = gameService.getGameById(gameId).orElse(null);
-        if (game == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Match match = matchService.getMatchById(game.getMatchId())
-                .orElseThrow(() -> new IllegalStateException("Match not found"));
-
-        Question question = questionService.getQuestionById(game.getQuestionId())
-                .orElseThrow(() -> new IllegalStateException("Question not found"));
-
-        List<GameMove> moves = gameService.getMovesForGame(gameId);
-
-        return ResponseEntity.ok(assembler.buildGameStateResponse(game, question, match, moves));
+        return gameEndpointHandler.getGameState(gameId, principal);
     }
 
     /**
@@ -292,55 +235,7 @@ public class DailyChallengeController {
      */
     @GetMapping("/share/{gameId}")
     public ResponseEntity<DailyChallengeShareResponse> getShareData(@PathVariable UUID gameId) {
-        Game game = gameService.getGameById(gameId).orElse(null);
-        if (game == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        List<GameMove> moves = gameService.getMovesForGame(gameId);
-
-        DailyChallenge challenge = dailyChallengeService.findByChallengeDateAndQuestionId(
-                java.time.LocalDate.now(), game.getQuestionId()).orElse(null);
-
-        String categoryName = "Unknown";
-        String categorySlug = "unknown";
-        int startingScore = 501;
-        java.time.LocalDate challengeDate = java.time.LocalDate.now();
-
-        if (challenge != null) {
-            startingScore = challenge.getStartingScore();
-            challengeDate = challenge.getChallengeDate();
-            Category category = dailyChallengeService.getCategoryById(challenge.getCategoryId()).orElse(null);
-            if (category != null) {
-                categoryName = category.getName();
-                categorySlug = category.getSlug();
-            }
-        }
-
-        List<DailyChallengeShareResponse.MoveEmoji> emojis = moves.stream()
-                .map(m -> switch (m.getResult()) {
-                    case VALID -> DailyChallengeShareResponse.MoveEmoji.VALID;
-                    case BUST -> DailyChallengeShareResponse.MoveEmoji.BUST;
-                    case INVALID -> DailyChallengeShareResponse.MoveEmoji.INVALID;
-                    case CHECKOUT -> DailyChallengeShareResponse.MoveEmoji.CHECKOUT;
-                    case TIMEOUT -> DailyChallengeShareResponse.MoveEmoji.INVALID;
-                })
-                .toList();
-
-        boolean isWin = game.getWinnerId() != null;
-
-        return ResponseEntity.ok(DailyChallengeShareResponse.builder()
-                .gameId(gameId)
-                .categoryName(categoryName)
-                .categorySlug(categorySlug)
-                .challengeDate(challengeDate)
-                .startingScore(startingScore)
-                .finalScore(game.getPlayer1Score())
-                .turnCount(game.getTurnCount())
-                .isWin(isWin)
-                .moveEmojis(emojis)
-                .resultToken(game.getResultToken())
-                .build());
+        return gameEndpointHandler.getShareData(gameId);
     }
 
     /**
@@ -353,7 +248,6 @@ public class DailyChallengeController {
         @PathVariable UUID gameId,
         Principal principal
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        return ResponseEntity.ok(gameService.getAnswersForGame(gameId, playerId));
+        return gameEndpointHandler.getGameAnswers(gameId, principal);
     }
 }

@@ -11,7 +11,6 @@ import com.trivia501.service.GameService;
 import com.trivia501.service.MatchService;
 import com.trivia501.service.PlayerProfileService;
 import com.trivia501.service.QuestionService;
-import com.trivia501.security.OptionalJwtFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +42,7 @@ public class FreePlayController {
     private final QuestionService questionService;
     private final PlayerProfileService playerProfileService;
     private final GameResponseAssembler assembler;
+    private final GameEndpointHandler gameEndpointHandler;
 
     private static final String DEFAULT_CATEGORY_SLUG = CategorySlug.FOOTBALL;
 
@@ -51,13 +51,15 @@ public class FreePlayController {
         GameService gameService,
         QuestionService questionService,
         PlayerProfileService playerProfileService,
-        GameResponseAssembler assembler
+        GameResponseAssembler assembler,
+        GameEndpointHandler gameEndpointHandler
     ) {
         this.matchService = matchService;
         this.gameService = gameService;
         this.questionService = questionService;
         this.playerProfileService = playerProfileService;
         this.assembler = assembler;
+        this.gameEndpointHandler = gameEndpointHandler;
     }
 
     @PostMapping("/start")
@@ -115,39 +117,7 @@ public class FreePlayController {
         Principal principal,
         HttpServletRequest httpRequest
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        log.debug("Submitting answer for game {}: '{}'", gameId, request.getAnswer());
-
-        GameService.MoveRecord result = gameService.processPlayerMove(gameId, playerId, request.getAnswer(), request.getEntityId());
-
-        Game game = result.game();
-        Match match = result.match();
-
-        Question question = questionService.getQuestionById(game.getQuestionId())
-            .orElseThrow(() -> new IllegalStateException("Question not found"));
-
-        GameMove move = result.move();
-
-        if (move.getResult() == GameMove.MoveResult.CHECKOUT
-                && OptionalJwtFilter.AUTH_TYPE_ANON.equals(httpRequest.getAttribute(OptionalJwtFilter.AUTH_TYPE_ATTR))) {
-            httpRequest.setAttribute(OptionalJwtFilter.ROTATE_ANON_ATTR, "true");
-        }
-
-        SubmitAnswerResponse response = SubmitAnswerResponse.builder()
-            .result(move.getResult().name())
-            .matchedAnswer(move.getMatchedDisplayText())
-            .scoreValue(move.getScoreValue())
-            .scoreBefore(move.getScoreBefore())
-            .scoreAfter(move.getScoreAfter())
-            .reason(result.reason())
-            .isWin(move.getResult() == GameMove.MoveResult.CHECKOUT)
-            .gameState(assembler.buildGameStateResponse(game, question, match, result.usedAnswerIds(), List.of()))
-            .build();
-
-        log.debug("Answer processed: result={}, score={}->{}", move.getResult(),
-            move.getScoreBefore(), move.getScoreAfter());
-
-        return ResponseEntity.ok(response);
+        return gameEndpointHandler.submitAnswer(gameId, request, principal, httpRequest);
     }
 
     @PostMapping("/games/{gameId}/abandon")
@@ -155,10 +125,7 @@ public class FreePlayController {
         @PathVariable UUID gameId,
         Principal principal
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        log.debug("Abandoning game {} for player {}", gameId, playerId);
-        gameService.abandonGame(gameId, playerId);
-        return ResponseEntity.noContent().build();
+        return gameEndpointHandler.abandonGame(gameId, principal);
     }
 
     @GetMapping("/games/{gameId}")
@@ -166,24 +133,7 @@ public class FreePlayController {
         @PathVariable UUID gameId,
         Principal principal
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        log.debug("Getting game state for game {} (requestedBy={})", gameId, playerId);
-
-        Game game = gameService.getGameById(gameId).orElse(null);
-
-        if (game == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Match match = matchService.getMatchById(game.getMatchId())
-            .orElseThrow(() -> new IllegalStateException("Match not found"));
-
-        Question question = questionService.getQuestionById(game.getQuestionId())
-            .orElseThrow(() -> new IllegalStateException("Question not found"));
-
-        List<GameMove> moves = gameService.getMovesForGame(gameId);
-
-        return ResponseEntity.ok(assembler.buildGameStateResponse(game, question, match, moves));
+        return gameEndpointHandler.getGameState(gameId, principal);
     }
 
     @GetMapping("/games/active")
@@ -228,7 +178,6 @@ public class FreePlayController {
         @PathVariable UUID gameId,
         Principal principal
     ) {
-        UUID playerId = assembler.playerIdFrom(principal);
-        return ResponseEntity.ok(gameService.getAnswersForGame(gameId, playerId));
+        return gameEndpointHandler.getGameAnswers(gameId, principal);
     }
 }
