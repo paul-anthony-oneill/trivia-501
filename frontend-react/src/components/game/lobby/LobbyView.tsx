@@ -163,7 +163,6 @@ export default function LobbyView({
     [onStartDailyChallenge, starting],
   );
 
-  const displayTarget = target === "random" ? "?" : String(target);
   const currentScreen = stack[stack.length - 1];
 
   // Build breadcrumb label for the right-column header
@@ -204,22 +203,131 @@ export default function LobbyView({
         </div>
       </header>
 
-      {/* Two-column layout */}
-      <main className="relative z-10 flex-1 flex flex-col md:flex-row">
+      {/* Single-column stacked layout */}
+      <main className="relative z-10 flex-1 flex flex-col px-5 md:px-10 py-8">
 
-        {/* ── Left column: target score + daily challenges ── */}
-        <div className="flex-1 flex flex-col px-5 md:px-10 py-8 md:border-r border-line min-w-0">
+        {/* ── Section 1: Daily Challenges ── */}
+        <section className="mb-10">
+          <div className="flex items-center gap-2.5 mb-4">
+            <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
+            <span className="kicker">Today&apos;s Challenges</span>
+          </div>
 
-          {/* Target Score */}
-          <div className="mb-10">
-            <div className="kicker mb-4">Target Score</div>
-            <div className="flex gap-2 mb-6 flex-wrap">
+          {dailyLoading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-surface border border-line rounded-md p-4 animate-pulse"
+                >
+                  <div className="h-4 bg-line rounded w-3/4 mb-3" />
+                  <div className="h-8 bg-line rounded w-1/2 mb-3" />
+                  <div className="h-3 bg-line rounded w-full mb-2" />
+                  <div className="h-3 bg-line rounded w-5/6" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {dailyError && !dailyLoading && (
+            <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
+              <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
+              <button
+                onClick={onRetryDailies}
+                className="kicker text-accent hover:text-ink transition-colors shrink-0"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!dailyLoading && !dailyError && dailyChallenges.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dailyChallenges.map((dc) => {
+                const isThisStarting = starting === dc.categorySlug;
+                const lock = dc.lockState;
+                const isCompleted = lock?.state === "completed";
+                const isInProgress = lock?.state === "in_progress";
+
+                if (isCompleted) {
+                  return (
+                    <a
+                      key={dc.categorySlug}
+                      href={`/daily/${dc.categorySlug}`}
+                      className="group flex flex-col bg-surface border border-line rounded-md p-4 text-left transition-all duration-200 opacity-60 hover:opacity-80"
+                    >
+                      <div className="flex items-baseline justify-between mb-2">
+                        <span className="font-display font-bold text-sm">{dc.categoryName}</span>
+                        <span className="font-mono text-[9px] tracking-[0.2em] text-gold">PLAYED</span>
+                      </div>
+                      <div className="display-num text-[34px] mb-1.5">
+                        {dc.startingScore}
+                      </div>
+                      <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
+                        {dc.questionText || "Loading..."}
+                      </div>
+                      <div className="mt-auto flex items-center justify-between">
+                        <span className="font-mono text-[9px] tracking-[0.2em] text-muted uppercase">
+                          View result
+                        </span>
+                        <span className="font-display font-bold text-muted transition-transform group-hover:translate-x-0.5">→</span>
+                      </div>
+                    </a>
+                  );
+                }
+
+                return (
+                  <button
+                    key={dc.categorySlug}
+                    onClick={() => {
+                      if (isInProgress) {
+                        startDailyChallenge(dc.categorySlug, dc.categoryName);
+                      } else {
+                        setPendingDaily({ slug: dc.categorySlug, label: dc.categoryName });
+                      }
+                    }}
+                    disabled={starting !== null}
+                    className="group flex flex-col bg-surface border border-line rounded-md p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                  >
+                    <div className="flex items-baseline justify-between mb-2">
+                      <span className="font-display font-bold text-sm">{dc.categoryName}</span>
+                      <span className="font-mono text-[9px] tracking-[0.2em] text-gold">
+                        {isInProgress ? "IN PROGRESS" : "DAILY"}
+                      </span>
+                    </div>
+                    <div className="display-num text-[34px] mb-1.5">
+                      {dc.startingScore}
+                    </div>
+                    <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
+                      {dc.questionText || "Loading..."}
+                    </div>
+                    <div className="mt-auto flex items-center justify-between">
+                      <span className="font-mono text-[9px] tracking-[0.2em] text-accent uppercase">
+                        {isThisStarting ? "Starting…"
+                        : isInProgress ? "Resume"
+                        : "Play now"}
+                      </span>
+                      <span className="font-display font-bold text-accent transition-transform group-hover:translate-x-0.5">→</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+        </section>
+
+        {/* ── Section 2: Build Your Own Game ── */}
+        <section className="border-t border-line pt-8">
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <span className="kicker">Build Your Own Game</span>
+            <div className="flex gap-1.5 flex-wrap">
               {TARGET_OPTIONS.map((opt) => (
                 <button
                   key={opt}
                   onClick={() => setTarget(opt)}
                   aria-pressed={target === opt}
-                  className={`font-mono text-[11px] tracking-[0.15em] px-5 py-2.5 rounded-full border transition-all duration-200 ${
+                  className={`font-mono text-[10px] tracking-[0.12em] px-3 py-1.5 rounded-full border transition-all duration-200 ${
                     target === opt
                       ? "bg-ink text-bg border-ink"
                       : "bg-transparent text-muted border-line hover:border-line-strong hover:text-ink"
@@ -229,148 +337,20 @@ export default function LobbyView({
                 </button>
               ))}
             </div>
-            <div
-              className="display-num select-none transition-all duration-300"
-              style={{ fontSize: "clamp(88px, 12vw, 180px)" }}
-            >
-              {displayTarget}
-            </div>
-            {target === "random" && (
-              <div className="kicker mt-2">Picked randomly when you start</div>
-            )}
           </div>
-
-          {/* Daily Challenges */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2.5 mb-3">
-              <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
-              <span className="kicker">Today&apos;s Challenges</span>
-              <span className="ml-auto kicker opacity-60 hidden sm:block">
-                Score once · Share with friends
-              </span>
-            </div>
-
-            {dailyLoading && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="flex-shrink-0 w-56 bg-surface border border-line rounded-md p-4 animate-pulse"
-                  >
-                    <div className="h-4 bg-line rounded w-3/4 mb-3" />
-                    <div className="h-8 bg-line rounded w-1/2 mb-3" />
-                    <div className="h-3 bg-line rounded w-full mb-2" />
-                    <div className="h-3 bg-line rounded w-5/6" />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {dailyError && !dailyLoading && (
-              <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
-                <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
-                <button
-                  onClick={onRetryDailies}
-                  className="kicker text-accent hover:text-ink transition-colors shrink-0"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {!dailyLoading && !dailyError && dailyChallenges.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                {dailyChallenges.map((dc) => {
-                  const isThisStarting = starting === dc.categorySlug;
-                  const lock = dc.lockState;
-                  const isCompleted = lock?.state === "completed";
-                  const isInProgress = lock?.state === "in_progress";
-
-                  if (isCompleted) {
-                    return (
-                      <a
-                        key={dc.categorySlug}
-                        href={`/daily/${dc.categorySlug}`}
-                        className="group flex-shrink-0 flex flex-col bg-surface border border-line rounded-md p-4 w-56 text-left transition-all duration-200 opacity-60 hover:opacity-80"
-                      >
-                        <div className="flex items-baseline justify-between mb-2">
-                          <span className="font-display font-bold text-sm">{dc.categoryName}</span>
-                          <span className="font-mono text-[9px] tracking-[0.2em] text-gold">PLAYED</span>
-                        </div>
-                        <div className="display-num text-[34px] mb-1.5">
-                          {dc.startingScore}
-                        </div>
-                        <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
-                          {dc.questionText || "Loading..."}
-                        </div>
-                        <div className="mt-auto flex items-center justify-between">
-                          <span className="font-mono text-[9px] tracking-[0.2em] text-muted uppercase">
-                            View result
-                          </span>
-                          <span className="font-display font-bold text-muted transition-transform group-hover:translate-x-0.5">→</span>
-                        </div>
-                      </a>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={dc.categorySlug}
-                      onClick={() => {
-                        if (isInProgress) {
-                          startDailyChallenge(dc.categorySlug, dc.categoryName);
-                        } else {
-                          setPendingDaily({ slug: dc.categorySlug, label: dc.categoryName });
-                        }
-                      }}
-                      disabled={starting !== null}
-                      className="group flex-shrink-0 flex flex-col bg-surface border border-line rounded-md p-4 w-56 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-                    >
-                      <div className="flex items-baseline justify-between mb-2">
-                        <span className="font-display font-bold text-sm">{dc.categoryName}</span>
-                        <span className="font-mono text-[9px] tracking-[0.2em] text-gold">
-                          {isInProgress ? "IN PROGRESS" : "DAILY"}
-                        </span>
-                      </div>
-                      <div className="display-num text-[34px] mb-1.5">
-                        {dc.startingScore}
-                      </div>
-                      <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
-                        {dc.questionText || "Loading..."}
-                      </div>
-                      <div className="mt-auto flex items-center justify-between">
-                        <span className="font-mono text-[9px] tracking-[0.2em] text-accent uppercase">
-                          {isThisStarting ? "Starting…"
-                          : isInProgress ? "Resume"
-                          : "Play now"}
-                        </span>
-                        <span className="font-display font-bold text-accent transition-transform group-hover:translate-x-0.5">→</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-          </div>
-
-        </div>
-
-        {/* ── Right column: drill-down navigator ── */}
-        <div className="w-full md:w-96 lg:w-[440px] flex flex-col px-5 md:px-8 py-8 overflow-hidden relative">
 
           {/* Back + breadcrumb */}
           {stack.length > 1 && (
             <button
               onClick={pop}
-              className="flex items-center gap-2 kicker mb-4 hover:text-ink transition-colors self-start"
+              className="flex items-center gap-2 kicker mb-4 hover:text-ink transition-colors"
             >
               ← {breadcrumb || "Back"}
             </button>
           )}
 
-          {/* Animated screen area */}
-          <div key={animKey} className={`flex-1 ${slideDir === 1 ? "animate-nav-push" : "animate-nav-pop"}`}>
+          {/* Animated content area */}
+          <div key={animKey} className={slideDir === 1 ? "animate-nav-push" : "animate-nav-pop"}>
             <NavScreenRenderer
               screen={currentScreen}
               onPush={push}
@@ -378,7 +358,7 @@ export default function LobbyView({
               starting={starting}
             />
           </div>
-        </div>
+        </section>
       </main>
 
       <ConfirmDialog
@@ -442,28 +422,30 @@ function RootScreen({
   const isStarting = starting !== null;
   return (
     <>
-      <div className="kicker mb-5">Choose Your Board</div>
-
-      {/* Football — drill-down */}
-      <NavRow
-        name="Football"
-        sub="Goals · assists · 5 leagues"
-        onClick={() => onPush({ id: "football" })}
-        hasChildren
-        disabled={isStarting}
-      />
-
-      {/* Other categories — one click */}
-      {OTHER_CATEGORIES.map((cat) => (
-        <NavRow
-          key={cat.id}
-          name={cat.name}
-          sub={cat.description}
-          onClick={() => onStartGame(cat.id, cat.name)}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Football — drill-down */}
+        <CategoryCard
+          name="Football"
+          description="Goals, assists, appearances across 5 leagues"
+          icon="⚽"
+          onClick={() => onPush({ id: "football" })}
+          hasChildren
           disabled={isStarting}
-          loading={starting === cat.id}
         />
-      ))}
+
+        {/* Other categories — one-click start */}
+        {OTHER_CATEGORIES.map((cat) => (
+          <CategoryCard
+            key={cat.id}
+            name={cat.name}
+            description={cat.description}
+            icon={cat.id === "film" ? "🎬" : "🌍"}
+            onClick={() => onStartGame(cat.id, cat.name)}
+            disabled={isStarting}
+            loading={starting === cat.id}
+          />
+        ))}
+      </div>
 
       <div className="mt-8">
         <HowToPlayPanel />
@@ -680,6 +662,42 @@ function NavDivider({ label }: { label: string }) {
       <span className="kicker text-[9px]">{label}</span>
       <div className="flex-1 border-t border-line" />
     </div>
+  );
+}
+
+function CategoryCard({
+  name,
+  description,
+  icon,
+  onClick,
+  hasChildren = false,
+  disabled = false,
+  loading = false,
+}: {
+  name: string;
+  description: string;
+  icon: string;
+  onClick: () => void;
+  hasChildren?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="group flex flex-col bg-surface border border-line rounded-md p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+    >
+      <span className="text-2xl mb-3" aria-hidden="true">{icon}</span>
+      <span className="font-display font-bold text-lg leading-tight mb-1">
+        {name}
+        {loading && <span className="ml-2 kicker">Starting…</span>}
+      </span>
+      <span className="hint text-[10px] leading-snug">{description}</span>
+      <span className="mt-3 font-display font-bold text-sm text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all self-end" aria-hidden="true">
+        {loading ? "…" : hasChildren ? "→ Browse" : "↵ Play"}
+      </span>
+    </button>
   );
 }
 

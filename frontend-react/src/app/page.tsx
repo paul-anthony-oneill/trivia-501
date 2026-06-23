@@ -169,14 +169,16 @@ export default function GamePage() {
     return (
       <ErrorBoundary section="lobby">
         {authRedirect}
-        <LobbyView
-          onStartGame={handleStartGame}
-          onStartDailyChallenge={handleStartDailyChallenge}
-          dailyChallenges={dailyChallenges}
-          dailyLoading={dailyLoading}
-          dailyError={dailyError}
-          onRetryDailies={retryDailies}
-        />
+        <div className="animate-fade-in">
+          <LobbyView
+            onStartGame={handleStartGame}
+            onStartDailyChallenge={handleStartDailyChallenge}
+            dailyChallenges={dailyChallenges}
+            dailyLoading={dailyLoading}
+            dailyError={dailyError}
+            onRetryDailies={retryDailies}
+          />
+        </div>
       </ErrorBoundary>
     );
   }
@@ -186,27 +188,29 @@ export default function GamePage() {
   return (
     <ErrorBoundary section="game">
       {authRedirect}
-      <MatchView
-        score={score}
-        question={question}
-        turnCount={turnCount}
-        moves={moves}
-        onExit={exitGame}
-        onSubmitAnswer={submitAnswer}
-        onPlayAgain={handlePlayAgain}
-        categoryName={catName}
-        categorySub={catSub}
-        entityType={entityType}
-        isWin={isWin}
-        isGameOver={gameStatus === "COMPLETED"}
-        hints={hints}
-        disabled={isAnimating}
-        flashVersion={flashVersion}
-        onShare={gameType === "daily-challenge" ? handleShare : undefined}
-        shareState={shareState}
-        gameId={gameId}
-        gameType={gameType}
-      />
+      <div className="animate-fade-in">
+        <MatchView
+          score={score}
+          question={question}
+          turnCount={turnCount}
+          moves={moves}
+          onExit={exitGame}
+          onSubmitAnswer={submitAnswer}
+          onPlayAgain={handlePlayAgain}
+          categoryName={catName}
+          categorySub={catSub}
+          entityType={entityType}
+          isWin={isWin}
+          isGameOver={gameStatus === "COMPLETED"}
+          hints={hints}
+          disabled={isAnimating}
+          flashVersion={flashVersion}
+          onShare={gameType === "daily-challenge" ? handleShare : undefined}
+          shareState={shareState}
+          gameId={gameId}
+          gameType={gameType}
+        />
+      </div>
       {popup && (
         <AnimatedScorePopup
           scoreValue={popup.scoreValue}
