@@ -337,7 +337,7 @@ export default function LobbyView({
 
         {/* ── Section 2: Build Your Own Game ── */}
         <section className="border-t border-line pt-8">
-          <div className="mb-5 p-4 rounded-lg bg-surface border border-line">
+          <div className="mb-5 p-4 rounded-lg bg-ink/[0.04]">
             <div className="flex items-baseline gap-2 mb-3">
               <span className="font-display font-bold text-lg text-ink">Build Your Own Game</span>
               <span className="font-mono text-[10px] tracking-[0.12em] text-muted">— Free Play —</span>
