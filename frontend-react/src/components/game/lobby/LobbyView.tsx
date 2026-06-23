@@ -427,7 +427,6 @@ function RootScreen({
         <CategoryCard
           name="Football"
           description="Goals, assists, appearances across 5 leagues"
-          icon="⚽"
           onClick={() => onPush({ id: "football" })}
           hasChildren
           disabled={isStarting}
@@ -439,7 +438,6 @@ function RootScreen({
             key={cat.id}
             name={cat.name}
             description={cat.description}
-            icon={cat.id === "film" ? "🎬" : "🌍"}
             onClick={() => onStartGame(cat.id, cat.name)}
             disabled={isStarting}
             loading={starting === cat.id}
@@ -668,7 +666,6 @@ function NavDivider({ label }: { label: string }) {
 function CategoryCard({
   name,
   description,
-  icon,
   onClick,
   hasChildren = false,
   disabled = false,
@@ -676,7 +673,6 @@ function CategoryCard({
 }: {
   name: string;
   description: string;
-  icon: string;
   onClick: () => void;
   hasChildren?: boolean;
   disabled?: boolean;
@@ -688,7 +684,6 @@ function CategoryCard({
       disabled={disabled}
       className="group flex flex-col bg-surface border border-line rounded-md p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
     >
-      <span className="text-2xl mb-3" aria-hidden="true">{icon}</span>
       <span className="font-display font-bold text-lg leading-tight mb-1">
         {name}
         {loading && <span className="ml-2 kicker">Starting…</span>}
