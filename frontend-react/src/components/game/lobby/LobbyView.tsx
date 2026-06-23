@@ -438,35 +438,54 @@ function RootScreen({
   starting: string | null;
 }) {
   const isStarting = starting !== null;
-  return (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Football — drill-down */}
-        <CategoryCard
-          name="Football"
-          description="Goals, assists, appearances across 5 leagues"
-          onClick={() => onPush({ id: "football" })}
-          hasChildren
-          disabled={isStarting}
-        />
+  const [showSpecial, setShowSpecial] = useState(false);
 
-        {/* Other categories — one-click start */}
-        {OTHER_CATEGORIES.map((cat) => (
-          <CategoryCard
-            key={cat.id}
-            name={cat.name}
-            description={cat.description}
-            onClick={() => onStartGame(cat.id, cat.name)}
-            disabled={isStarting}
-            loading={starting === cat.id}
-          />
-        ))}
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Football — full-width primary card */}
+      <CategoryCard
+        name="Football"
+        description="Goals, assists, appearances across 5 leagues"
+        onClick={() => onPush({ id: "football" })}
+        hasChildren
+        disabled={isStarting}
+      />
+
+      {/* Special Categories — collapsible accordion */}
+      <div className="bg-surface border border-line rounded-md overflow-hidden">
+        <button
+          onClick={() => setShowSpecial((v) => !v)}
+          className="w-full flex items-center justify-between p-5 text-left hover:bg-ink/[0.02] transition-colors"
+        >
+          <div>
+            <span className="font-display font-bold text-lg">Special Categories</span>
+            <span className="hint text-[10px] block mt-0.5">Film · Geography</span>
+          </div>
+          <span className={`font-display font-bold text-muted text-lg transition-transform duration-200 ${showSpecial ? "rotate-180" : ""}`} aria-hidden="true">
+            ▼
+          </span>
+        </button>
+
+        {showSpecial && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 px-5 pb-5">
+            {OTHER_CATEGORIES.map((cat) => (
+              <CategoryCard
+                key={cat.id}
+                name={cat.name}
+                description={cat.description}
+                onClick={() => onStartGame(cat.id, cat.name)}
+                disabled={isStarting}
+                loading={starting === cat.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-4">
         <HowToPlayPanel />
       </div>
-    </>
+    </div>
   );
 }
 
