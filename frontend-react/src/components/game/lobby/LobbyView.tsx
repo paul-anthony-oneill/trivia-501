@@ -102,6 +102,7 @@ export default function LobbyView({
   const [starting, setStarting] = useState<string | null>(null);
   // Pending daily challenge — set when a card is clicked; cleared on confirm or cancel.
   const [pendingDaily, setPendingDaily] = useState<{ slug: string; label: string } | null>(null);
+  const [timeUntilReset, setTimeUntilReset] = useState("");
   const { user, loading } = useAuth();
   const isAdmin = !loading && user?.app_metadata?.role === "admin";
 
@@ -136,6 +137,18 @@ export default function LobbyView({
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [stack.length]);
+
+  // Countdown to next daily challenge reset (midnight UTC)
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      setTimeUntilReset(new Date(next.getTime() - now.getTime()).toISOString().slice(11, 19));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const startGame = useCallback(
     async (slug: string, label: string, filter?: FootballFilter) => {
@@ -211,6 +224,11 @@ export default function LobbyView({
           <div className="flex items-center gap-2.5 mb-4">
             <span className="w-2 h-2 rounded-full bg-gold" aria-hidden="true" />
             <span className="kicker">Today&apos;s Challenges</span>
+            {timeUntilReset && (
+              <span className="font-mono text-[11px] text-muted tabular-nums">
+                Resets in {timeUntilReset}
+              </span>
+            )}
           </div>
 
           {dailyLoading && (
