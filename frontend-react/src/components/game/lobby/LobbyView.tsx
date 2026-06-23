@@ -337,15 +337,19 @@ export default function LobbyView({
 
         {/* ── Section 2: Build Your Own Game ── */}
         <section className="border-t border-line pt-8">
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
-            <span className="kicker">Build Your Own Game</span>
-            <div className="flex gap-1.5 flex-wrap">
+          <div className="mb-5 p-4 rounded-lg bg-surface border border-line">
+            <div className="flex items-baseline gap-2 mb-3">
+              <span className="font-display font-bold text-lg text-ink">Build Your Own Game</span>
+              <span className="font-mono text-[10px] tracking-[0.12em] text-muted">— Free Play —</span>
+            </div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="font-mono text-[11px] text-muted">Starting score:</span>
               {TARGET_OPTIONS.map((opt) => (
                 <button
                   key={opt}
                   onClick={() => setTarget(opt)}
                   aria-pressed={target === opt}
-                  className={`font-mono text-[10px] tracking-[0.12em] px-3 py-1.5 rounded-full border transition-all duration-200 ${
+                  className={`font-mono text-sm font-bold tracking-[0.06em] px-4 py-2 rounded-full border-2 transition-all duration-200 ${
                     target === opt
                       ? "bg-ink text-bg border-ink"
                       : "bg-transparent text-muted border-line hover:border-line-strong hover:text-ink"
