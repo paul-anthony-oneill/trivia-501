@@ -305,16 +305,17 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         """)
     Optional<Question> findRandomFootballAnyQuestion();
 
-    /** Returns distinct club slugs that have at least one active question for the given league. */
+    /** Returns distinct {slug, display_name} pairs with active questions for the given league. */
     @Query(value = """
-        SELECT DISTINCT q_club FROM questions
-        WHERE q_scope  = 'club'
-          AND q_league = :league
-          AND status   = 'active'
-          AND q_club   IS NOT NULL
-        ORDER BY q_club
+        SELECT DISTINCT q.q_club, t.name FROM questions q
+        JOIN teams t ON t.normalized_name = q.q_club
+        WHERE q.q_scope  = 'club'
+          AND q.q_league = :league
+          AND q.status   = 'active'
+          AND q.q_club   IS NOT NULL
+        ORDER BY t.name
         """, nativeQuery = true)
-    List<String> findDistinctClubsByLeague(@Param("league") String league);
+    List<Object[]> findDistinctClubsByLeague(@Param("league") String league);
 
     // ── Counts ────────────────────────────────────────────────────────────────
 
