@@ -357,14 +357,14 @@ export default function LobbyView({
             </div>
           </div>
 
-          {/* Back + breadcrumb */}
+          {/* Back + breadcrumb — doubles as section title */}
           {stack.length > 1 && (
             <button
               onClick={pop}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-surface hover:border-line-strong hover:-translate-x-0.5 transition-all mb-4 font-display font-bold text-sm text-muted hover:text-ink"
+              className="inline-flex items-center gap-2.5 group mb-5 hover:-translate-x-0.5 transition-transform"
             >
-              <span aria-hidden="true" className="text-base">←</span>
-              {breadcrumb || "Back"}
+              <span aria-hidden="true" className="font-mono text-muted group-hover:text-ink transition-colors">←</span>
+              <span className="font-display font-bold text-xl text-ink">{breadcrumb || "Back"}</span>
             </button>
           )}
 
@@ -504,7 +504,7 @@ function FootballScreen({
   const isStarting = starting !== null;
   return (
     <>
-      <div className="kicker mb-5">Football</div>
+      {/* name is now shown in the back button above */}
 
       <NavRow
         random
@@ -567,7 +567,7 @@ function LeagueScreen({
 
   return (
     <>
-      <div className="kicker mb-5">{league.name}</div>
+      {/* league name is now shown in the back button above */}
 
       {/* League-scope questions */}
       <NavRow
@@ -650,7 +650,7 @@ function ClubScreen({
   const randomSlug = `football:${league.id}:${club.id}`;
   return (
     <>
-      <div className="kicker mb-5">{club.name}</div>
+      {/* club name is now shown in the back button above */}
 
       <NavRow
         random
