@@ -53,6 +53,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try { return createClient(); } catch { return null; }
   }, []);
 
+  // Sync theme preference from user account (cross-device persistence)
+  useEffect(() => {
+    const theme = user?.user_metadata?.theme as string | undefined;
+    if (theme && (theme === "dark" || theme === "light")) {
+      document.documentElement.dataset.theme = theme;
+      try { localStorage.setItem("t501-theme", theme); } catch {}
+    }
+  }, [user?.user_metadata?.theme]);
+
   // Confirm backend auth state whenever the Supabase session changes
   useEffect(() => {
     if (!session?.access_token) {
