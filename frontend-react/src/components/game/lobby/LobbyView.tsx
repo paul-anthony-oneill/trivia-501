@@ -232,11 +232,11 @@ export default function LobbyView({
           </div>
 
           {dailyLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="bg-surface border border-line rounded-md p-4 animate-pulse"
+                  className="bg-surface border border-line rounded-md p-6 animate-pulse"
                 >
                   <div className="h-4 bg-line rounded w-3/4 mb-3" />
                   <div className="h-8 bg-line rounded w-1/2 mb-3" />
@@ -260,7 +260,7 @@ export default function LobbyView({
           )}
 
           {!dailyLoading && !dailyError && dailyChallenges.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {dailyChallenges.map((dc) => {
                 const isThisStarting = starting === dc.categorySlug;
                 const lock = dc.lockState;
@@ -272,20 +272,20 @@ export default function LobbyView({
                     <a
                       key={dc.categorySlug}
                       href={`/daily/${dc.categorySlug}`}
-                      className="group flex flex-col bg-surface border border-line rounded-md p-4 text-left transition-all duration-200 opacity-60 hover:opacity-80"
+                      className="group flex flex-col bg-surface border border-line rounded-md p-6 text-left transition-all duration-200 opacity-60 hover:opacity-80"
                     >
                       <div className="flex items-baseline justify-between mb-2">
-                        <span className="font-display font-bold text-sm">{dc.categoryName}</span>
-                        <span className="font-mono text-[9px] tracking-[0.2em] text-gold">PLAYED</span>
+                        <span className="font-display font-bold text-base">{dc.categoryName}</span>
+                        <span className="font-mono text-[10px] tracking-[0.2em] text-gold">PLAYED</span>
                       </div>
-                      <div className="display-num text-[34px] mb-1.5">
+                      <div className="display-num text-[56px] mb-2">
                         {dc.startingScore}
                       </div>
-                      <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
+                      <div className="font-sans text-sm text-muted leading-snug line-clamp-2 mb-4">
                         {dc.questionText || "Loading..."}
                       </div>
                       <div className="mt-auto flex items-center justify-between">
-                        <span className="font-mono text-[9px] tracking-[0.2em] text-muted uppercase">
+                        <span className="font-mono text-[10px] tracking-[0.2em] text-muted uppercase">
                           View result
                         </span>
                         <span className="font-display font-bold text-muted transition-transform group-hover:translate-x-0.5">→</span>
@@ -305,22 +305,22 @@ export default function LobbyView({
                       }
                     }}
                     disabled={starting !== null}
-                    className="group flex flex-col bg-surface border border-line rounded-md p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    className="group flex flex-col bg-surface border border-line rounded-md p-6 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                   >
                     <div className="flex items-baseline justify-between mb-2">
-                      <span className="font-display font-bold text-sm">{dc.categoryName}</span>
-                      <span className="font-mono text-[9px] tracking-[0.2em] text-gold">
+                      <span className="font-display font-bold text-base">{dc.categoryName}</span>
+                      <span className="font-mono text-[10px] tracking-[0.2em] text-gold">
                         {isInProgress ? "IN PROGRESS" : "DAILY"}
                       </span>
                     </div>
-                    <div className="display-num text-[34px] mb-1.5">
+                    <div className="display-num text-[56px] mb-2">
                       {dc.startingScore}
                     </div>
-                    <div className="font-sans text-[12px] text-muted leading-snug line-clamp-2 mb-3">
+                    <div className="font-sans text-sm text-muted leading-snug line-clamp-2 mb-4">
                       {dc.questionText || "Loading..."}
                     </div>
                     <div className="mt-auto flex items-center justify-between">
-                      <span className="font-mono text-[9px] tracking-[0.2em] text-accent uppercase">
+                      <span className="font-mono text-[10px] tracking-[0.2em] text-accent uppercase">
                         {isThisStarting ? "Starting…"
                         : isInProgress ? "Resume"
                         : "Play now"}
@@ -440,7 +440,7 @@ function RootScreen({
   const isStarting = starting !== null;
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Football — drill-down */}
         <CategoryCard
           name="Football"
@@ -707,7 +707,7 @@ function CategoryCard({
         {loading && <span className="ml-2 kicker">Starting…</span>}
       </span>
       <span className="hint text-[10px] leading-snug">{description}</span>
-      <span className="mt-3 font-display font-bold text-sm text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all self-end" aria-hidden="true">
+      <span className="mt-3 font-display font-bold text-base text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all self-end" aria-hidden="true">
         {loading ? "…" : hasChildren ? "→ Browse" : "↵ Play"}
       </span>
     </button>
