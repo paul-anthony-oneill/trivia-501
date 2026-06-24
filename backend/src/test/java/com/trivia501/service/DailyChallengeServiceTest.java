@@ -1,9 +1,9 @@
 package com.trivia501.service;
 
+import com.trivia501.engine.ChallengeScorePicker;
 import com.trivia501.model.Category;
 import com.trivia501.model.DailyChallenge;
 import com.trivia501.model.Question;
-import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.CategoryRepository;
 import com.trivia501.repository.DailyChallengeRepository;
 import com.trivia501.repository.GameRepository;
@@ -23,9 +23,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -34,12 +31,12 @@ class DailyChallengeServiceTest {
 
     @Mock private DailyChallengeRepository challengeRepository;
     @Mock private QuestionRepository questionRepository;
-    @Mock private AnswerRepository answerRepository;
     @Mock private CategoryRepository categoryRepository;
     @Mock private MatchService matchService;
     @Mock private GameService gameService;
     @Mock private GameRepository gameRepository;
     @Mock private MatchRepository matchRepository;
+    @Mock private ChallengeScorePicker scorePicker;
 
     private DailyChallengeService service;
 
@@ -54,9 +51,9 @@ class DailyChallengeServiceTest {
     @BeforeEach
     void setUp() {
         service = new DailyChallengeService(
-                challengeRepository, questionRepository, answerRepository,
-                categoryRepository, matchService, gameService,
-                gameRepository, matchRepository);
+                challengeRepository, questionRepository, categoryRepository,
+                matchService, gameService, gameRepository,
+                matchRepository, scorePicker);
     }
 
     @Test
@@ -83,12 +80,9 @@ class DailyChallengeServiceTest {
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(challengeRepository.findLatestStartingScoreForQuestionSince(any(UUID.class), any(LocalDate.class)))
-                .thenReturn(Optional.empty());
-        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
-                .thenReturn(Optional.of(question));
-        when(answerRepository.hasViableFirstMove(eq(questionId), anyInt()))
-                .thenReturn(true);
+        when(scorePicker.findViableQuestionAndScore(
+                eq(categoryId), eq(-1), eq(LocalDate.now()), eq(List.of())))
+                .thenReturn(new ChallengeScorePicker.QuestionScorePair(question, 301));
         when(challengeRepository.save(any(DailyChallenge.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
@@ -107,11 +101,11 @@ class DailyChallengeServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
-        // No question found for any score — all fallback attempts fail
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
-                .thenReturn(Optional.empty());
+        when(scorePicker.findViableQuestionAndScore(
+                eq(categoryId), eq(-1), eq(LocalDate.now()), eq(List.of())))
+                .thenReturn(null);
 
         assertThatThrownBy(() -> service.getTodaysChallenge(categoryId))
                 .isInstanceOf(IllegalStateException.class)
@@ -133,14 +127,12 @@ class DailyChallengeServiceTest {
 
     @Test
     void shouldPickValidStartingScore() {
-        when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
-                .thenReturn(Optional.empty());
+        int expectedScore = 301;
+        when(scorePicker.pickStartingScore(categoryId)).thenReturn(expectedScore);
 
-        for (int i = 0; i < 50; i++) {
-            int score = service.pickStartingScore(categoryId);
-            assertThat(score).isIn((Object[]) java.util.Arrays.stream(
-                com.trivia501.engine.DifficultyConstants.DAILY_STARTING_SCORES).boxed().toArray());
-        }
+        int score = service.pickStartingScore(categoryId);
+
+        assertThat(score).isEqualTo(expectedScore);
     }
 
     @Test
@@ -153,12 +145,9 @@ class DailyChallengeServiceTest {
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
-        when(challengeRepository.findLatestStartingScoreForQuestionSince(any(UUID.class), any(LocalDate.class)))
-                .thenReturn(Optional.empty());
-        when(questionRepository.findRandomDailyQuestion(eq(categoryId), anyInt(), anyList()))
-                .thenReturn(Optional.of(question));
-        when(answerRepository.hasViableFirstMove(eq(questionId), anyInt()))
-                .thenReturn(true);
+        when(scorePicker.findViableQuestionAndScore(
+                eq(categoryId), eq(-1), eq(LocalDate.now()), eq(List.of())))
+                .thenReturn(new ChallengeScorePicker.QuestionScorePair(question, 301));
         when(challengeRepository.save(any(DailyChallenge.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
