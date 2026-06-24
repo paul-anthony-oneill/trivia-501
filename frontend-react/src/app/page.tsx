@@ -2,23 +2,23 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import LobbyView from "@/components/game/lobby/LobbyView";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import DailyHeroSection from "@/components/game/lobby/DailyHeroSection";
 import MatchView from "@/components/game/match/MatchView";
 import AnimatedScorePopup from "@/components/game/AnimatedScorePopup";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useGameLoop, getSavedLabel } from "@/hooks/useGameLoop";
 import { useDailyChallenge } from "@/hooks/useDailyChallenge";
 import { useToast } from "@/context/ToastContext";
 import { apiFetch } from "@/lib/api/client";
 import { buildShareText } from "@/utils/share";
-import type { FootballFilter } from "@/lib/api/footballApi";
+
+const LoginButton = dynamic(() => import("@/components/auth/LoginButton"), { ssr: false });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Extract the top-level category slug from a hierarchical path like "football:premier-league" */
-function rootSlug(pathSlug: string): string {
-  return pathSlug.split(":")[0] ?? pathSlug;
-}
 
 /** Derive a display category name from the selection label (e.g. "Football > Premier League > Goals > Random") */
 function categoryLabel(label: string): { name: string; sub: string } {
@@ -42,6 +42,23 @@ function AuthRequiredRedirect() {
     }
   }, [searchParams, addToast]);
   return null;
+}
+
+// ─── Countdown hook ───────────────────────────────────────────────────────────
+
+function useCountdown() {
+  const [timeUntilReset, setTimeUntilReset] = useState("");
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      setTimeUntilReset(new Date(next.getTime() - now.getTime()).toISOString().slice(11, 19));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return timeUntilReset;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -78,36 +95,37 @@ export default function GamePage() {
   } = useDailyChallenge();
 
   const { addToast } = useToast();
+  const timeUntilReset = useCountdown();
 
   // Share state: idle → sharing → copied
   const [shareState, setShareState] = useState<"idle" | "sharing" | "copied">("idle");
 
   // Track the last selection so we can replay and display in MatchView.
-  // On mount, try to recover the label from a saved game (refresh recovery).
   const savedLabel = getSavedLabel();
   const [lastSlug, setLastSlug] = useState(() => savedLabel ?? "football");
   const [lastLabel, setLastLabel] = useState(() => savedLabel ?? "Football");
 
+  // Pending daily challenge confirmation
+  const [pendingDaily, setPendingDaily] = useState<{ slug: string; label: string } | null>(null);
+  // Slug currently starting a game (prevents double-clicks)
+  const [starting, setStarting] = useState<string | null>(null);
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  const handleStartGame = async (
-    slug: string,
-    label: string,
-    targetScore: number,
-    footballFilter?: FootballFilter,
-  ) => {
-    setLastSlug(slug);
-    setLastLabel(label);
-    await startNewGame(rootSlug(slug), label, targetScore, footballFilter);
-  };
-
-  const handleStartDailyChallenge = async (
-    categorySlug: string,
-    label: string,
-  ) => {
+  const handleStartDailyChallenge = async (categorySlug: string, label: string) => {
+    if (starting) return;
+    setStarting(categorySlug);
     setLastSlug(categorySlug);
     setLastLabel(label);
-    await startDailyChallenge(categorySlug, label);
+    try {
+      await startDailyChallenge(categorySlug, label);
+    } finally {
+      setStarting(null);
+    }
+  };
+
+  const handlePlayAgain = async () => {
+    await startNewGame(lastSlug, lastLabel);
   };
 
   const handleShare = async () => {
@@ -120,7 +138,6 @@ export default function GamePage() {
 
       const shareText = buildShareText(data, window.location.origin);
 
-      // Try native share on mobile, fall back to clipboard
       if (navigator.share) {
         await navigator.share({ text: shareText });
       } else {
@@ -130,7 +147,6 @@ export default function GamePage() {
       setTimeout(() => setShareState("idle"), 2000);
       addToast("Result copied to clipboard!", "success");
     } catch (err) {
-      // User cancelled share — not an error
       if ((err as Error).name !== "AbortError") {
         addToast("Failed to share result", "error");
       }
@@ -138,13 +154,8 @@ export default function GamePage() {
     }
   };
 
-  const handlePlayAgain = async () => {
-    await startNewGame(rootSlug(lastSlug), lastLabel);
-  };
-
   // ── Restoring state ─────────────────────────────────────────────────────────
 
-  // AuthRequiredRedirect uses useSearchParams — must live inside Suspense
   const authRedirect = (
     <Suspense fallback={null}>
       <AuthRequiredRedirect />
@@ -163,25 +174,81 @@ export default function GamePage() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Lobby ───────────────────────────────────────────────────────────────────
 
   if (gameStatus === "NOT_STARTED") {
     return (
       <ErrorBoundary section="lobby">
         {authRedirect}
-        <div className="animate-fade-in">
-          <LobbyView
-            onStartGame={handleStartGame}
-            onStartDailyChallenge={handleStartDailyChallenge}
-            dailyChallenges={dailyChallenges}
-            dailyLoading={dailyLoading}
-            dailyError={dailyError}
-            onRetryDailies={retryDailies}
-          />
+        <div className="animate-fade-in relative min-h-screen bg-bg text-ink flex flex-col font-sans">
+          {/* Header */}
+          <header className="relative z-10 flex items-center justify-between px-5 md:px-10 py-4 border-b border-line">
+            <div className="flex items-center gap-3">
+              <span className="bullseye" aria-hidden="true" />
+              <span className="font-display font-extrabold text-lg tracking-tight leading-none">
+                TRIVIA <span className="text-accent">501</span>
+              </span>
+              <span className="kicker hidden sm:block ml-2">The trivia darts championship</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <LoginButton />
+            </div>
+          </header>
+
+          <main className="relative z-10 flex-1 flex flex-col px-5 md:px-10 py-8">
+            {/* Hero Daily Challenges */}
+            <DailyHeroSection
+              challenges={dailyChallenges}
+              loading={dailyLoading}
+              error={dailyError}
+              onRetry={retryDailies}
+              timeUntilReset={timeUntilReset}
+              starting={starting}
+              onPlay={handleStartDailyChallenge}
+              onRequestConfirm={(slug, label) => setPendingDaily({ slug, label })}
+            />
+
+            {/* Build Your Own Game entry */}
+            <div className="border-t border-line pt-8 mt-2">
+              <Link
+                href="/freeplay"
+                className="group flex flex-col bg-surface border border-line rounded-lg p-6 md:p-8 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] block"
+              >
+                <span className="font-display font-bold text-xl md:text-2xl mb-2">
+                  Build Your Own Game
+                </span>
+                <span className="text-muted text-sm leading-snug mb-5">
+                  Pick your category, choose a starting score, and play on your own terms. No daily lock — replay as many times as you want.
+                </span>
+                <span className="font-display font-bold text-base text-accent group-hover:translate-x-0.5 transition-all self-end" aria-hidden="true">
+                  → Browse
+                </span>
+              </Link>
+            </div>
+          </main>
         </div>
+
+        <ConfirmDialog
+          open={pendingDaily !== null}
+          title={`Play today's ${pendingDaily?.label} challenge?`}
+          message="You only get one attempt per day. Once you start, this is your shot."
+          confirmText="Let's go"
+          cancelText="Not yet"
+          type="info"
+          onConfirm={() => {
+            if (pendingDaily) {
+              handleStartDailyChallenge(pendingDaily.slug, pendingDaily.label);
+            }
+            setPendingDaily(null);
+          }}
+          onCancel={() => setPendingDaily(null)}
+        />
       </ErrorBoundary>
     );
   }
+
+  // ── Active game ──────────────────────────────────────────────────────────────
 
   const { name: catName, sub: catSub } = categoryLabel(lastLabel);
 
@@ -222,3 +289,4 @@ export default function GamePage() {
     </ErrorBoundary>
   );
 }
+

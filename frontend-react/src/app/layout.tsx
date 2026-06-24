@@ -42,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full ${hanken.variable} ${plexMono.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} suppressHydrationWarning />
       </head>
       <body className="min-h-full flex flex-col theme-home">
         <AuthProvider>

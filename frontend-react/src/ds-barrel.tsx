@@ -10,5 +10,8 @@ export { default as HowToPlayPanel }     from './components/game/HowToPlayPanel'
 export { default as AnimatedScorePopup } from './components/game/AnimatedScorePopup';
 export { default as EntitySearch }       from './components/game/EntitySearch';
 export { default as DebugPanel }         from './components/game/DebugPanel';
-export { default as LobbyView }          from './components/game/lobby/LobbyView';
+export { default as DailyHeroSection }   from './components/game/lobby/DailyHeroSection';
+export { default as CategoryCard }       from './components/game/lobby/CategoryCard';
+export { default as NavRow }             from './components/game/lobby/NavRow';
+export { default as NavDivider }         from './components/game/lobby/NavDivider';
 export { default as MatchView }          from './components/game/match/MatchView';

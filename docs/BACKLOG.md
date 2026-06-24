@@ -1,6 +1,6 @@
 # Trivia 501 — Backlog & Future Work
 
-**Last updated**: 2026-06-17 (added Option B player2 cleanup plan; updated multiplayer deferred entry; resolved null-player2 tension item)  
+**Last updated**: 2026-06-24 (homepage redesign Part 2; added hydration workaround backlog items)  
 **Purpose**: Living document capturing all deferred work, stretch goals, and improvement ideas regardless of size or urgency. Update this whenever a decision is made to defer something, or when a backlog item is completed or abandoned.
 
 **Product direction** (2026-06-08): The game is now focused on **single-player daily challenges** as the core experience — Wordle-style social trivia where everyone plays the same question with the same parameters each day and shares results with friends. A separate **Free Play** mode (formerly "practice") lets players pick any category/question to play on their own terms. Async friend challenges (play the same question and compare) are a planned social feature. The ranking/MMR/league-tier system and real-time multiplayer are deferred indefinitely.
@@ -48,6 +48,7 @@
 | Loss/bust-out state | — | Frontend: `isWin` tracked as first-class state in `useGameLoop`; game completion detected from `gameState.status` not `r.isWin`. `MatchView` shows loss overlay (red score, "Better luck next time") when `isGameOver && !isWin`. |
 | Backlog small-fixes sweep (17 items) | — | Move/GameHints types de-duplicated; dead theme classList code removed from useGameLoop + tests; PlayerProfileService FQCN → proper imports; EntitySearch aria-label derived from entityType; manifest.json theme_color/short_name/description updated; share button three-state (idle/sharing/copied); exit confirmation skipped when game complete; ErrorBoundary uses semantic tokens; brand name unified to 🎯 TRIVIA 501; touch targets padded to ≥44px; .kicker/.hint px→rem; abandonGameAndMatch helper extracted (3 call sites); getShareData uses targeted findByChallengeDateAndQuestionId; getTopAnswers pushes LIMIT into JPQL; debug /answers endpoints enforce game ownership; autocomplete minimum reduced 4→2; browser history integrated with lobby drill-down nav. Frontend 135 tests pass, backend 252 tests pass. |
 | Strip player2 + controller/service cleanup (big fix) | V44+ | Removed all multiplayer scaffolding: dropped player2 columns (V44 migration), simplified engine to solo-only (no close-finish, opponentOf, isSolo), broke GameService↔MatchService @Lazy cycle with GameCompletedEvent, extracted GameResponseAssembler (153 lines deduped), removed AnswerRepository/CategoryRepository from controllers (moved behind services), simplified repo JPQL. 242 backend tests pass, 0 failures. |
+| Homepage redesign Part 2 — hero daily cards + BYOG as separate flow | — | Split the monolithic `LobbyView.tsx` (801 lines) into: `DailyHeroSection` (hero daily cards, 2-col layout, bigger typography), `CategoryCard`/`NavRow`/`NavDivider` shared UI components, new `/freeplay` hub page (target selector + category picker), new `/freeplay/football` bespoke drill-down page (full-page nav stack with slide-in animation). Homepage now shows hero daily cards + a "Build Your Own Game" entry card linking to `/freeplay`. `LobbyView.tsx` deleted. All game engine, hooks, MatchView, `/daily` routes untouched. Two `suppressHydrationWarning` workarounds documented in Architecture & Code Quality below. |
 
 ---
 
@@ -285,6 +286,22 @@ Deleting multiplayer tests without removing the underlying production code leave
 - **Severity**: Low
 - **What**: `LEAGUES` and `STAT_TYPES` are baked into the component. If the backend adds a league, the frontend silently omits it. Extract to `src/lib/constants/lobbyOptions.ts`. Separately: the "RND" target score button picks from `[501, 301, 101]` only; the backend pool now has 30 values. Either defer to backend for random selection or expand the client pool.
 - **Files**: `LobbyView.tsx:16–46`
+
+### `suppressHydrationWarning` on `DailyHeroSection` masks a `useDailyChallenge` hydration bug (2026-06-24)
+
+- **Severity**: Low — cosmetic only; React recovers automatically on the client
+- **Area**: Frontend-React (hydration safety, `useState` initializer vs `useEffect`)
+- **What**: `useDailyChallenge` reads `sessionStorage` inside `useState` initializer functions (lines 55–67). During SSR, `sessionStorage` is unavailable, so the hook initialises with `loading: true` and renders skeleton placeholders. On the client, if cached data exists in `sessionStorage`, the hook initialises with `loading: false` and renders card buttons — a different tree. React logs a hydration mismatch warning. `DailyHeroSection` currently papers over this with `suppressHydrationWarning` on the `<section>` wrapper.
+- **Long-term fix**: Refactor `useDailyChallenge` to always initialise with `loading: true` and `challenges: []` (server and client both start in the loading state). In the `useEffect` that already fires on mount, read `getCachedStatus()` first — if cached data exists, `setChallenges` + `setLoading(false)` synchronously before the `apiFetch` call. This makes the first render identical on server and client, eliminating the mismatch without losing the cache benefit (the synchronous state update inside `useEffect` fires before the browser paints). Remove the `suppressHydrationWarning` attribute from `DailyHeroSection` afterward.
+- **Files**: `frontend-react/src/hooks/useDailyChallenge.ts:55–67`, `frontend-react/src/components/game/lobby/DailyHeroSection.tsx:38`
+
+### `suppressHydrationWarning` on theme `<script>` in `layout.tsx` workaround (2026-06-24)
+
+- **Severity**: Low — cosmetic only; Next.js warns about raw `<script>` tags in React components
+- **Area**: Frontend-React (Next.js 16 App Router, theme flash prevention)
+- **What**: The root layout injects an inline `<script>` in `<head>` to set `data-theme` before first paint (reads `localStorage` or system preference). Next.js 16 flags raw `<script>` tags rendered inside React components — they don't execute during client-side hydration. The script works because the server sends it in the initial HTML, but the warning fires on every page. Currently suppressed with `suppressHydrationWarning` on the `<script>` tag and the `<html>` tag (pre-existing).
+- **Long-term fix**: Replace the raw `<script>` with `<Script id="theme-init" strategy="beforeInteractive">{\`...\`}</Script>` from `next/script`. The `beforeInteractive` strategy injects the script into the server-rendered HTML `<head>` before any React code runs — identical timing to the current raw `<script>`, but recognised by Next.js. Caveat: `next/script` with `beforeInteractive` must be placed in the root layout (it already is). If `beforeInteractive` doesn't fire early enough to prevent a theme flash, fall back to the raw `<script>` with `suppressHydrationWarning` — the flash prevention is the priority, not the warning cleanliness.
+- **Files**: `frontend-react/src/app/layout.tsx:35,45`
 
 ### `ThemeToggle` placement is inconsistent across pages (2026-06-11 redesign)
 - **Severity**: Medium — UX gap on the share deep-link page
