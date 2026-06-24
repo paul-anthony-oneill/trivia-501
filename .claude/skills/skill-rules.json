@@ -25,43 +25,48 @@
                 ]
             }
         },
-        "sveltekit-dev-guidelines": {
+        "react-dev-guidelines": {
             "type": "domain",
             "enforcement": "suggest",
             "priority": "high",
-            "description": "SvelteKit + Tailwind CSS frontend patterns for Football-501 PWA",
+            "description": "Next.js 16 / React 19 / Tailwind 4 frontend patterns for Football-501 PWA",
             "promptTriggers": {
                 "keywords": [
-                    "svelte",
-                    "sveltekit",
+                    "react",
+                    "next.js",
+                    "nextjs",
                     "component",
                     "frontend",
                     "UI",
                     "page",
-                    "store",
+                    "context",
+                    "hook",
                     "tailwind",
                     "routing",
-                    "load function",
+                    "app router",
                     "pwa",
-                    "interface"
+                    "jsx",
+                    "tsx"
                 ],
                 "intentPatterns": [
-                    "(create|add|make|build|update|modify).*?(component|page|store|UI|route)",
-                    "(how to|best practice).*?(svelte|sveltekit|tailwind|component)",
+                    "(create|add|make|build|update|modify).*?(component|page|hook|UI|route|context)",
+                    "(how to|best practice).*?(react|next\\.?js|tailwind|component|hook)",
                     "(style|design|layout).*?(component|UI)"
                 ]
             },
             "fileTriggers": {
                 "pathPatterns": [
-                    "frontend/src/**/*.svelte",
-                    "frontend/src/**/*.ts",
-                    "frontend/src/lib/**/*.ts",
-                    "src/**/*.svelte"
+                    "frontend-react/src/**/*.tsx",
+                    "frontend-react/src/**/*.ts",
+                    "frontend-react/src/app/**/*.tsx",
+                    "frontend-react/src/components/**/*.tsx",
+                    "frontend-react/src/hooks/**/*.ts"
                 ],
                 "pathExclusions": [
                     "**/*.test.ts",
+                    "**/*.test.tsx",
                     "**/*.spec.ts",
-                    "**/*.test.svelte"
+                    "**/*.spec.tsx"
                 ]
             }
         },

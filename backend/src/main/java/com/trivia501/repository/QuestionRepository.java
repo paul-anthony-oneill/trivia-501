@@ -197,11 +197,17 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
      * @param startingScore the target score for the challenge
      * @param excludeIds    question IDs to exclude (e.g. used in the last 10 days).
      *                      Must not be empty — pass a single sentinel UUID
-     *                      ({@code 00000000-0000-0000-0000-000000000000}) when
-     *                      there is nothing to exclude, because {@code NOT IN (empty)}
-     *                      returns zero rows in PostgreSQL.
      * @return a random matching question, or empty if none qualify
      */
+    default Optional<Question> findRandomDailyQuestion(
+            UUID categoryId, int startingScore, List<UUID> excludeIds) {
+        // ponytail: empty-list → sentinel because NOT IN () is a SQL syntax error
+        List<UUID> ids = excludeIds.isEmpty()
+            ? List.of(UUID.fromString("00000000-0000-0000-0000-000000000000"))
+            : excludeIds;
+        return findRandomDailyQuestionNative(categoryId, startingScore, ids);
+    }
+
     @Query(value = """
         SELECT q.* FROM questions q
         WHERE q.category_id             = :categoryId
@@ -212,7 +218,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         ORDER BY RANDOM()
         LIMIT 1
         """, nativeQuery = true)
-    Optional<Question> findRandomDailyQuestion(
+    Optional<Question> findRandomDailyQuestionNative(
         @Param("categoryId")    UUID        categoryId,
         @Param("startingScore") int         startingScore,
         @Param("excludeIds")    List<UUID>  excludeIds

@@ -6,6 +6,7 @@ import com.trivia501.dto.StartFreePlayRequest;
 import com.trivia501.dto.SubmitAnswerRequest;
 import com.trivia501.model.*;
 import com.trivia501.security.DevModeAuthFilter;
+import com.trivia501.service.DailyChallengeService;
 import com.trivia501.service.GameService;
 import com.trivia501.service.MatchService;
 import com.trivia501.service.PlayerProfileService;
@@ -36,7 +37,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(FreePlayController.class)
-@Import(JacksonAutoConfiguration.class)
+@Import({JacksonAutoConfiguration.class, GameEndpointHandler.class})
 @ActiveProfiles("test")
 @WithMockUser(username = DevModeAuthFilter.DEV_PLAYER_ID, roles = {"USER", "ADMIN"})
 @DisplayName("FreePlayController Tests")
@@ -59,6 +60,9 @@ class FreePlayControllerTest {
 
     @MockitoBean
     private PlayerProfileService playerProfileService;
+
+    @MockitoBean
+    private DailyChallengeService dailyChallengeService;
 
     @MockitoBean
     private GameResponseAssembler assembler;

@@ -1,18 +1,17 @@
 package com.trivia501.service;
 
+import com.trivia501.engine.ChallengeScorePicker;
 import com.trivia501.engine.DifficultyConstants;
 import com.trivia501.model.Category;
 import com.trivia501.model.DailyChallenge;
 import com.trivia501.model.Game;
 import com.trivia501.model.Match;
 import com.trivia501.model.Question;
-import com.trivia501.repository.AnswerRepository;
 import com.trivia501.repository.CategoryRepository;
 import com.trivia501.repository.DailyChallengeRepository;
 import com.trivia501.repository.GameRepository;
 import com.trivia501.repository.MatchRepository;
 import com.trivia501.repository.QuestionRepository;
-import com.trivia501.scheduler.DailyChallengeScheduler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,31 +29,31 @@ public class DailyChallengeService {
 
     private final DailyChallengeRepository challengeRepository;
     private final QuestionRepository questionRepository;
-    private final AnswerRepository answerRepository;
     private final CategoryRepository categoryRepository;
     private final MatchService matchService;
     private final GameService gameService;
     private final GameRepository gameRepository;
     private final MatchRepository matchRepository;
+    private final ChallengeScorePicker scorePicker;
 
     public DailyChallengeService(
             DailyChallengeRepository challengeRepository,
             QuestionRepository questionRepository,
-            AnswerRepository answerRepository,
             CategoryRepository categoryRepository,
             MatchService matchService,
             GameService gameService,
             GameRepository gameRepository,
-            MatchRepository matchRepository
+            MatchRepository matchRepository,
+            ChallengeScorePicker scorePicker
     ) {
         this.challengeRepository = challengeRepository;
         this.questionRepository = questionRepository;
-        this.answerRepository = answerRepository;
         this.categoryRepository = categoryRepository;
         this.matchService = matchService;
         this.gameService = gameService;
         this.gameRepository = gameRepository;
         this.matchRepository = matchRepository;
+        this.scorePicker = scorePicker;
     }
 
     /**
@@ -203,10 +202,7 @@ public class DailyChallengeService {
      * the score used yesterday for the same category.
      */
     public int pickStartingScore(UUID categoryId) {
-        int yesterday = challengeRepository
-            .findLatestStartingScoreBefore(categoryId, LocalDate.now())
-            .orElse(-1);
-        return DifficultyConstants.pickDailyStartingScore(yesterday);
+        return scorePicker.pickStartingScore(categoryId);
     }
 
     /**
@@ -232,9 +228,8 @@ public class DailyChallengeService {
             .findLatestStartingScoreBefore(categoryId, today)
             .orElse(-1);
 
-        DailyChallengeScheduler.QuestionScorePair result =
-            DailyChallengeScheduler.findViableQuestionAndScore(
-                questionRepository, answerRepository, challengeRepository,
+        ChallengeScorePicker.QuestionScorePair result =
+            scorePicker.findViableQuestionAndScore(
                 categoryId, yesterdayScore, today, recentQuestionIds);
 
         if (result == null) {
