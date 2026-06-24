@@ -93,7 +93,7 @@ public class AnswerEvaluator {
         ScoreResult scoreResult = scoringService.calculateScore(currentScore, answer.getScore());
 
         boolean isBust = scoreResult.isBust() || answer.getIsBust();
-        String reason = scoreResult.getReason();
+        String reason = scoreResult.reason();
 
         return AnswerResult.valid(
             answer.getDisplayText(),
@@ -101,7 +101,7 @@ public class AnswerEvaluator {
             answer.getScore(),
             answer.getIsValidDarts(),
             isBust,
-            scoreResult.getNewScore(),
+            scoreResult.newScore(),
             scoreResult.isCheckout(),
             reason,
             null

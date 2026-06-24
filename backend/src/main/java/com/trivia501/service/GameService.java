@@ -235,7 +235,7 @@ public class GameService {
                 .status(Game.GameStatus.IN_PROGRESS)
                 .currentTurnPlayerId(match.getPlayer1Id()) // Player 1 always goes first
                 .player1Score(startingScore)
-                .player1ConsecutiveTimeouts(0)
+                .playerConsecutiveTimeouts(0)
                 .turnCount(0)
                 .turnTimerSeconds(GameStateMachine.DEFAULT_TIMER)
                 .build();
@@ -377,7 +377,7 @@ public class GameService {
 
         // Update timer and consecutive-timeout counters
         game.setTurnTimerSeconds(t.nextTimerSeconds());
-        game.setPlayer1ConsecutiveTimeouts(t.player1ConsecutiveTimeouts());
+        game.setPlayerConsecutiveTimeouts(t.playerConsecutiveTimeouts());
     }
 
     /** Build a {@link GameMove} from a transition result. */

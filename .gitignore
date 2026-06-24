@@ -106,3 +106,5 @@ docs/ponytail-audit-*.md
 
 # Domain glossary (duplicates CLAUDE.md domain terms)
 CONTEXT.md
+logs.md
+test-data.sql

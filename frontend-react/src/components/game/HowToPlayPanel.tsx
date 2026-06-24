@@ -2,11 +2,6 @@
 
 import { useState } from "react";
 
-interface HowToPlayPanelProps {
-  /** Retained for call-site compatibility — the panel is theme-aware and renders one style. */
-  variant?: "home" | "teletext";
-}
-
 const SECTIONS: { title: string; body: React.ReactNode }[] = [
   {
     title: "Starting Score",
@@ -57,7 +52,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
 ];
 
-export default function HowToPlayPanel(_props: HowToPlayPanelProps) {
+export default function HowToPlayPanel() {
   const [open, setOpen] = useState(false);
 
   return (
