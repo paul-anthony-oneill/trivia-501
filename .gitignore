@@ -88,3 +88,21 @@ graphify-out/
 
 # Next.js build output (stray folder in backend/)
 backend/.next/
+
+# Git worktrees (auto-generated, machine-specific)
+.claude/worktrees/
+
+# Personal scratchpad
+.scratch/
+
+# Personal dev notes
+dev/
+
+# Auto-generated agent docs (regenerated on demand)
+docs/agents/
+
+# One-shot audit reports (dated, acted on)
+docs/ponytail-audit-*.md
+
+# Domain glossary (duplicates CLAUDE.md domain terms)
+CONTEXT.md
