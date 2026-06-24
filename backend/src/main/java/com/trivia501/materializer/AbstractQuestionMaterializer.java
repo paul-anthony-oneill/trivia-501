@@ -125,25 +125,35 @@ public abstract class AbstractQuestionMaterializer implements QuestionMaterializ
         };
     }
 
-    // ── Path-reader helpers (one home for @SuppressWarnings) ─────────────────
+    // ── Param-schema reader (one home for unchecked casts) ──────────────────
+
+    /**
+     * Walks a dot-path through the {@code param_schema} JSONB tree and returns
+     * the value (or {@code null} on any missing segment).  Path segments are
+     * {@code "params"}, then a key name, then optionally another key name.
+     */
+    @SuppressWarnings("unchecked")
+    protected Object readParamValue(QuestionTemplate template, String... path) {
+        try {
+            Map<String, Object> current = template.getParamSchema();
+            for (int i = 0; i < path.length; i++) {
+                if (!(current instanceof Map)) return null;
+                Object next = ((Map<String, Object>) current).get(path[i]);
+                if (next == null) return null;
+                if (i == path.length - 1) return next;          // leaf — return as-is
+                current = (Map<String, Object>) next;           // interior — keep walking
+            }
+        } catch (Exception e) {
+            log.warn("Could not read param path {}: {}", String.join(".", path), e.getMessage());
+        }
+        return null;
+    }
 
     @SuppressWarnings("unchecked")
     protected int extractStartYear(QuestionTemplate template) {
-        try {
-            Map<String, Object> schema = template.getParamSchema();
-            Map<String, Object> params = (Map<String, Object>) schema.get("params");
-            if (params != null) {
-                Map<String, Object> def = (Map<String, Object>) params.get("start_year");
-                if (def != null) {
-                    List<Object> values = (List<Object>) def.get("values");
-                    if (values != null && !values.isEmpty()) {
-                        return Integer.parseInt(values.get(0).toString());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not extract start_year from param_schema, using default {}: {}",
-                DEFAULT_START_YEAR, e.getMessage());
+        Object raw = readParamValue(template, "params", "start_year");
+        if (raw instanceof Map<?,?> m && m.get("values") instanceof List<?> vals && !vals.isEmpty()) {
+            try { return Integer.parseInt(vals.get(0).toString()); } catch (NumberFormatException ignored) {}
         }
         return DEFAULT_START_YEAR;
     }
@@ -160,20 +170,9 @@ public abstract class AbstractQuestionMaterializer implements QuestionMaterializ
      */
     @SuppressWarnings("unchecked")
     protected List<String> extractCompetitionTypes(QuestionTemplate template) {
-        try {
-            Map<String, Object> schema = template.getParamSchema();
-            Map<String, Object> params = (Map<String, Object>) schema.get("params");
-            if (params != null) {
-                Map<String, Object> compDef = (Map<String, Object>) params.get("competition_id");
-                if (compDef != null) {
-                    List<Object> types = (List<Object>) compDef.get("competition_types");
-                    if (types != null && !types.isEmpty()) {
-                        return types.stream().map(Object::toString).collect(Collectors.toList());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not extract competition_types from param_schema: {}", e.getMessage());
+        Object raw = readParamValue(template, "params", "competition_id", "competition_types");
+        if (raw instanceof List<?> list && !list.isEmpty()) {
+            return list.stream().map(Object::toString).collect(Collectors.toList());
         }
         return getDefaultCompetitionTypes();
     }
@@ -183,21 +182,8 @@ public abstract class AbstractQuestionMaterializer implements QuestionMaterializ
      * {@code params.competition_id.top_flight_only}.
      * Career materializer overrides to read from {@code params.top_flight_only}.
      */
-    @SuppressWarnings("unchecked")
     protected boolean shouldRestrictToTopFlight(QuestionTemplate template) {
-        try {
-            Map<String, Object> schema = template.getParamSchema();
-            Map<String, Object> params = (Map<String, Object>) schema.get("params");
-            if (params != null) {
-                Map<String, Object> compDef = (Map<String, Object>) params.get("competition_id");
-                if (compDef != null) {
-                    Object topFlightOnly = compDef.get("top_flight_only");
-                    if (topFlightOnly != null) {
-                        return Boolean.parseBoolean(topFlightOnly.toString());
-                    }
-                }
-            }
-        } catch (Exception ignored) { }
-        return true;
+        Object raw = readParamValue(template, "params", "competition_id", "top_flight_only");
+        return raw == null || Boolean.parseBoolean(raw.toString());
     }
 }

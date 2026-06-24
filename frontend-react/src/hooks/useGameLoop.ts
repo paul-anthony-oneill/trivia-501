@@ -4,7 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useAnimatedScore } from "@/hooks/useAnimatedScore";
 import { gameApiClient } from "@/lib/api/GameApiClient";
-import { useGamePersistence, getSavedLabel } from "@/hooks/useGamePersistence";
+import {
+  saveGameState,
+  loadSavedGameState,
+  clearSavedGameState,
+  getSavedLabel,
+} from "@/hooks/useGamePersistence";
 import {
   getDailyLock,
   setDailyLockInProgress,
@@ -41,8 +46,8 @@ export { getSavedLabel } from "@/hooks/useGamePersistence";
 /**
  * `useGameLoop` — thin coordinator that wires together:
  *
- * - {@code GameApiClient}       — typed API facade
- * - {@code useGamePersistence}  — sessionStorage
+ * - {@code GameApiClient}              — typed API facade
+ * - {@code useGamePersistence} module  — sessionStorage helpers
  * - {@code useAnimatedScore}    — score animation
  * - Toast context               — user feedback
  *
@@ -51,8 +56,6 @@ export { getSavedLabel } from "@/hooks/useGamePersistence";
  */
 export function useGameLoop(): GameLoopState & GameLoopActions {
   const { addToast } = useToast();
-  const { saveGameState, loadSavedGameState, clearSavedGameState } =
-    useGamePersistence();
 
   const [score, setScore] = useState(501);
   const {

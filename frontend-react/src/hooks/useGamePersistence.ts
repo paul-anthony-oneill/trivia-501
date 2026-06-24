@@ -59,12 +59,9 @@ function clearSavedGameState() {
   }
 }
 
+export { saveGameState, loadSavedGameState, clearSavedGameState };
+
 /** Exposed so the page component can recover the saved label after a restore. */
 export function getSavedLabel(): string | null {
   return loadSavedGameState()?.label ?? null;
-}
-
-/** Hook that exposes the persistence primitives to the game loop coordinator. */
-export function useGamePersistence() {
-  return { saveGameState, loadSavedGameState, clearSavedGameState };
 }

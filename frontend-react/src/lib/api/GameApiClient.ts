@@ -7,6 +7,10 @@ import type { GameStateResponse, SubmitAnswerResponse } from "@/hooks/useGameLoo
  * pattern. Extracted from {@code useGameLoop} so the hook only coordinates.
  */
 class GameApiClient {
+  private basePath(gameType: "freeplay" | "daily-challenge"): string {
+    return gameType === "daily-challenge" ? "/api/daily-challenge" : "/api/freeplay";
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -62,10 +66,8 @@ class GameApiClient {
     entityId: string | null,
     gameType: "freeplay" | "daily-challenge",
   ): Promise<SubmitAnswerResponse> {
-    const base =
-      gameType === "daily-challenge" ? "/api/daily-challenge" : "/api/freeplay";
     return this.request<SubmitAnswerResponse>(
-      `${base}/games/${gameId}/submit`,
+      `${this.basePath(gameType)}/games/${gameId}/submit`,
       {
         method: "POST",
         body: JSON.stringify({ answer: answer.trim(), entityId }),
@@ -75,9 +77,7 @@ class GameApiClient {
 
   /** Fire-and-forget abandon — server is idempotent. */
   abandonGame(gameId: string, gameType: "freeplay" | "daily-challenge"): void {
-    const base =
-      gameType === "daily-challenge" ? "/api/daily-challenge" : "/api/freeplay";
-    apiFetch(`${base}/games/${gameId}/abandon`, { method: "POST" }).catch(
+    apiFetch(`${this.basePath(gameType)}/games/${gameId}/abandon`, { method: "POST" }).catch(
       () => {},
     );
   }
@@ -86,9 +86,7 @@ class GameApiClient {
     gameId: string,
     gameType: "freeplay" | "daily-challenge",
   ): Promise<GameStateResponse> {
-    const base =
-      gameType === "daily-challenge" ? "/api/daily-challenge" : "/api/freeplay";
-    return this.request<GameStateResponse>(`${base}/games/${gameId}`);
+    return this.request<GameStateResponse>(`${this.basePath(gameType)}/games/${gameId}`);
   }
 
   async getActiveGame(): Promise<GameStateResponse> {

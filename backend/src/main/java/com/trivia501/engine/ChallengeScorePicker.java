@@ -25,9 +25,6 @@ import java.util.UUID;
 @Slf4j
 public class ChallengeScorePicker {
 
-    /** Sentinel UUID for empty exclude lists — no real question has this UUID. */
-    private static final UUID NO_EXCLUSIONS_SENTINEL = UUID.fromString("00000000-0000-0000-0000-000000000000");
-
     private final QuestionRepository questionRepository;
     private final AnswerRepository answerRepository;
     private final DailyChallengeRepository challengeRepository;
@@ -58,26 +55,22 @@ public class ChallengeScorePicker {
             LocalDate referenceDate,
             List<UUID> recentQuestionIds
     ) {
-        List<UUID> excludeIds = recentQuestionIds.isEmpty()
-                ? List.of(NO_EXCLUSIONS_SENTINEL)
-                : recentQuestionIds;
-
         int score = DifficultyConstants.pickDailyStartingScore(yesterdayScore);
 
         // Try with the random pick first
-        QuestionScorePair result = tryPair(categoryId, score, referenceDate, excludeIds);
+        QuestionScorePair result = tryPair(categoryId, score, referenceDate, recentQuestionIds);
         if (result != null) return result;
 
         // Fallback: try every other score in the pool
         for (int s : DifficultyConstants.DAILY_STARTING_SCORES) {
             if (s == score) continue;
-            result = tryPair(categoryId, s, referenceDate, excludeIds);
+            result = tryPair(categoryId, s, referenceDate, recentQuestionIds);
             if (result != null) return result;
         }
 
         // Soft-fallback: accept any viable pair even if score repeats
         for (int s : DifficultyConstants.DAILY_STARTING_SCORES) {
-            Optional<Question> qOpt = findViableQuestion(categoryId, s, excludeIds);
+            Optional<Question> qOpt = findViableQuestion(categoryId, s, recentQuestionIds);
             if (qOpt.isPresent()) {
                 return new QuestionScorePair(qOpt.get(), s);
             }

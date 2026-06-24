@@ -93,35 +93,17 @@ public class FootballPlayerCareerMetricMaterializer extends AbstractQuestionMate
     @Override
     @SuppressWarnings("unchecked")
     protected List<String> extractCompetitionTypes(QuestionTemplate template) {
-        try {
-            Map<String, Object> schema = template.getParamSchema();
-            Map<String, Object> params = (Map<String, Object>) schema.get("params");
-            if (params != null) {
-                List<Object> types = (List<Object>) params.get("competition_types");
-                if (types != null && !types.isEmpty()) {
-                    return types.stream().map(Object::toString).collect(Collectors.toList());
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Could not extract competition_types from param_schema: {}", e.getMessage());
+        Object raw = readParamValue(template, "params", "competition_types");
+        if (raw instanceof List<?> list && !list.isEmpty()) {
+            return list.stream().map(Object::toString).collect(Collectors.toList());
         }
         return getDefaultCompetitionTypes();
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     protected boolean shouldRestrictToTopFlight(QuestionTemplate template) {
-        try {
-            Map<String, Object> schema = template.getParamSchema();
-            Map<String, Object> params = (Map<String, Object>) schema.get("params");
-            if (params != null) {
-                Object topFlightOnly = params.get("top_flight_only");
-                if (topFlightOnly != null) {
-                    return Boolean.parseBoolean(topFlightOnly.toString());
-                }
-            }
-        } catch (Exception ignored) { }
-        return true;
+        Object raw = readParamValue(template, "params", "top_flight_only");
+        return raw == null || Boolean.parseBoolean(raw.toString());
     }
 
     // ── Competition resolution ───────────────────────────────────────────────
