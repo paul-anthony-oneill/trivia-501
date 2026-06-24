@@ -507,38 +507,44 @@ function FootballScreen({
 }) {
   const isStarting = starting !== null;
   return (
-    <>
-      {/* name is now shown in the back button above */}
-
-      <NavRow
-        random
-        name="Random Question"
-        sub="Any club, any league, any stat"
-        onClick={() => onStartGame("football", "Football — Random", { scope: "random_any" })}
-        disabled={isStarting}
-        loading={starting === "football"}
-      />
-
-      <NavRow
-        random
-        name="Random League Question"
-        sub="League-wide stat, picked at random"
-        onClick={() => onStartGame("football", "Football — Random League", { scope: "random_league_level" })}
-        disabled={isStarting}
-      />
-
-      <NavDivider label="or pick a league" />
-
-      {LEAGUES.map((league) => (
+    <div className="flex flex-col lg:flex-row lg:gap-8">
+      {/* Left pane: primary actions */}
+      <div className="lg:flex-[1.2]">
         <NavRow
-          key={league.id}
-          name={league.name}
-          onClick={() => onPush({ id: "football-league", league })}
-          hasChildren
+          random
+          name="Random Question"
+          sub="Any club, any league, any stat"
+          onClick={() => onStartGame("football", "Football — Random", { scope: "random_any" })}
+          disabled={isStarting}
+          loading={starting === "football"}
+        />
+
+        <NavRow
+          random
+          name="Random League Question"
+          sub="League-wide stat, picked at random"
+          onClick={() => onStartGame("football", "Football — Random League", { scope: "random_league_level" })}
           disabled={isStarting}
         />
-      ))}
-    </>
+      </div>
+
+      {/* Right pane: league list */}
+      <div className="lg:flex-1 lg:border-l lg:border-line lg:pl-8">
+        <span className="block font-display font-bold text-sm text-muted tracking-[0.12em] uppercase mb-3">
+          Leagues
+        </span>
+
+        {LEAGUES.map((league) => (
+          <NavRow
+            key={league.id}
+            name={league.name}
+            onClick={() => onPush({ id: "football-league", league })}
+            hasChildren
+            disabled={isStarting}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -570,70 +576,76 @@ function LeagueScreen({
   }, [league.id]);
 
   return (
-    <>
-      {/* league name is now shown in the back button above */}
+    <div className="flex flex-col lg:flex-row lg:gap-8 lg:h-[calc(100vh-20rem)]">
+      {/* Left pane: league-wide actions */}
+      <div className="lg:flex-[1.2] lg:overflow-y-auto">
+        {/* League-scope questions */}
+        <NavRow
+          random
+          name="League Questions"
+          sub={`Stats across the full ${league.name}`}
+          onClick={() => onStartGame(`football:${league.id}`, `Football › ${league.name} › League`, {
+            scope: "league", league: league.id,
+          })}
+          disabled={isStarting}
+          loading={starting === `football:${league.id}`}
+        />
 
-      {/* League-scope questions */}
-      <NavRow
-        random
-        name="League Questions"
-        sub={`Stats across the full ${league.name}`}
-        onClick={() => onStartGame(`football:${league.id}`, `Football › ${league.name} › League`, {
-          scope: "league", league: league.id,
+        {/* Stat type drill-down for league */}
+        {STAT_TYPES.map((stat) => {
+          const slug = `football:${league.id}:league:${stat.id}`;
+          return (
+            <NavRow
+              key={`league-${stat.id}`}
+              name={stat.name}
+              sub={stat.sub}
+              small
+              onClick={() => onStartGame(
+                slug,
+                `Football › ${league.name} › ${stat.name}`,
+                { scope: "league", league: league.id, statType: stat.id },
+              )}
+              disabled={isStarting}
+              loading={starting === slug}
+            />
+          );
         })}
-        disabled={isStarting}
-        loading={starting === `football:${league.id}`}
-      />
+      </div>
 
-      {/* Stat type drill-down for league */}
-      {STAT_TYPES.map((stat) => {
-        const slug = `football:${league.id}:league:${stat.id}`;
-        return (
-          <NavRow
-            key={`league-${stat.id}`}
-            name={stat.name}
-            sub={stat.sub}
-            small
-            onClick={() => onStartGame(
-              slug,
-              `Football › ${league.name} › ${stat.name}`,
-              { scope: "league", league: league.id, statType: stat.id },
-            )}
-            disabled={isStarting}
-            loading={starting === slug}
-          />
-        );
-      })}
+      {/* Right pane: clubs */}
+      <div className="lg:flex-1 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-8">
+        <span className="block font-display font-bold text-sm text-muted tracking-[0.12em] uppercase mb-3">
+          Clubs
+        </span>
 
-      <NavDivider label="or pick a club" />
+        <NavRow
+          random
+          name="Random Club"
+          sub={`Any club from the ${league.name}`}
+          onClick={() => onStartGame(`football:${league.id}:random`, `Football › ${league.name} › Random Club`, {
+            scope: "random_club_level", league: league.id,
+          })}
+          disabled={isStarting}
+          loading={starting === `football:${league.id}:random`}
+        />
 
-      <NavRow
-        random
-        name="Random Club"
-        sub={`Any club from the ${league.name}`}
-        onClick={() => onStartGame(`football:${league.id}:random`, `Football › ${league.name} › Random Club`, {
-          scope: "random_club_level", league: league.id,
-        })}
-        disabled={isStarting}
-        loading={starting === `football:${league.id}:random`}
-      />
-
-      {loadingClubs ? (
-        <div className="kicker py-4 animate-pulse">Loading clubs…</div>
-      ) : clubs.length === 0 ? (
-        <div className="kicker py-4">No clubs available yet — data coming soon.</div>
-      ) : (
-        clubs.map((club) => (
-          <NavRow
-            key={club.id}
-            name={club.name}
-            onClick={() => onPush({ id: "football-club", league, club })}
-            hasChildren
-            disabled={isStarting}
-          />
-        ))
-      )}
-    </>
+        {loadingClubs ? (
+          <div className="kicker py-4 animate-pulse">Loading clubs…</div>
+        ) : clubs.length === 0 ? (
+          <div className="kicker py-4">No clubs available yet — data coming soon.</div>
+        ) : (
+          clubs.map((club) => (
+            <NavRow
+              key={club.id}
+              name={club.name}
+              onClick={() => onPush({ id: "football-club", league, club })}
+              hasChildren
+              disabled={isStarting}
+            />
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
