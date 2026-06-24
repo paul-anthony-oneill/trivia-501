@@ -361,13 +361,13 @@ export default function LobbyView({
             </div>
           </div>
 
-          {/* Back + breadcrumb — doubles as section title */}
+          {/* Back + breadcrumb — full-width, matches NavRow style */}
           {stack.length > 1 && (
             <button
               onClick={pop}
-              className="inline-flex items-center gap-2.5 group mb-5 hover:-translate-x-0.5 transition-transform"
+              className="group flex items-center gap-4 py-3.5 px-2 -mx-2 rounded-sm border-b border-line hover:bg-surface transition-colors text-left w-full mb-4"
             >
-              <span aria-hidden="true" className="font-mono text-muted group-hover:text-ink transition-colors">←</span>
+              <span aria-hidden="true" className="font-mono text-lg text-muted group-hover:text-accent group-hover:-translate-x-0.5 transition-all">←</span>
               <span className="font-display font-bold text-xl text-ink">{breadcrumb || "Back"}</span>
             </button>
           )}
