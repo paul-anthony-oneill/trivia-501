@@ -44,7 +44,7 @@ export default function NavRow({
         {sub && <div className="hint mt-0.5 text-[10px]">{sub}</div>}
       </div>
 
-      <span className="font-display font-bold text-base text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all flex-shrink-0" aria-hidden="true">
+      <span className={`font-display font-bold text-base transition-all flex-shrink-0 group-hover:translate-x-0.5 ${(loading || hasChildren) ? "text-muted" + (hasChildren ? " group-hover:text-accent" : "") : "text-accent group-hover:scale-110"}`} aria-hidden="true">
         {loading ? "…" : hasChildren ? "→" : "↵"}
       </span>
     </button>

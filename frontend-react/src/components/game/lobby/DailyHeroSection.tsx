@@ -16,6 +16,29 @@ interface DailyHeroSectionProps {
   onRequestConfirm: (slug: string, label: string) => void;
 }
 
+// ─── Shared card content (label + name + score + question) ──────────────────
+
+function HeroCardContent({
+  label,
+  name,
+  score,
+  questionText,
+}: {
+  label: string;
+  name: string;
+  score: number;
+  questionText: string;
+}) {
+  return (
+    <>
+      <span className="font-mono text-[10px] tracking-[0.2em] text-gold mb-3">{label}</span>
+      <span className="font-display font-bold text-xl md:text-2xl mb-3">{name}</span>
+      <div className="display-num text-[72px] md:text-[88px] mb-3 leading-none">{score}</div>
+      <p className="text-muted text-sm leading-snug line-clamp-2 mb-5">{questionText || "Loading…"}</p>
+    </>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function DailyHeroSection({
@@ -89,24 +112,15 @@ export default function DailyHeroSection({
                   href={`/daily/${dc.categorySlug}`}
                   className="group flex flex-col bg-surface border border-line rounded-lg p-6 md:p-8 text-left transition-all duration-200 opacity-60 hover:opacity-80"
                 >
-                  <span className="font-mono text-[10px] tracking-[0.2em] text-gold mb-3">
-                    PLAYED
-                  </span>
-                  <span className="font-display font-bold text-xl md:text-2xl mb-3">
-                    {dc.categoryName}
-                  </span>
-                  <div className="display-num text-[72px] md:text-[88px] mb-3 leading-none">
-                    {dc.startingScore}
-                  </div>
-                  <p className="text-muted text-sm leading-snug line-clamp-2 mb-5">
-                    {dc.questionText || "Loading…"}
-                  </p>
-                  <div className="mt-auto flex items-center justify-between">
-                    <span className="font-mono text-[10px] tracking-[0.2em] text-muted uppercase">
-                      View result
-                    </span>
-                    <span className="font-display font-bold text-muted transition-transform group-hover:translate-x-0.5">
-                      →
+                  <HeroCardContent
+                    label="PLAYED"
+                    name={dc.categoryName}
+                    score={dc.startingScore}
+                    questionText={dc.questionText || "Loading…"}
+                  />
+                  <div className="mt-auto">
+                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-line text-muted font-display font-bold text-xs tracking-wide group-hover:border-muted group-hover:text-ink transition-colors">
+                      VIEW RESULT <span aria-hidden="true">→</span>
                     </span>
                   </div>
                 </Link>
@@ -127,26 +141,17 @@ export default function DailyHeroSection({
                 disabled={starting !== null}
                 className="group flex flex-col bg-surface border border-line rounded-lg p-6 md:p-8 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
-                <span className="font-mono text-[10px] tracking-[0.2em] text-gold mb-3">
-                  {isInProgress ? "IN PROGRESS" : "DAILY"}
-                </span>
-                <span className="font-display font-bold text-xl md:text-2xl mb-3">
-                  {dc.categoryName}
-                </span>
-                <div className="display-num text-[72px] md:text-[88px] mb-3 leading-none">
-                  {dc.startingScore}
-                </div>
-                <p className="text-muted text-sm leading-snug line-clamp-2 mb-5">
-                  {dc.questionText || "Loading…"}
-                </p>
-                <div className="mt-auto flex items-center justify-between">
-                  <span className="font-mono text-[10px] tracking-[0.2em] text-accent uppercase">
-                    {isThisStarting ? "Starting…"
-                     : isInProgress ? "Resume"
-                     : "Play now"}
-                  </span>
-                  <span className="font-display font-bold text-accent transition-transform group-hover:translate-x-0.5">
-                    →
+                <HeroCardContent
+                  label={isInProgress ? "IN PROGRESS" : "DAILY"}
+                  name={dc.categoryName}
+                  score={dc.startingScore}
+                  questionText={dc.questionText || "Loading…"}
+                />
+                <div className="mt-auto">
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-accent text-bg font-display font-bold text-sm tracking-wide transition-all group-hover:shadow-lg group-hover:scale-105">
+                    {isThisStarting ? "STARTING…"
+                     : isInProgress ? "RESUME →"
+                     : "PLAY NOW →"}
                   </span>
                 </div>
               </button>

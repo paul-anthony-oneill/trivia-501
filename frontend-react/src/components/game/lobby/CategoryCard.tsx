@@ -17,6 +17,7 @@ export default function CategoryCard({
   disabled = false,
   loading = false,
 }: CategoryCardProps) {
+  const pill = "inline-flex items-center px-4 py-1.5 rounded-full font-display font-bold text-xs";
   return (
     <button
       onClick={onClick}
@@ -28,9 +29,19 @@ export default function CategoryCard({
         {loading && <span className="ml-2 kicker">Starting…</span>}
       </span>
       <span className="hint text-[10px] leading-snug">{description}</span>
-      <span className="mt-3 font-display font-bold text-base text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all self-end" aria-hidden="true">
-        {loading ? "…" : hasChildren ? "→ Browse" : "↵ Play"}
-      </span>
+      <div className="mt-3 self-end">
+        {loading ? (
+          <span className={`${pill} text-muted`}>…</span>
+        ) : hasChildren ? (
+          <span className={`${pill} gap-1 border border-line text-muted tracking-wide group-hover:border-muted group-hover:text-ink transition-colors`}>
+            BROWSE <span aria-hidden="true">→</span>
+          </span>
+        ) : (
+          <span className={`${pill} gap-1 bg-accent text-bg tracking-wide group-hover:shadow-md group-hover:scale-105 transition-all`}>
+            PLAY <span aria-hidden="true">↵</span>
+          </span>
+        )}
+      </div>
     </button>
   );
 }

@@ -39,13 +39,10 @@ export default function FreePlayHubPage() {
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-5 md:px-10 py-4 border-b border-line">
         <div className="flex items-center gap-3">
-          <Link href="/" className="font-mono text-lg text-muted hover:text-accent hover:-translate-x-0.5 transition-all" aria-label="Back to home">
-            ←
-          </Link>
           <span className="bullseye" aria-hidden="true" />
-          <span className="font-display font-extrabold text-lg tracking-tight leading-none">
+          <Link href="/" className="font-display font-extrabold text-lg tracking-tight leading-none hover:opacity-80 transition-opacity no-underline text-ink">
             TRIVIA <span className="text-accent">501</span>
-          </span>
+          </Link>
           <span className="kicker hidden sm:block ml-2">Build Your Own Game</span>
         </div>
         <div className="flex items-center gap-3">
@@ -70,11 +67,13 @@ export default function FreePlayHubPage() {
                 aria-pressed={target === opt}
                 className={`font-mono text-sm font-bold tracking-[0.06em] px-4 py-2 rounded-full border-2 transition-all duration-200 ${
                   target === opt
-                    ? "bg-ink text-bg border-ink"
-                    : "bg-transparent text-muted border-line hover:border-line-strong hover:text-ink"
+                    ? opt === "random"
+                      ? "bg-gold text-ink border-gold shadow-[0_0_12px_var(--gold-soft)]"
+                      : "bg-accent text-bg border-accent shadow-[0_0_12px_var(--danger-soft)]"
+                    : "bg-transparent text-muted border-line hover:border-line-strong hover:text-ink hover:scale-105"
                 }`}
               >
-                {opt === "random" ? "RND" : opt}
+                {opt === "random" ? "🎲 RND" : opt}
               </button>
             ))}
           </div>

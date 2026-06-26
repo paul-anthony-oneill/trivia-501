@@ -12,6 +12,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useGameLoop, getSavedLabel } from "@/hooks/useGameLoop";
 import { useDailyChallenge } from "@/hooks/useDailyChallenge";
+import { useCountdown } from "@/hooks/useCountdown";
 import { useToast } from "@/context/ToastContext";
 import { apiFetch } from "@/lib/api/client";
 import { buildShareText } from "@/utils/share";
@@ -42,23 +43,6 @@ function AuthRequiredRedirect() {
     }
   }, [searchParams, addToast]);
   return null;
-}
-
-// ─── Countdown hook ───────────────────────────────────────────────────────────
-
-function useCountdown() {
-  const [timeUntilReset, setTimeUntilReset] = useState("");
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-      setTimeUntilReset(new Date(next.getTime() - now.getTime()).toISOString().slice(11, 19));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return timeUntilReset;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -185,9 +169,9 @@ export default function GamePage() {
           <header className="relative z-10 flex items-center justify-between px-5 md:px-10 py-4 border-b border-line">
             <div className="flex items-center gap-3">
               <span className="bullseye" aria-hidden="true" />
-              <span className="font-display font-extrabold text-lg tracking-tight leading-none">
+              <Link href="/" className="font-display font-extrabold text-lg tracking-tight leading-none hover:opacity-80 transition-opacity no-underline text-ink">
                 TRIVIA <span className="text-accent">501</span>
-              </span>
+              </Link>
               <span className="kicker hidden sm:block ml-2">The trivia darts championship</span>
             </div>
             <div className="flex items-center gap-3">
@@ -213,7 +197,7 @@ export default function GamePage() {
             <div className="border-t border-line pt-8 mt-2">
               <Link
                 href="/freeplay"
-                className="group flex flex-col bg-surface border border-line rounded-lg p-6 md:p-8 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] block"
+                className="group flex flex-col bg-surface border border-line rounded-lg p-6 md:p-8 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)]"
               >
                 <span className="font-display font-bold text-xl md:text-2xl mb-2">
                   Build Your Own Game
@@ -221,8 +205,8 @@ export default function GamePage() {
                 <span className="text-muted text-sm leading-snug mb-5">
                   Pick your category, choose a starting score, and play on your own terms. No daily lock — replay as many times as you want.
                 </span>
-                <span className="font-display font-bold text-base text-accent group-hover:translate-x-0.5 transition-all self-end" aria-hidden="true">
-                  → Browse
+                <span className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-accent text-bg font-display font-bold text-sm tracking-wide group-hover:shadow-lg group-hover:scale-105 transition-all self-end">
+                  BUILD YOUR GAME <span aria-hidden="true">→</span>
                 </span>
               </Link>
             </div>
