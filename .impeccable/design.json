@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-27T00:00:00.000Z",
+  "title": "Design System: Trivia 501",
+  "extensions": {
+    "colorMeta": {
+      "obsidian-bg": {
+        "role": "neutral",
+        "displayName": "Obsidian",
+        "canonical": "oklch(13% 0.005 260)",
+        "tonalRamp": [
+          "oklch(8% 0.005 260)",
+          "oklch(10% 0.005 260)",
+          "oklch(13% 0.005 260)",
+          "oklch(16% 0.005 260)",
+          "oklch(20% 0.005 260)",
+          "oklch(25% 0.005 260)",
+          "oklch(32% 0.005 260)",
+          "oklch(40% 0.005 260)"
+        ]
+      },
+      "slate-surface": {
+        "role": "neutral",
+        "displayName": "Slate Surface",
+        "canonical": "oklch(18% 0.006 260)",
+        "tonalRamp": [
+          "oklch(12% 0.006 260)",
+          "oklch(15% 0.006 260)",
+          "oklch(18% 0.006 260)",
+          "oklch(22% 0.006 260)",
+          "oklch(27% 0.006 260)",
+          "oklch(33% 0.006 260)",
+          "oklch(40% 0.006 260)",
+          "oklch(48% 0.006 260)"
+        ]
+      },
+      "slate-elevated": {
+        "role": "neutral",
+        "displayName": "Slate Elevated",
+        "canonical": "oklch(22% 0.007 260)",
+        "tonalRamp": [
+          "oklch(14% 0.007 260)",
+          "oklch(18% 0.007 260)",
+          "oklch(22% 0.007 260)",
+          "oklch(27% 0.007 260)",
+          "oklch(33% 0.007 260)",
+          "oklch(40% 0.007 260)",
+          "oklch(48% 0.007 260)",
+          "oklch(56% 0.007 260)"
+        ]
+      },
+      "bullseye-red": {
+        "role": "primary",
+        "displayName": "Bullseye Red",
+        "canonical": "oklch(62% 0.22 25)",
+        "tonalRamp": [
+          "oklch(20% 0.10 25)",
+          "oklch(30% 0.14 25)",
+          "oklch(42% 0.18 25)",
+          "oklch(52% 0.20 25)",
+          "oklch(62% 0.22 25)",
+          "oklch(72% 0.16 25)",
+          "oklch(82% 0.10 25)",
+          "oklch(92% 0.04 25)"
+        ]
+      },
+      "valid-green": {
+        "role": "semantic",
+        "displayName": "Valid Green",
+        "canonical": "oklch(68% 0.18 155)",
+        "tonalRamp": [
+          "oklch(25% 0.08 155)",
+          "oklch(38% 0.12 155)",
+          "oklch(52% 0.15 155)",
+          "oklch(68% 0.18 155)",
+          "oklch(78% 0.14 155)",
+          "oklch(85% 0.10 155)",
+          "oklch(92% 0.06 155)",
+          "oklch(96% 0.03 155)"
+        ]
+      },
+      "checkout-gold": {
+        "role": "semantic",
+        "displayName": "Checkout Gold",
+        "canonical": "oklch(75% 0.14 80)",
+        "tonalRamp": [
+          "oklch(30% 0.06 80)",
+          "oklch(45% 0.09 80)",
+          "oklch(60% 0.12 80)",
+          "oklch(75% 0.14 80)",
+          "oklch(82% 0.11 80)",
+          "oklch(88% 0.08 80)",
+          "oklch(93% 0.05 80)",
+          "oklch(97% 0.02 80)"
+        ]
+      },
+      "bust-red": {
+        "role": "semantic",
+        "displayName": "Bust Red",
+        "canonical": "oklch(58% 0.22 20)",
+        "tonalRamp": [
+          "oklch(18% 0.08 20)",
+          "oklch(28% 0.13 20)",
+          "oklch(42% 0.18 20)",
+          "oklch(58% 0.22 20)",
+          "oklch(68% 0.16 20)",
+          "oklch(78% 0.10 20)",
+          "oklch(88% 0.05 20)",
+          "oklch(95% 0.02 20)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Bricolage)",
+        "purpose": "Game scores, target numbers, the .display-num utility. Used only where a number IS the content."
+      },
+      "headline": {
+        "displayName": "Headline (Bricolage)",
+        "purpose": "Section headings, card titles, category names. 1.25–2rem range."
+      },
+      "body": {
+        "displayName": "Body (Hanken Grotesk)",
+        "purpose": "Question text, answer suggestions, descriptions. 0.875rem default, 0.9375rem in game UI."
+      },
+      "label": {
+        "displayName": "Label (Plex Mono)",
+        "purpose": "Kickers, button-ghost text. Uppercase, 0.625rem, 0.22em tracking."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-lift",
+        "value": "0 2px 12px rgba(0,0,0,0.25)",
+        "purpose": "Applied on card hover alongside a −2px translateY. Never at rest."
+      },
+      {
+        "name": "pop",
+        "value": "0 24px 64px rgba(0,0,0,0.55)",
+        "purpose": "Dropdowns, modals, autocomplete menus. Deep and diffuse."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-fade",
+        "value": "0.2s ease-out",
+        "purpose": "Fade-in for page sections, overlays."
+      },
+      {
+        "name": "ease-rise",
+        "value": "0.32s cubic-bezier(0.2, 0.8, 0.3, 1)",
+        "purpose": "Elements rising into view (cards, sections)."
+      },
+      {
+        "name": "ease-score-pop",
+        "value": "0.55s cubic-bezier(0.2, 0.8, 0.3, 1)",
+        "purpose": "Score change reaction — scale + color flash."
+      },
+      {
+        "name": "ease-ring-burst",
+        "value": "1.2s cubic-bezier(0.2, 0.7, 0.3, 1)",
+        "purpose": "Checkout celebration — expanding concentric rings."
+      },
+      {
+        "name": "ease-nav",
+        "value": "220ms ease-out",
+        "purpose": "Drill-down navigation slides (push right, pop left)."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call-to-action. Warm ink background, flips to bullseye red on hover.",
+      "html": "<button class=\"ds-btn-primary\">PLAY NOW →</button>",
+      "css": ".ds-btn-primary {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  background: #f1efe8;\n  color: #0d0f13;\n  font-family: 'Bricolage Grotesque', sans-serif;\n  font-weight: 700;\n  font-size: 14px;\n  letter-spacing: 0.02em;\n  border: none;\n  border-radius: 4px;\n  padding: 12px 20px;\n  cursor: pointer;\n  transition: background-color 0.15s, color 0.15s;\n}\n.ds-btn-primary:hover {\n  background: #ff5c4d;\n  color: #0d0f13;\n}\n.ds-btn-primary:focus-visible {\n  outline: 2px solid #ff5c4d;\n  outline-offset: 2px;\n}\n.ds-btn-primary:disabled {\n  opacity: 0.3;\n  cursor: not-allowed;\n}\n.ds-btn-primary:disabled:hover {\n  background: #f1efe8;\n  color: #0d0f13;\n}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action. Mono uppercase label, hairline border, muted at rest.",
+      "html": "<button class=\"ds-btn-ghost\">VIEW RESULT →</button>",
+      "css": ".ds-btn-ghost {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 6px;\n  background: transparent;\n  color: #8f939e;\n  font-family: 'IBM Plex Mono', monospace;\n  font-weight: 400;\n  font-size: 11px;\n  letter-spacing: 0.18em;\n  text-transform: uppercase;\n  border: 1px solid rgba(241,239,232,0.09);\n  border-radius: 4px;\n  padding: 8px 16px;\n  cursor: pointer;\n  transition: color 0.15s, border-color 0.15s;\n}\n.ds-btn-ghost:hover {\n  color: #f1efe8;\n  border-color: rgba(241,239,232,0.24);\n}\n.ds-btn-ghost:focus-visible {\n  outline: 2px solid #ff5c4d;\n  outline-offset: 2px;\n}"
+    },
+    {
+      "name": "CTA Pill",
+      "kind": "button",
+      "refersTo": "chip-cta",
+      "description": "The most committed button. Bullseye red pill, lifts and scales on hover. One per card max.",
+      "html": "<span class=\"ds-cta-pill\">PLAY NOW →</span>",
+      "css": ".ds-cta-pill {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  background: #ff5c4d;\n  color: #0d0f13;\n  font-family: 'Bricolage Grotesque', sans-serif;\n  font-weight: 700;\n  font-size: 14px;\n  letter-spacing: 0.025em;\n  border: none;\n  border-radius: 9999px;\n  padding: 10px 20px;\n  cursor: pointer;\n  transition: box-shadow 0.2s, transform 0.2s;\n}\n.ds-cta-pill:hover {\n  box-shadow: 0 24px 64px rgba(0,0,0,0.55);\n  transform: scale(1.05);\n}\n.ds-cta-pill:focus-visible {\n  outline: 2px solid #ff5c4d;\n  outline-offset: 2px;\n}"
+    },
+    {
+      "name": "Score Display",
+      "kind": "custom",
+      "refersTo": "display-num",
+      "description": "Big condensed numerals for scores and targets. The visual center of game-state cards.",
+      "html": "<span class=\"ds-display-num\">501</span>",
+      "css": ".ds-display-num {\n  font-family: 'Bricolage Grotesque', sans-serif;\n  font-weight: 800;\n  font-size: clamp(3rem, 7vw, 5.5rem);\n  line-height: 1;\n  letter-spacing: -0.04em;\n  font-variation-settings: 'wdth' 80;\n  font-variant-numeric: tabular-nums;\n}"
+    },
+    {
+      "name": "Daily Challenge Card",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "Hero card for daily challenge entries. Kicker label, category name, big score, question text, CTA.",
+      "html": "<div class=\"ds-challenge-card\"><span class=\"ds-kicker\">DAILY</span><span class=\"ds-card-title\">Football</span><span class=\"ds-display-num\">301</span><p class=\"ds-card-desc\">Appearances for Arsenal in Premier League</p><span class=\"ds-cta-pill\">PLAY NOW →</span></div>",
+      "css": ".ds-challenge-card {\n  display: flex;\n  flex-direction: column;\n  background: #14171d;\n  border: 1px solid rgba(241,239,232,0.09);\n  border-radius: 8px;\n  padding: 24px;\n  text-align: left;\n  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;\n}\n.ds-challenge-card:hover {\n  transform: translateY(-2px);\n  border-color: rgba(241,239,232,0.24);\n  box-shadow: 0 2px 12px rgba(0,0,0,0.25);\n}\n.ds-kicker {\n  font-family: 'IBM Plex Mono', monospace;\n  font-size: 10px;\n  letter-spacing: 0.2em;\n  text-transform: uppercase;\n  color: #f2b63c;\n  margin-bottom: 12px;\n}\n.ds-card-title {\n  font-family: 'Bricolage Grotesque', sans-serif;\n  font-weight: 700;\n  font-size: 1.5rem;\n  line-height: 1.2;\n  letter-spacing: -0.02em;\n  color: #f1efe8;\n  margin-bottom: 12px;\n}\n.ds-card-desc {\n  font-family: 'Hanken Grotesk', system-ui, sans-serif;\n  font-size: 0.875rem;\n  line-height: 1.5;\n  color: #8f939e;\n  margin-bottom: 20px;\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  overflow: hidden;\n}"
+    },
+    {
+      "name": "Autocomplete Dropdown",
+      "kind": "input",
+      "refersTo": "entity-search",
+      "description": "Entity search dropdown. Breaks free of the surface with a deep pop shadow.",
+      "html": "<div class=\"ds-autocomplete\"><div class=\"ds-autocomplete-item ds-autocomplete-item--active\">Sergio Agüero <span class=\"ds-autocomplete-meta\">🇦🇷 ARG</span></div><div class=\"ds-autocomplete-item\">Kun Agüero <span class=\"ds-autocomplete-meta\">🇦🇷 ARG</span></div></div>",
+      "css": ".ds-autocomplete {\n  background: #14171d;\n  border: 1px solid rgba(241,239,232,0.24);\n  border-radius: 8px;\n  box-shadow: 0 24px 64px rgba(0,0,0,0.55);\n  padding: 6px;\n  max-height: 300px;\n  overflow-y: auto;\n  list-style: none;\n  margin: 0;\n}\n.ds-autocomplete-item {\n  display: grid;\n  grid-template-columns: 1fr auto;\n  gap: 16px;\n  align-items: center;\n  padding: 10px 14px;\n  border-radius: 4px;\n  cursor: pointer;\n  transition: background-color 0.1s;\n  font-family: 'Hanken Grotesk', system-ui, sans-serif;\n  font-size: 15px;\n  font-weight: 500;\n  color: #f1efe8;\n}\n.ds-autocomplete-item:hover,\n.ds-autocomplete-item--active {\n  background: #1b1f27;\n}\n.ds-autocomplete-meta {\n  font-family: 'IBM Plex Mono', monospace;\n  font-size: 11px;\n  color: #8f939e;\n  white-space: nowrap;\n}"
+    },
+    {
+      "name": "Theme Toggle",
+      "kind": "button",
+      "refersTo": "theme-toggle",
+      "description": "Dark/light mode switch. Circular, hairline border, dual-icon with CSS visibility toggle.",
+      "html": "<button class=\"ds-theme-toggle\" aria-label=\"Switch to light mode\"><svg class=\"ds-theme-icon ds-theme-icon--sun\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"4.2\"/><path d=\"M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7L17 17M7 7 5.3 5.3\"/></svg><svg class=\"ds-theme-icon ds-theme-icon--moon\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z\"/></svg></button>",
+      "css": ".ds-theme-toggle {\n  width: 36px;\n  height: 36px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  border-radius: 9999px;\n  border: 1px solid rgba(241,239,232,0.09);\n  background: transparent;\n  color: #8f939e;\n  cursor: pointer;\n  transition: color 0.15s, border-color 0.15s;\n}\n.ds-theme-toggle:hover {\n  color: #f1efe8;\n  border-color: rgba(241,239,232,0.24);\n}\n.ds-theme-toggle:focus-visible {\n  outline: 2px solid #ff5c4d;\n  outline-offset: 2px;\n}\n[data-theme=\"dark\"] .ds-theme-icon--moon { display: none; }\n[data-theme=\"light\"] .ds-theme-icon--sun { display: none; }"
+    },
+    {
+      "name": "Bullseye Brand Mark",
+      "kind": "custom",
+      "refersTo": "bullseye",
+      "description": "Signature brand mark. 10px red circle with a concentric halo — the dartboard in miniature.",
+      "html": "<span class=\"ds-bullseye\" aria-hidden=\"true\"></span>",
+      "css": ".ds-bullseye {\n  width: 10px;\n  height: 10px;\n  border-radius: 9999px;\n  background: #ff5c4d;\n  box-shadow: 0 0 0 3px #0d0f13, 0 0 0 4.5px #ff5c4d;\n  flex-shrink: 0;\n}\n.ds-bullseye:focus-visible {\n  outline: 2px solid #ff5c4d;\n  outline-offset: 4px;\n}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Dartboard",
+    "overview": "Trivia 501's visual system is built on concentric precision — like a dartboard under pub lights. The chrome stays quiet (near-black backgrounds, hairline borders, monospace whispers) so the game-state rings read instantly: green for valid, gold for checkout, red for bust. The bullseye-red accent is a single point of color — the brand mark, the primary CTA, the focus ring. Everything else recedes.\n\nThe system is dark-native. Football happens at night, in pubs, on couches with the lights low. The dark theme is the primary mode; the light theme is a deliberate daytime alternative, not an afterthought.\n\nThe aesthetic is FotMob-meets-Chess.com: modern sports data, dark, stats-forward, clean competitive. It explicitly rejects cartoonish casual-game visuals, flashy betting-site energy, gamified SaaS dashboards, and over-branded sports media.",
+    "keyCharacteristics": [
+      "Dark-first with a deliberate light alternative",
+      "Monochrome chrome; color belongs to game state only",
+      "Three-typeface system: display (scores), sans (body), mono (metadata)",
+      "Sharp radii (2–8px) — no soft, friendly corners",
+      "Tactile interactions: hover lifts, focus rings, scale-on-press",
+      "Bullseye brand mark: a 10px red circle with a concentric ring, used once per surface"
+    ],
+    "rules": [
+      {
+        "name": "The Bullseye Rule",
+        "body": "The red accent is used on ≤5% of any given screen. If you see red, it's either the brand mark or the single most important action on the page. Its rarity is the point.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ring Rule",
+        "body": "Green, gold, and red communicate game state in concentric priority — green (valid) is safe, gold (checkout) is urgent, red (bust) is failure. Never use these colors for anything other than game-state information.",
+        "section": "colors"
+      },
+      {
+        "name": "The Chrome Stays Quiet Rule",
+        "body": "The neutral palette (obsidian/slate/ink/muted/line) carries 95% of the interface. If the chrome is drawing attention, the game-state colors can't do their job.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Voices Rule",
+        "body": "Bricolage, Hanken, and Plex Mono each own a distinct layer. Never use Bricolage for body text. Never use Plex Mono for headings. Never use Hanken for scores. The separation IS the hierarchy.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "Surfaces are flat at rest. Shadows appear only as a response to interaction (hover, focus, dropdown open). A card with a permanent shadow is a card trying too hard.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Use the dark theme as the default. Light mode is a deliberate alternative.",
+      "Reserve bullseye red (#ff5c4d) for the brand mark, primary CTA hover, and focus rings.",
+      "Let game-state colors (green/gold/red) carry meaning. Never repurpose them.",
+      "Use Bricolage Grotesque only for scores and headings. Hanken Grotesk for body. IBM Plex Mono for metadata.",
+      "Apply shadows only on interaction (hover, focus, dropdown). Flat at rest.",
+      "Use tonal background shifts for depth, not shadows.",
+      "Keep hover transitions at 150–250ms.",
+      "Test every animation in prefers-reduced-motion: reduce.",
+      "Use 8px radius for cards, 4px for buttons, 2px for focus rings.",
+      "Provide skeleton loading states for card grids."
+    ],
+    "donts": [
+      "Don't use cartoonish casual-game visuals — no bubbly illustrations, mascots, primary-colour palettes.",
+      "Don't use flashy betting-site energy — no neon, aggressive gradients, urgency-manipulation patterns.",
+      "Don't use gamified SaaS dashboard patterns — no leaderboard-heavy layouts, progress bars everywhere, XP/streak-fire crutches.",
+      "Don't use over-branded sports media language — no giant league logos, jersey-texture backgrounds.",
+      "Don't use the warm-neutral cream/sand/beige body background.",
+      "Don't use gradient text (background-clip: text). Solid colors only.",
+      "Don't use side-stripe borders (border-left > 1px as a colored accent).",
+      "Don't nest cards inside cards.",
+      "Don't add a second bullseye mark to any surface.",
+      "Don't use glassmorphism or backdrop-filter blur.",
+      "Don't put a .kicker above every section heading.",
+      "Don't use arbitrary z-index values like 999 or 9999."
+    ]
+  }
+}

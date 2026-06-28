@@ -126,3 +126,9 @@ docs/ponytail-audit-*.md
 CONTEXT.md
 logs.md
 test-data.sql
+
+# Build / test artifacts
+/backend/test-results/
+
+# Stray root lockfile (no root package.json)
+/package-lock.json
