@@ -20,7 +20,7 @@ export default function WinOverlay({
   onExit,
 }: WinOverlayProps) {
   return (
-    <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-7 p-6 animate-fade-in">
+    <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-[40] gap-7 p-6 animate-fade-in">
       <div className="relative flex items-center justify-center w-56 h-56">
         <span className="ring-burst" aria-hidden="true" />
         <span className="ring-burst ring-burst-2" aria-hidden="true" />

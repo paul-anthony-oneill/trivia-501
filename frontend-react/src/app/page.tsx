@@ -63,6 +63,7 @@ export default function GamePage() {
     popup,
     gameType,
     gameId,
+    lastError,
     onPopupComplete,
     startNewGame,
     startDailyChallenge,
@@ -260,6 +261,7 @@ export default function GamePage() {
           shareState={shareState}
           gameId={gameId}
           gameType={gameType}
+          lastError={lastError}
         />
       </div>
       {popup && (

@@ -77,6 +77,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
   const [currentCategorySlug, setCurrentCategorySlug] = useState<
     string | null
   >(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const restoreAttempted = useRef(false);
   const pendingResultRef = useRef<{
@@ -144,6 +145,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
       .catch(() => {
         clearSavedGameState();
         setGameStatus("NOT_STARTED");
+        setLastError("Unable to restore game session");
         addToast("Your previous game session has expired.", "error");
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,9 +178,11 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
       setHints(game.hints ?? null);
       setGameStatus("IN_PROGRESS");
 
+      setLastError(null); // ponytail: clear any stale network error
       saveGameState(game.gameId, label, "freeplay");
       addToast("Game started!", "success");
     } catch (err) {
+      setLastError((err as Error).message || "Error starting game");
       addToast((err as Error).message || "Error starting game", "error");
     }
   }
@@ -206,6 +210,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         setDailyLockInProgress(categorySlug, game.gameId);
       }
 
+      setLastError(null);
       addToast(
         (game.turnCount ?? 0) > 0
           ? "Daily Challenge resumed!"
@@ -213,6 +218,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         "success",
       );
     } catch (err) {
+      setLastError((err as Error).message || "Error starting daily challenge");
       addToast(
         (err as Error).message || "Error starting daily challenge",
         "error",
@@ -233,6 +239,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
 
       // Stash the full response and show the popup — the popup calls
       // handlePopupComplete when it finishes.
+      setLastError(null); // ponytail: clear stale error on successful API call
       pendingResultRef.current = { answer: answer.trim(), result };
       setPopup({
         scoreValue: result.scoreValue ?? 0,
@@ -240,10 +247,9 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         reason: (result.reason as string) ?? undefined,
       });
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Error validating answer",
-        "error",
-      );
+      const msg = err instanceof Error ? err.message : "Error validating answer";
+      setLastError(msg);
+      addToast(msg, "error");
     }
   }
 
@@ -329,6 +335,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     gameType,
     gameId,
     questionId,
+    lastError,
     onPopupComplete: handlePopupComplete,
     startNewGame,
     startDailyChallenge,

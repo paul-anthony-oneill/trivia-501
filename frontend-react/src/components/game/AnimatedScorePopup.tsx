@@ -119,7 +119,7 @@ export default function AnimatedScorePopup({
   if (phase === "invalid") {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 backdrop-blur-sm animate-fade-in cursor-pointer"
+        className="fixed inset-0 z-[40] flex items-center justify-center bg-bg/90 backdrop-blur-sm animate-fade-in cursor-pointer"
         onClick={() => skipRef.current()}
       >
         <div className="text-center flex flex-col items-center gap-3 px-6">
@@ -143,7 +143,7 @@ export default function AnimatedScorePopup({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 backdrop-blur-sm animate-fade-in cursor-pointer"
+      className="fixed inset-0 z-[40] flex items-center justify-center bg-bg/90 backdrop-blur-sm animate-fade-in cursor-pointer"
       onClick={() => skipRef.current()}
     >
       <div className="text-center flex flex-col items-center gap-2 px-6">

@@ -89,6 +89,8 @@ export interface GameLoopState {
   gameId: string | null;
   /** The current question ID, used by debug tools to fetch all answers. */
   questionId: string | null;
+  /** Last API error message; null after a successful request. */
+  lastError: string | null;
 }
 
 export interface GameLoopActions {

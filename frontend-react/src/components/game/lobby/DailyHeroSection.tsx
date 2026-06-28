@@ -82,16 +82,31 @@ export default function DailyHeroSection({
         </div>
       )}
 
-      {/* Error */}
+      {/* Error — now with visual weight matching the feature's importance */}
       {error && !loading && (
-        <div className="flex items-center gap-3 bg-surface border border-line rounded-md px-4 py-3 text-sm text-muted">
-          <span className="flex-1">Couldn&apos;t load today&apos;s challenges.</span>
-          <button
-            onClick={onRetry}
-            className="kicker text-accent hover:text-ink transition-colors shrink-0"
-          >
-            Retry
-          </button>
+        <div className="bg-danger-soft border border-danger/25 rounded-lg p-5 md:p-6">
+          <div className="flex items-start gap-3">
+            <span
+              className="w-8 h-8 rounded-full bg-danger/15 flex items-center justify-center shrink-0 mt-0.5"
+              aria-hidden="true"
+            >
+              <span className="font-display font-bold text-sm text-danger">!</span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-display font-bold text-sm mb-1">
+                Couldn&rsquo;t load today&rsquo;s challenges
+              </p>
+              <p className="text-muted text-xs leading-relaxed mb-3">
+                {error || "The server might be taking a breather. Give it another shot."}
+              </p>
+              <button
+                onClick={onRetry}
+                className="btn-ghost px-4 py-2 text-[10px]"
+              >
+                Retry now
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -162,9 +177,20 @@ export default function DailyHeroSection({
 
       {/* Empty state — no challenges today (edge case) */}
       {!loading && !error && challenges.length === 0 && (
-        <p className="text-muted text-sm py-6">
-          No challenges available today — check back soon.
-        </p>
+        <div className="bg-surface border border-line rounded-lg p-5 md:p-6 text-center">
+          <p className="font-display font-bold text-sm mb-1.5">
+            No challenges today
+          </p>
+          <p className="text-muted text-xs leading-relaxed mb-4">
+            Check back tomorrow, or jump into Free Play to pick your own game.
+          </p>
+          <Link
+            href="/freeplay"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-bg font-display font-bold text-xs tracking-wide hover:shadow-lg hover:scale-105 transition-all"
+          >
+            FREE PLAY <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       )}
     </section>
   );

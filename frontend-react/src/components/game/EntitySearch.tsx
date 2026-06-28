@@ -201,7 +201,7 @@ export default function EntitySearch({
       )}
 
       {showSuggestions && (
-        <ul className="absolute bottom-full left-0 right-0 mb-2 p-1.5 m-0 list-none bg-surface border border-line-strong rounded-md overflow-y-auto max-h-[300px] z-50 shadow-[var(--shadow-pop)] scrollbar-thin">
+        <ul className="absolute bottom-full left-0 right-0 mb-2 p-1.5 m-0 list-none bg-surface border border-line-strong rounded-md overflow-y-auto max-h-[300px] z-[10] shadow-[var(--shadow-pop)] scrollbar-thin">
           {suggestions.map((entity, idx) => (
             <li key={entity.id}>
               <button

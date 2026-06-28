@@ -16,7 +16,7 @@ export default function LossOverlay({
   onExit,
 }: LossOverlayProps) {
   return (
-    <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-6 p-6 animate-fade-in">
+    <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-[40] gap-6 p-6 animate-fade-in">
       <div className="text-center animate-rise">
         <div
           className="display-num text-danger"

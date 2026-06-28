@@ -6,6 +6,7 @@ import WinOverlay from "./WinOverlay";
 import LossOverlay from "./LossOverlay";
 import MoveHistory from "./MoveHistory";
 import DebugPanel from "../DebugPanel";
+import Link from "next/link";
 import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -47,6 +48,8 @@ interface MatchViewProps {
   gameId?: string | null;
   /** Current game type */
   gameType?: "freeplay" | "daily-challenge";
+  /** Last API error message; null after a successful request. */
+  lastError?: string | null;
 }
 
 export default function MatchView({
@@ -69,11 +72,13 @@ export default function MatchView({
   shareState = "idle",
   gameId = null,
   gameType = "freeplay",
+  lastError = null,
 }: MatchViewProps) {
   const { user } = useAuth();
   const isAdmin = user?.app_metadata?.role === "admin";
   const [staged, setStaged] = useState<StagedAnswer | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
 
   function handleStage(name: string, entityId?: string) {
     setStaged({ name, entityId });
@@ -121,6 +126,12 @@ export default function MatchView({
         >
           ← Exit
         </button>
+        <Link
+          href="/"
+          className="bullseye hover:scale-125 transition-transform"
+          aria-label="Back to home"
+          title="Home"
+        />
         <div className="text-center min-w-0">
           <div className="font-display font-bold text-base md:text-lg leading-tight truncate">
             {categoryName}
@@ -135,8 +146,27 @@ export default function MatchView({
         </div>
       </header>
 
-      {/* Main game area */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 md:gap-8 p-4 md:p-8 max-w-7xl w-full mx-auto">
+      {/* Network / API error banner — persistent until next success or manual dismiss */}
+      {lastError && lastError !== dismissedError && (
+        <div className="animate-slide-down mx-4 md:mx-8 mt-3 flex items-center gap-3 bg-danger-soft border border-danger/30 rounded-md px-4 py-2.5 text-sm">
+          <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-danger shrink-0">
+            Connection issue
+          </span>
+          <span className="flex-1 text-muted text-xs truncate">
+            {lastError}
+          </span>
+          <button
+            onClick={() => setDismissedError(lastError)}
+            className="text-muted hover:text-ink text-sm leading-none transition-colors p-1"
+            aria-label="Dismiss error"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Main game area — bottom padding on mobile clears the sticky answer bar */}
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 md:gap-8 p-4 md:p-8 pb-52 lg:pb-8 max-w-7xl w-full mx-auto">
         <div className="flex flex-col gap-5 md:gap-7 min-w-0">
           {/* Score hero */}
           <section
@@ -238,7 +268,8 @@ export default function MatchView({
             </h1>
           </section>
 
-          {/* Answer input */}
+          {/* Answer input — anchored to bottom on mobile for thumb-zone reach */}
+          <div className="max-lg:sticky max-lg:bottom-0 max-lg:bg-bg max-lg:border-t max-lg:border-line max-lg:pt-4 max-lg:pb-4 max-lg:-mx-4 max-lg:px-4 z-[20]">
           <section className="flex flex-col gap-3.5" aria-label="Answer">
             <div className="relative">
               <div className="flex items-center gap-3 bg-surface border border-line-strong rounded-md px-4 md:px-5 h-14 md:h-16 focus-within:border-accent transition-colors">
@@ -290,6 +321,7 @@ export default function MatchView({
               <span aria-hidden="true">→</span>
             </button>
           </section>
+          </div>
         </div>
 
         <MoveHistory moves={moves} turnCount={turnCount} />
