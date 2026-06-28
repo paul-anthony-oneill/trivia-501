@@ -27,8 +27,9 @@ export default function FreePlayHubPage() {
       const game = await gameApiClient.startFreePlay(slug, resolveTarget(target));
       saveGameState(game.gameId, label, "freeplay");
       router.push("/");
-    } catch (err: any) {
-      addToast(err?.message ?? "Failed to start game", "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to start game";
+      addToast(message, "error");
     } finally {
       setStarting(null);
     }

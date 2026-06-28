@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -85,8 +86,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, message, type }]);
   }, []);
 
+  const value = useMemo(() => ({ toasts, addToast, removeToast }), [toasts, addToast, removeToast]);
+
   return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
+    <ToastContext.Provider value={value}>
       {children}
 
       {/* Toast stack — fixed top-right */}
