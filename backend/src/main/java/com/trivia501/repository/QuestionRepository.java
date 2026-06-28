@@ -233,7 +233,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
           AND q.qLeague = :league
           AND q.qClub   = :club
           AND q.qStat   = :statType
-          AND q.status  = 'active'
+          AND q.status IN ('active', 'excluded')
         """)
     Optional<Question> findFootballClubQuestion(
         @Param("league")   String league,
@@ -247,7 +247,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         WHERE q.qScope  = 'league'
           AND q.qLeague = :league
           AND q.qStat   = :statType
-          AND q.status  = 'active'
+          AND q.status IN ('active', 'excluded')
         """)
     Optional<Question> findFootballLeagueQuestion(
         @Param("league")   String league,
@@ -260,7 +260,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         WHERE q.qScope  = 'club'
           AND q.qLeague = :league
           AND q.qClub   = :club
-          AND q.status  = 'active'
+          AND q.status IN ('active', 'excluded')
         ORDER BY function('random')
         LIMIT 1
         """)
@@ -274,7 +274,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         SELECT q FROM Question q
         WHERE q.qScope  = 'club'
           AND q.qLeague = :league
-          AND q.status  = 'active'
+          AND q.status IN ('active', 'excluded')
         ORDER BY function('random')
         LIMIT 1
         """)
@@ -285,7 +285,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         SELECT q FROM Question q
         WHERE q.qScope  = 'league'
           AND q.qLeague = :league
-          AND q.status  = 'active'
+          AND q.status IN ('active', 'excluded')
         ORDER BY function('random')
         LIMIT 1
         """)
@@ -295,7 +295,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
     @Query("""
         SELECT q FROM Question q
         WHERE q.qScope = 'league'
-          AND q.status = 'active'
+          AND q.status IN ('active', 'excluded')
         ORDER BY function('random')
         LIMIT 1
         """)
@@ -305,7 +305,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
     @Query("""
         SELECT q FROM Question q
         WHERE q.qScope IS NOT NULL
-          AND q.status = 'active'
+          AND q.status IN ('active', 'excluded')
         ORDER BY function('random')
         LIMIT 1
         """)
@@ -317,7 +317,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
         JOIN teams t ON t.normalized_name = q.q_club
         WHERE q.q_scope  = 'club'
           AND q.q_league = :league
-          AND q.status   = 'active'
+          AND q.status IN ('active', 'excluded')
           AND q.q_club   IS NOT NULL
         ORDER BY t.name
         """, nativeQuery = true)
