@@ -132,3 +132,8 @@ test-data.sql
 
 # Stray root lockfile (no root package.json)
 /package-lock.json
+
+# AI tooling config (per-user, not team-wide)
+/.codex/
+/.github/hooks/
+/.github/skills/
