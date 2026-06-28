@@ -21,12 +21,17 @@ export default function AnimatedScorePopup({
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const [display, setDisplay] = useState(0);
   const [phase, setPhase] = useState<Phase>(() => {
     if (result === "INVALID") return "invalid";
     if (prefersReducedMotion) return "showing";
     return "counting";
   });
+  const [display, setDisplay] = useState(
+    // When we skip counting (reduced motion), show the final score immediately.
+    // Otherwise we'd hang at 0 for the "showing" phase — the counting effect
+    // never runs, so display stays at its initial value.
+    phase === "showing" ? scoreValue : 0,
+  );
   const frameRef = useRef<number | null>(null);
 
   const target = scoreValue;

@@ -266,6 +266,7 @@ export default function GamePage() {
       </div>
       {popup && (
         <AnimatedScorePopup
+          key={`${turnCount}-${popup.result}`}
           scoreValue={popup.scoreValue}
           result={popup.result}
           reason={popup.reason}

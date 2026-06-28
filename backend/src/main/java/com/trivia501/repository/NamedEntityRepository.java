@@ -19,9 +19,9 @@ public interface NamedEntityRepository extends JpaRepository<NamedEntity, UUID> 
      * Accent-insensitive substring search scoped to a specific entity type,
      * using the GIN trigram index on {@code normalized_name}.
      * <p>
-     * {@code normalized_name} is pre-stripped of accents in Java (via
-     * {@code Normalizer.NFD}) before being stored, so the column is already
-     * clean.  We apply {@code unaccent(lower(:query))} only to the user-supplied
+     * {@code normalized_name} is pre-stripped of accents (via the
+     * {@code normalize_entity_name} PostgreSQL function created in V45), so the
+     * column is already clean.  We apply the same function to the user-supplied
      * search term so that typing "Agüero" or "aguero" both match "sergio aguero".
      * <p>
      * Results are ranked so that names beginning with the query come first,
@@ -38,9 +38,9 @@ public interface NamedEntityRepository extends JpaRepository<NamedEntity, UUID> 
             SELECT id, entity_type, display_name, normalized_name, hint, created_at
             FROM   entities
             WHERE  entity_type = :entityType
-            AND    normalized_name LIKE '%' || unaccent(lower(:query)) || '%'
+            AND    normalized_name LIKE '%' || normalize_entity_name(:query) || '%'
             ORDER BY
-                CASE WHEN normalized_name LIKE unaccent(lower(:query)) || '%'
+                CASE WHEN normalized_name LIKE normalize_entity_name(:query) || '%'
                      THEN 0 ELSE 1 END,
                 normalized_name
             LIMIT  :limit
@@ -79,7 +79,7 @@ public interface NamedEntityRepository extends JpaRepository<NamedEntity, UUID> 
     @Transactional
     @Query(value = """
             INSERT INTO entities (entity_type, display_name, normalized_name, hint)
-            SELECT 'footballer', p.name, unaccent(lower(p.name)), p.nationality
+            SELECT 'footballer', p.name, normalize_entity_name(p.name), p.nationality
             FROM   players p
             ON CONFLICT (entity_type, normalized_name) DO NOTHING
             """, nativeQuery = true)
