@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 // Applies the saved (or system) theme before first paint to avoid a flash.
-const themeInit = `(function(){try{var t=localStorage.getItem("t501-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme="dark";}})();`;
+const themeInit = `(function(){try{var t=localStorage.getItem("t501-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme="light";}})();`;
 
 export default function RootLayout({
   children,
@@ -42,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full ${hanken.variable} ${plexMono.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} suppressHydrationWarning />
       </head>
       <body className="min-h-full flex flex-col theme-home">
         <AuthProvider>

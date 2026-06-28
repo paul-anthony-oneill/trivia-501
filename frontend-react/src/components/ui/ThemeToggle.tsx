@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 const STORAGE_KEY = "t501-theme";
 type Theme = "dark" | "light";
@@ -11,9 +12,10 @@ type Theme = "dark" | "light";
  */
 export default function ThemeToggle({ className = "" }: { className?: string }) {
   const [theme, setTheme] = useState<Theme | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    setTheme((document.documentElement.dataset.theme as Theme) || "dark");
+    setTheme((document.documentElement.dataset.theme as Theme) || "light");
   }, []);
 
   const toggle = () => {
@@ -23,6 +25,12 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
       /* private mode — theme just won't persist */
+    }
+    // ponytail: sync to user account for cross-device persistence
+    if (user) {
+      import("@/utils/supabase/client").then(({ createClient }) => {
+        createClient().auth.updateUser({ data: { theme: next } }).catch(() => {});
+      }).catch(() => {});
     }
     setTheme(next);
   };

@@ -1,0 +1,29 @@
+{
+  "pkg": "frontend-react",
+  "globalName": "Trivia501",
+  "shape": "package",
+  "projectId": "f808c1e8-c92c-4839-ace4-54870fbfcc2f",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": "ds-compiled.css",
+  "runtimeFontPrefixes": ["Hanken Grotesk", "IBM Plex Mono", "Bricolage Grotesque"],
+  "overrides": {
+    "AnimatedScorePopup": {"cardMode": "single", "primaryStory": "ValidScore"},
+    "DebugPanel":         {"cardMode": "single", "primaryStory": "Open"},
+    "ConfirmDialog":      {"cardMode": "single", "primaryStory": "DangerConfirm"},
+    "FormModal":          {"cardMode": "single", "primaryStory": "WithForm"}
+  },
+  "componentSrcMap": {
+    "TextField":         "src/components/ui/TextField.tsx",
+    "Select":            "src/components/ui/Select.tsx",
+    "TextArea":          "src/components/ui/TextArea.tsx",
+    "ConfirmDialog":     "src/components/ui/ConfirmDialog.tsx",
+    "FormModal":         "src/components/ui/FormModal.tsx",
+    "ThemeToggle":       "src/components/ui/ThemeToggle.tsx",
+    "HowToPlayPanel":    "src/components/game/HowToPlayPanel.tsx",
+    "AnimatedScorePopup":"src/components/game/AnimatedScorePopup.tsx",
+    "EntitySearch":      "src/components/game/EntitySearch.tsx",
+    "DebugPanel":        "src/components/game/DebugPanel.tsx",
+    "LobbyView":         "src/components/game/lobby/LobbyView.tsx",
+    "MatchView":         "src/components/game/match/MatchView.tsx"
+  }
+}

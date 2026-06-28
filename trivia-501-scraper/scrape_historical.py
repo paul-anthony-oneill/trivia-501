@@ -190,20 +190,26 @@ def upsert_team(session: Session, fbref_squad_name: str, country: str) -> Team:
     """
     Find or create a Team row using FBref's squad name verbatim.
 
-    No translation map — FBref names are used as-is to keep the DB
-    consistent with the source data across all seasons.
+    Matches on normalized_name (not name) so that teams with a stale/broken
+    display name get their name column fixed instead of creating a duplicate.
     """
-    team = session.query(Team).filter_by(name=fbref_squad_name).first()
+    norm = normalize_name(fbref_squad_name)
+    team = session.query(Team).filter_by(normalized_name=norm).first()
+
     if team is None:
         team = Team(
             name=fbref_squad_name,
-            normalized_name=normalize_name(fbref_squad_name),
+            normalized_name=norm,
             team_type="club",
             country=country,
         )
         session.add(team)
         session.flush()
         log.debug("    Created team: %s", fbref_squad_name)
+    elif team.name != fbref_squad_name:
+        team.name = fbref_squad_name
+        session.flush()
+        log.debug("    Fixed team name: %s → %s", team.name, fbref_squad_name)
 
     # Upsert the FBref external-ID record (team has no fbref_id column after V9
     # but team_external_ids is the right place regardless).

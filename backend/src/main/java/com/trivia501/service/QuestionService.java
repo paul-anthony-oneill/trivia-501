@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -224,11 +225,14 @@ public class QuestionService {
     }
 
     /**
-     * Return distinct club slugs that have active questions for a given league.
+     * Return {id (slug), name (display)} pairs for clubs with active questions in a league.
      * Used by the frontend's "Choose Your Board" club picker.
      */
     @Transactional(readOnly = true)
-    public List<String> getClubsForLeague(String leagueSlug) {
-        return questionRepository.findDistinctClubsByLeague(leagueSlug);
+    public List<Map<String, String>> getClubsForLeague(String leagueSlug) {
+        return questionRepository.findDistinctClubsByLeague(leagueSlug)
+            .stream()
+            .map(row -> Map.of("id", (String) row[0], "name", (String) row[1]))
+            .toList();
     }
 }

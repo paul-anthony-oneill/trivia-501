@@ -34,37 +34,14 @@ public class FootballController {
     }
 
     /**
-     * Returns the list of clubs that have at least one active question for the given league.
-     *
-     * <p>Each club is returned as {@code { "id": "arsenal", "name": "Arsenal" }} where
-     * {@code name} is derived by title-casing the slug (hyphens → spaces). This avoids
-     * a separate club-name column in the database while the materialiser is still being built.
+     * Returns clubs with active questions for the given league.
      *
      * @param league the league slug, e.g. "premier-league"
-     * @return list of {@code {id, name}} objects, empty list if no questions exist yet
+     * @return list of {@code {id, name}} objects — id is the slug, name is the display name from teams table
      */
     @GetMapping("/clubs")
     public ResponseEntity<List<Map<String, String>>> getClubs(@RequestParam String league) {
         log.debug("Fetching clubs for league: {}", league);
-
-        List<Map<String, String>> clubs = questionService.getClubsForLeague(league)
-            .stream()
-            .map(slug -> Map.of("id", slug, "name", slugToName(slug)))
-            .toList();
-
-        return ResponseEntity.ok(clubs);
-    }
-
-    /** Converts a slug like "manchester-city" to "Manchester City". */
-    private static String slugToName(String slug) {
-        if (slug == null || slug.isBlank()) return slug;
-        String[] words = slug.split("-");
-        StringBuilder sb = new StringBuilder();
-        for (String word : words) {
-            if (!sb.isEmpty()) sb.append(' ');
-            sb.append(Character.toUpperCase(word.charAt(0)));
-            if (word.length() > 1) sb.append(word.substring(1));
-        }
-        return sb.toString();
+        return ResponseEntity.ok(questionService.getClubsForLeague(league));
     }
 }

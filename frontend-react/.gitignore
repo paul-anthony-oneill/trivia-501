@@ -40,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# design-sync build artefacts (committed: .design-sync/{config,NOTES,conventions,previews})
+.ds-sync/
+ds-bundle/
+ds-compiled.css
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
