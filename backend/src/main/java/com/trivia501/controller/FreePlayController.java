@@ -97,9 +97,14 @@ public class FreePlayController {
                 filter.getScope(), filter.getLeague(), filter.getClub(), filter.getStatType());
         }
 
-        MatchService.GameStartRecord startRecord = filter != null && filter.getScope() != null
-            ? matchService.startNextGameWithFilter(match, startingScore, filter)
-            : matchService.startNextGame(match, startingScore);
+        MatchService.GameStartRecord startRecord;
+        if (request.getQuestionId() != null) {
+            startRecord = matchService.startNextGame(match, startingScore, request.getQuestionId());
+        } else if (filter != null && filter.getScope() != null) {
+            startRecord = matchService.startNextGameWithFilter(match, startingScore, filter);
+        } else {
+            startRecord = matchService.startNextGame(match, startingScore);
+        }
         Game game = startRecord.game();
         Question question = startRecord.question();
 

@@ -130,6 +130,30 @@ public class MatchService {
         return new GameStartRecord(game, question);
     }
 
+    /** Variant of {@link #startNextGame} that uses an explicit question ID — deterministic for E2E tests. */
+    @Transactional
+    public GameStartRecord startNextGame(Match match, int startingScore, UUID questionId) {
+        log.debug("Starting game for match {} with explicit question {} (startingScore={})",
+            match.getId(), questionId, startingScore);
+
+        if (match.getStatus() != Match.MatchStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Match is not in progress");
+        }
+
+        Question question = questionService.getQuestionById(questionId)
+            .orElseThrow(() -> new IllegalArgumentException("Question not found: " + questionId));
+
+        long completedGames = gameRepository.countByMatchIdAndStatus(match.getId(), Game.GameStatus.COMPLETED);
+        int gameNumber = (int) completedGames + 1;
+
+        Game game = gameService.createGame(match.getId(), question.getId(), gameNumber, startingScore);
+
+        log.info("Game started with explicit question: matchId={}, gameNumber={}, questionId={}, startingScore={}",
+            match.getId(), gameNumber, question.getId(), startingScore);
+
+        return new GameStartRecord(game, question);
+    }
+
     @Transactional
     public GameStartRecord startNextGame(Match match, int startingScore) {
         log.debug("Starting next game for match {} (startingScore={})", match.getId(), startingScore);

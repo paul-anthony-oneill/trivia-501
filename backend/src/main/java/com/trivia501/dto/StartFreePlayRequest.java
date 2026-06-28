@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * Request DTO for starting a Free Play (single-player) game.
  *
@@ -25,4 +27,7 @@ public class StartFreePlayRequest {
 
     /** Optional football-specific question filter. When present, overrides random question selection. */
     private FootballFilter footballFilter;
+
+    /** Optional explicit question ID for deterministic game start. Skips random selection when set. */
+    private UUID questionId;
 }
