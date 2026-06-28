@@ -55,6 +55,8 @@ public class DevModeAuthFilter extends OncePerRequestFilter {
             UsernamePasswordAuthenticationToken token =
                 new UsernamePasswordAuthenticationToken(DEV_PLAYER_ID, null, DEV_AUTHORITIES);
             SecurityContextHolder.getContext().setAuthentication(token);
+            // ponytail: mark request as authenticated so RateLimitFilter gives 100/min, not 10/min
+            request.setAttribute(OptionalJwtFilter.AUTH_TYPE_ATTR, OptionalJwtFilter.AUTH_TYPE_JWT);
             log.trace("DevModeAuthFilter: injected dev principal for {}", request.getRequestURI());
         }
 

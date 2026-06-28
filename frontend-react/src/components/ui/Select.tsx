@@ -1,3 +1,5 @@
+"use client";
+
 interface SelectOption {
   value: string | boolean | number;
   label: string;

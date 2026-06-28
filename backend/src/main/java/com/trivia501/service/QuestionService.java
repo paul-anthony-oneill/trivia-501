@@ -140,6 +140,19 @@ public class QuestionService {
     }
 
     /**
+     * Get all active questions for a category by slug.
+     *
+     * @param slug the category slug (e.g., "football")
+     * @return list of active questions, or empty list if category not found
+     */
+    @Transactional(readOnly = true)
+    public List<Question> getActiveQuestionsBySlug(String slug) {
+        return getCategoryBySlug(slug)
+            .map(cat -> getActiveQuestions(cat.getId()))
+            .orElse(List.of());
+    }
+
+    /**
      * Get all categories.
      *
      * @return list of all categories

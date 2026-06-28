@@ -3,8 +3,7 @@ package com.trivia501.controller;
 import com.trivia501.dto.admin.TemplateResponse;
 import com.trivia501.model.Question;
 import com.trivia501.model.QuestionTemplate;
-import com.trivia501.repository.QuestionRepository;
-import com.trivia501.repository.QuestionTemplateRepository;
+import com.trivia501.service.AdminTemplateService;
 import com.trivia501.service.QuestionGeneratorService;
 import com.trivia501.service.QuestionGeneratorService.GeneratorResult;
 import com.trivia501.service.QuestionMaterializerService;
@@ -39,9 +38,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AdminTemplateController {
 
-    private final QuestionTemplateRepository templateRepository;
-    private final QuestionRepository         questionRepository;
-    private final QuestionGeneratorService   generatorService;
+    private final AdminTemplateService        templateService;
+    private final QuestionGeneratorService    generatorService;
     private final QuestionMaterializerService materializerService;
 
     /**
@@ -50,15 +48,13 @@ public class AdminTemplateController {
      * that transitively depends on this controller.
      */
     public AdminTemplateController(
-            QuestionTemplateRepository  templateRepository,
-            QuestionRepository          questionRepository,
-            QuestionGeneratorService    generatorService,
+            AdminTemplateService         templateService,
+            QuestionGeneratorService     generatorService,
             @Lazy QuestionMaterializerService materializerService
     ) {
-        this.templateRepository   = templateRepository;
-        this.questionRepository   = questionRepository;
-        this.generatorService     = generatorService;
-        this.materializerService  = materializerService;
+        this.templateService    = templateService;
+        this.generatorService   = generatorService;
+        this.materializerService = materializerService;
     }
 
     // ── GET /api/admin/templates ─────────────────────────────────────────────
@@ -71,7 +67,7 @@ public class AdminTemplateController {
      */
     @GetMapping
     public ResponseEntity<List<TemplateResponse>> listTemplates() {
-        List<TemplateResponse> body = templateRepository.findAll().stream()
+        List<TemplateResponse> body = templateService.getAllTemplates().stream()
             .sorted((a, b) -> {
                 if (a.getCreatedAt() == null) return 1;
                 if (b.getCreatedAt() == null) return -1;
@@ -92,8 +88,7 @@ public class AdminTemplateController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<TemplateResponse> getTemplate(@PathVariable UUID id) {
-        QuestionTemplate template = templateRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
+        QuestionTemplate template = templateService.getTemplateById(id);
         return ResponseEntity.ok(toResponse(template));
     }
 
@@ -153,8 +148,8 @@ public class AdminTemplateController {
         r.setDefaultMinScore(t.getDefaultMinScore());
         r.setActive(Boolean.TRUE.equals(t.getIsActive()));
         r.setHasMaterializer(materializerService.hasMaterializer(t.getMaterializerKey()));
-        r.setDraftCount(questionRepository.countByTemplateIdAndStatus(t.getId(), Question.STATUS_DRAFT));
-        r.setActiveCount(questionRepository.countByTemplateIdAndStatus(t.getId(), Question.STATUS_ACTIVE));
+        r.setDraftCount(templateService.countQuestionsByTemplateIdAndStatus(t.getId(), Question.STATUS_DRAFT));
+        r.setActiveCount(templateService.countQuestionsByTemplateIdAndStatus(t.getId(), Question.STATUS_ACTIVE));
         r.setCreatedAt(t.getCreatedAt());
         r.setUpdatedAt(t.getUpdatedAt());
         return r;

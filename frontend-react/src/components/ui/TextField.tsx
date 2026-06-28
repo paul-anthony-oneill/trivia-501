@@ -1,3 +1,5 @@
+"use client";
+
 interface TextFieldProps {
   label: string;
   value: string | number;

@@ -1,6 +1,10 @@
+"use client";
+
 import React, { useState } from "react";
 import EntitySearch from "../EntitySearch";
-import HowToPlayPanel from "../HowToPlayPanel";
+import WinOverlay from "./WinOverlay";
+import LossOverlay from "./LossOverlay";
+import MoveHistory from "./MoveHistory";
 import DebugPanel from "../DebugPanel";
 import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -288,177 +292,29 @@ export default function MatchView({
           </section>
         </div>
 
-        {/* History */}
-        <aside className="flex flex-col bg-surface border border-line rounded-md p-5 min-h-0 lg:max-h-[calc(100vh-120px)] lg:sticky lg:top-8">
-          <div className="flex items-baseline justify-between mb-3">
-            <span className="kicker">Match history</span>
-            <span className="font-mono text-[10px] text-muted tabular-nums">
-              TURN {turnCount.toString().padStart(2, "0")}
-            </span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto scrollbar-thin -mr-2 pr-2">
-            {moves.length === 0 ?
-              <div className="hint text-center py-8">No darts thrown yet</div>
-            : moves.map((move, i) => (
-                <div
-                  key={i}
-                  className="py-2.5 border-b border-line last:border-b-0"
-                >
-                  <div className="grid grid-cols-[24px_1fr_auto_52px] gap-2.5 items-baseline">
-                    <span className="font-mono text-[10px] text-muted tabular-nums">
-                      {(moves.length - i).toString().padStart(2, "0")}
-                    </span>
-                    <span
-                      className={`font-sans font-medium text-sm truncate ${
-                        move.result === "BUST" ? "text-muted line-through"
-                        : move.result === "INVALID" ? "text-muted"
-                        : "text-ink"
-                      }`}
-                    >
-                      {move.matchedAnswer || move.answer}
-                    </span>
-                    <span
-                      className={`font-mono text-[11px] font-medium tabular-nums px-1.5 py-0.5 rounded-xs ${
-                        move.result === "VALID" ? "text-ok bg-ok-soft"
-                        : move.result === "BUST" ? "text-danger bg-danger-soft"
-                        : "text-muted bg-surface-2"
-                      }`}
-                    >
-                      {move.result === "INVALID" ?
-                        "✗"
-                      : move.result === "BUST" ?
-                        "BUST"
-                      : `−${move.scoreValue}`}
-                    </span>
-                    <span className="font-display font-bold text-sm text-right tabular-nums">
-                      {move.scoreAfter}
-                    </span>
-                  </div>
-                  {move.reason &&
-                    (move.result === "BUST" || move.result === "INVALID") && (
-                      <div className="mt-1 ml-[34px] text-[11px] text-muted leading-snug">
-                        {move.reason}
-                      </div>
-                    )}
-                </div>
-              ))
-            }
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-line">
-            <HowToPlayPanel />
-          </div>
-        </aside>
+        <MoveHistory moves={moves} turnCount={turnCount} />
       </main>
 
-      {/* ── Win overlay ─────────────────────────────────────────────────────── */}
       {isGameOver && isWin && (
-        <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-7 p-6 animate-fade-in">
-          <div className="relative flex items-center justify-center w-56 h-56">
-            <span className="ring-burst" aria-hidden="true" />
-            <span className="ring-burst ring-burst-2" aria-hidden="true" />
-            <div className="text-center animate-rise">
-              <div
-                className="display-num text-gold"
-                style={{ fontSize: "96px" }}
-              >
-                {score <= 0 ? 0 : score}
-              </div>
-              <div className="kicker text-gold mt-1">Checkout</div>
-            </div>
-          </div>
-
-          <div
-            className="text-center animate-rise"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <div className="font-display font-extrabold text-3xl md:text-4xl tracking-tight">
-              Game shot!
-            </div>
-            <div className="kicker mt-2">
-              {turnCount} {turnCount === 1 ? "dart" : "darts"} thrown
-            </div>
-          </div>
-
-          <div
-            className="flex flex-col gap-3 items-center mt-2 w-full max-w-xs animate-rise"
-            style={{ animationDelay: "0.2s" }}
-          >
-            {onShare && (
-              <button
-                onClick={onShare}
-                disabled={shareState !== "idle"}
-                className="btn-primary w-full h-12 text-base"
-              >
-                {shareState === "copied" ? "Copied ✓"
-                : shareState === "sharing" ? "Sharing…"
-                : "Share result"}
-              </button>
-            )}
-            {gameType !== "daily-challenge" && (
-              <button
-                onClick={onPlayAgain}
-                className={`${onShare ? "btn-ghost" : "btn-primary"} w-full h-12 text-base`}
-              >
-                Play again
-              </button>
-            )}
-            <button
-              onClick={() => onExit()}
-              className="kicker hover:text-ink transition-colors py-2"
-            >
-              Exit to lobby
-            </button>
-          </div>
-        </div>
+        <WinOverlay
+          score={score}
+          turnCount={turnCount}
+          gameType={gameType}
+          onShare={onShare}
+          shareState={shareState}
+          onPlayAgain={onPlayAgain}
+          onExit={onExit}
+        />
       )}
 
-      {/* ── Loss overlay (bust-out / forfeit) ───────────────────────────────── */}
       {isGameOver && !isWin && (
-        <div className="fixed inset-0 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-6 p-6 animate-fade-in">
-          <div className="text-center animate-rise">
-            <div
-              className="display-num text-danger"
-              style={{ fontSize: "clamp(80px, 16vw, 130px)" }}
-            >
-              {score}
-            </div>
-            <div className="kicker text-danger mt-2">Game over</div>
-          </div>
-
-          <div
-            className="text-center animate-rise"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <div className="font-display font-extrabold text-2xl md:text-3xl tracking-tight">
-              Better luck next time
-            </div>
-            <div className="kicker mt-2">
-              {turnCount} {turnCount === 1 ? "dart" : "darts"} thrown · finished on {score}
-            </div>
-          </div>
-
-          <div
-            className="flex flex-col gap-3 items-center mt-2 w-full max-w-xs animate-rise"
-            style={{ animationDelay: "0.2s" }}
-          >
-            {gameType !== "daily-challenge" && (
-              <button
-                onClick={onPlayAgain}
-                className="btn-primary w-full h-12 text-base"
-              >
-                Play again
-              </button>
-            )}
-            <button
-              onClick={() => onExit()}
-              className="kicker hover:text-ink transition-colors py-2"
-            >
-              Exit to lobby
-            </button>
-          </div>
-        </div>
+        <LossOverlay
+          score={score}
+          turnCount={turnCount}
+          gameType={gameType}
+          onPlayAgain={onPlayAgain}
+          onExit={onExit}
+        />
       )}
 
       {/* ── Exit confirmation dialog ─────────────────────────────────────────── */}
