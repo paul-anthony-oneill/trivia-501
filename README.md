@@ -1,435 +1,133 @@
-# ⚽ Trivia 501
+# 🎯 Trivia 501
 
-> A competitive football trivia game with darts 501 scoring mechanics
-
-**📍 [Gemini Project Roadmap & Status](.gemini/GEMINI.md)**
-
-[![Status](https://img.shields.io/badge/status-in%20development-yellow)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+> A daily football trivia puzzle with darts scoring mechanics — play at **[trivia-501.vercel.app](https://trivia-501.vercel.app/)**
 
 ---
 
-## 📋 Overview
+## What I Built
 
-**Trivia 501** is a daily puzzle and multiplayer game that combines football knowledge with the scoring system of darts 501. Players compete to reduce their score from 501 to exactly 0 by naming football players whose statistics (appearances, goals, etc.) match a given question.
+**Trivia 501** is a Wordle-style daily puzzle game that mashes up football trivia with the scoring system of darts 501. Each day you get a question (e.g. "Appearances for Arsenal in the Premier League") and a target score. You name players whose real-world stats match the question, and their numbers get deducted from your score. The goal? Hit exactly zero — just like finishing a leg of darts.
 
-### 🎯 Key Features
+The game has two modes:
 
-- ⚡ **Real-time multiplayer** matches with live WebSocket updates
-- 📅 **Daily challenges** with global leaderboards
-- 🤖 **AI opponents** for practice (Easy, Medium, Hard)
-- 🏆 **Competitive ranking system** with 36 ranks (Sunday League to Icon)
-- 👥 **Friend challenges** (real-time and asynchronous)
-- 📱 **Progressive Web App** - works on desktop and mobile
-- 🆓 **Freemium model** - Free daily challenge + 1 match/day
+- **Daily Challenge** — one question per category per day, same starting score for everyone, one trust-based attempt. When you finish, you get an emoji grid (🟩 valid throw, 🟥 bust, 🎯 checkout) to share with friends. No leaderboards — the social mechanic is comparing results, not competing for rank.
+
+- **Free Play** — pick any category and question, set your own target score, and play on your own terms. No daily limit, no pressure.
+
+The entire thing runs as a single-player experience. Real-time multiplayer, MMR ranking, league tiers, and matchmaking were all designed, partially scaffolded, and then **deliberately cut** when it became clear they didn't serve the core product. The game is better as a daily puzzle you play and share than as a competitive ladder — and the code is cleaner for it.
 
 ---
 
-## 🎮 How to Play
-
-### Basic Rules
-
-1. **Start with 501 points**
-2. A question is presented (e.g., "Appearances for Manchester City in Premier League")
-3. **Take turns** naming different players
-4. Each player's **statistic is deducted** from your score
-5. First to reach **exactly 0** (or -10 to 0 range) wins!
-
-### Scoring Example
-
-**Question**: "Appearances for Arsenal in Premier League"
-
-- You name **"Thierry Henry"** (258 appearances)
-  - Score: 501 - 258 = **243**
-- Opponent names **"Tony Adams"** (255 appearances)
-  - Opponent score: 501 - 255 = **246**
-
-Continue until someone reaches 0!
-
-### Special Rules
-
-- **Bust**: Answers over 180 or invalid darts scores (163, 166, 169, etc.) score **nothing**
-- **Checkout Range**: Finish between **-10 and 0**
-- **No Repeats**: Can't reuse answers in the same game
-- **Turn Timer**: 45 seconds (default) per turn with escalating timeouts
-- **Question Refresh**: One chance to request a new question (both players must agree)
-
-📖 **[Full Game Rules](docs/GAME_RULES.md)**
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-| Technology | Purpose |
-|------------|---------|
-| **SvelteKit** | Framework - Reactive, fast, minimal boilerplate |
-| **TypeScript** | Type-safe development |
-| **Tailwind CSS** | Utility-first styling, mobile-first responsive design |
-| **Vite** | Build tool with fast HMR |
-| **PWA** | Installable, offline-capable |
-| **WebSocket** | Real-time game updates |
-
-### Backend
-
-| Technology | Purpose |
-|------------|---------|
-| **Java 17+** | Language (LTS version) |
-| **Spring Boot 3.x** | Backend framework |
-| **Spring Security** | Authentication & authorization |
-| **Spring WebSocket** | Real-time communication (STOMP) |
-| **Spring Data JPA** | Database ORM |
-| **PostgreSQL 15+** | Primary database (ACID, full-text search) |
-| **Maven/Gradle** 🔄 | Build tool (TBD) |
-
-### Third-Party Services
-
-| Service | Purpose |
-|---------|---------|
-| **API-Football** | Player statistics and football data |
-| **OAuth 2.0** | Social login (Google, Apple, Facebook) |
-| **🔄 Redis** | Session caching, leaderboards (future) |
-| **🔄 Cloud Provider** | Hosting (AWS/GCP/DigitalOcean - TBD) |
-
----
-
-## 📁 Project Structure
+## How I Built It
 
 ```
-trivia-501/
-├── docs/                           # 📚 Documentation
-│   ├── PRD.md                      # Product Requirements Document
-│   ├── GAME_RULES.md               # Complete game rules
-│   ├── design/
-│   │   └── TECHNICAL_DESIGN.md     # System architecture & tech specs
-│   ├── api/
-│   │   └── API_INTEGRATION.md      # API-Football integration guide
-│   └── plans/                      # Implementation plans (future)
-├── frontend/                       # 🔄 Svelte + SvelteKit app (TBD)
-├── backend/                        # 🔄 Spring Boot application (TBD)
-├── database/                       # 🔄 Schema migrations (TBD)
-└── README.md                       # This file
+[Vercel]                              [Fly.io]                           [Supabase]
+Next.js 16 + React 19  ── /api/* ──▶  Spring Boot 4.0.6  ──────────▶  PostgreSQL 15
+                                      Java 25                           pgBouncer :6543
 ```
 
----
+### Tech Stack
 
-## 📚 Documentation
-
-Comprehensive documentation for this project (suitable for portfolio showcase):
-
-### Core Documents
-
-- **[Product Requirements Document (PRD)](docs/PRD.md)**
-  - Product vision, features, user stories, success metrics
-  - Freemium monetization model
-  - Competitive ranking system
-
-- **[Game Rules & Mechanics](docs/GAME_RULES.md)**
-  - Complete gameplay rules with examples
-  - Scoring system (darts 501 mechanics)
-  - Match formats (Best of 1/3/5)
-  - Turn timers, timeouts, and special rules
-
-- **[Technical Design Document](docs/design/TECHNICAL_DESIGN.md)**
-  - System architecture (client-server with WebSockets)
-  - Database schema (PostgreSQL)
-  - REST API + WebSocket protocol
-  - Security, deployment, testing strategy
-
-- **[API Integration Specification](docs/api/API_INTEGRATION.md)**
-  - API-Football integration details
-  - Caching strategy (zero API calls during matches)
-  - Rate limiting and error handling
-  - Question population workflow
+| Layer | Technology | Why |
+|---|---|---|
+| **Frontend** | Next.js 16 (App Router) + React 19 + TypeScript | Migrated from SvelteKit mid-project for broader ecosystem and hiring-pool alignment. App Router with `"use client"` pages keeps the SPA feel. |
+| **Styling** | Tailwind CSS v4 | Utility-first, with semantic CSS custom properties (`--color-surface`, `--color-ink`, etc.) for dark/light theme switching via `data-theme`. No config file — everything in `globals.css` with `@theme inline`. |
+| **State** | React Context + `useState` | No Redux, no Zustand. The app has two contexts (auth + toasts) and local state in custom hooks. Simple enough that a state library would be overkill. |
+| **Backend** | Spring Boot 4.0.6 + Java 25 | Chosen for its mature ecosystem (security, JPA, scheduling, Flyway) and because Java's type system catches the kind of bugs that game logic is prone to. |
+| **Database** | PostgreSQL 15 (Supabase) | ACID compliance for game state, GIN trigram indexes for fuzzy player-name matching, and JSONB for flexible question configs. |
+| **Auth** | Supabase Auth (Google OAuth) + anonymous guest sessions | `OptionalJwtFilter` creates a UUID cookie for guest players with a 24-hour sliding expiry. No sign-in wall anywhere in the core game loop. Social login uses HTTPOnly cookies via `@supabase/ssr`. |
+| **Data** | ScraperFC (Python microservice) | A separate Python service populates the database via batch jobs. The backend never calls external APIs during gameplay — all answer validation reads from cached database tables. |
+| **Deployment** | Vercel (frontend) + Fly.io (backend) | Vercel proxies `/api/*` to Fly.io via `next.config.ts` rewrites. Supabase handles the database with pgBouncer on port 6543. |
+| **Testing** | Vitest + Playwright / JUnit 5 + TestContainers | 135 frontend behaviour tests, 252 backend tests. TestContainers spins up real PostgreSQL for integration tests. |
 
 ---
 
-## 🎯 Game Modes
+## Why I Built It This Way
 
-### 1. Daily Challenge (Free)
-- One unique question per day
-- Single attempt
-- Global leaderboard
-- Always free for all users
+### Server-side validation for everything
 
-### 2. Multiplayer (Freemium)
-- **Quick Match**: Auto-matchmaking with real-time gameplay
-- **Friend Challenges**: Challenge friends (real-time or async)
-- **Ranked Mode** ⭐: Competitive ladder with MMR and league tiers (Premium)
+The client updates optimistically — type a name, see it deducted from your score — but the server has the final word. Every move runs through `GameStateMachine`, which validates darts scores, checks for busts, enforces the checkout window, and rejects duplicate answers. The frontend is a remote control, not an authority.
 
-### 3. AI Practice (Premium)
-- Practice against AI opponents
-- Difficulty levels: Easy, Medium, Hard
-- Future: "Human" difficulty (mimics common player answers)
+The payoff is that cheating is genuinely hard: you can't fabricate a share result without the server's sign-off, and the answer pool is pre-cached so you can't probe the live API.
 
----
+### Zero external API calls during gameplay
 
-## 🏆 Ranking System
+All player statistics live in the `answers` table, populated in advance by the Python scraper. When you submit a player name, the backend hits a GIN-trigram index on PostgreSQL — not an external football API. This keeps response times predictable (< 200ms p95) and avoids the rate limits and cost of live API calls.
 
-Trivia 501 features a **football-themed ranking system** with 9 tiers and 4 subtiers each (36 total ranks):
+### PostgreSQL for the weird stuff
 
-### Tiers (Low → High)
+The game needs accent-insensitive substring matching ("aguero" → "Sergio Agüero"), which PostgreSQL handles natively with `unaccent()` and `gin_trgm_ops` indexes. The `entities` table powers the autocomplete dropdown without revealing which names are correct answers — it's intentionally decoupled from the `answers` table that drives validation.
 
-1. ⚽ **Sunday League**
-2. 🏅 **Amateur**
-3. 🥉 **Semi-Pro**
-4. 🎒 **Journeyman**
-5. ⚡ **Pro**
-6. 🌍 **International**
-7. 🌐 **Continental**
-8. 🏆 **World Class**
-9. 👑 **Icon**
+### Lazy daily challenge creation
 
-### Subtiers (Within Each Tier)
+Daily challenges are pre-selected by a midnight cron job, but if the cron misses (server restart, deployment), the `GET /{categorySlug}` endpoint lazily creates the challenge on first access. The design means the daily challenge is never "down" — it's either pre-computed or created just-in-time.
 
-1. 🪑 **Reserve**
-2. 🔄 **Rotation**
-3. ⭐ **Starter**
-4. 🔰 **Captain**
+### Aggressively cut scope
 
-**Example**: "Pro Captain" → "International Reserve"
-
-### How It Works
-
-- **Hidden MMR** determines fair matchmaking
-- **League Points** earned for wins (visible progression)
-- Win against higher-rated opponent = more points
-- Continuous progression (no seasonal resets)
-- Ranked mode exclusive to **Premium** subscribers
+The single best engineering decision on this project was deleting code. Multiplayer (`player2_*` columns, WebSocket STOMP protocol, matchmaking queue), the 36-rank MMR/league system, freemium subscriptions, and AI opponents were all designed and partially built. When the product direction clarified toward single-player daily puzzles, all of it came out — ~2,000 lines of production code and tests. The engine is now a clean solo-only state machine with no `isSolo` branching.
 
 ---
 
-## 💎 Monetization (Freemium)
+## What I'd Do Differently
 
-### Free Tier
+- **Start with the frontend framework I'd ship with.** The project began in SvelteKit, which was great to work with, but migrating to React mid-stream cost weeks. If I'd known the hiring landscape better at the start, I'd have picked React from day one.
 
-- ✅ Daily challenge (unlimited)
-- ✅ 1 casual multiplayer game/day
-- ✅ Friend list & challenges
-- ❌ No AI practice
-- ❌ No ranked mode
+- **Default to solo until multiplayer is proven.** The original schema was built for 1v1 matches — `player2_id`, `player2_score`, close-finish rules, the works. That scaffolding sat in the codebase for months adding cognitive overhead to every change before I finally stripped it out. When multiplayer comes back, it'll be designed from a real product spec, not a hypothetical one.
 
-### Premium Subscription 🔄
+- **Ship the cheap version of social features first.** Emoji-grid sharing took an afternoon and gives the game its viral hook. I'd front-load more of those zero-backend social mechanics earlier in the build.
 
-- ✅ **Unlimited** casual matches
-- ✅ **Ranked mode** access
-- ✅ **Unlimited AI practice**
-- ✅ Detailed stats & analytics
-- ✅ Priority matchmaking
-- ✅ Exclusive cosmetics (future)
-- ✅ Ad-free experience
-
-**Pricing**: 🔄 TBD
+- **CSV seed data from the start.** Early category migrations used inline SQL INSERTs — 12,000-line Flyway files that were unreadable and unmaintainable. Switched to CSV data files + Java migrations; the CSVs are diffable, reviewable, and trivially regeneratable from the scraper.
 
 ---
 
-## 🎮 Question Types
+## Quick Start
 
-### Confirmed Formats
+```bash
+# Backend (requires Java 25)
+cd backend
+./mvnw spring-boot:run          # → http://localhost:8080
 
-1. **Team League Appearances**
-   - "Appearances for Manchester City in Premier League"
+# Frontend
+cd frontend-react
+npm install
+npm run dev                      # → http://localhost:3000
+                                  # API calls proxy to localhost:8080
 
-2. **Combined Stats (Appearances + Goals)**
-   - "Appearances + Goals for Liverpool in Premier League"
-   - Score = Sum of both stats
+# Database (Docker for local dev)
+docker run -d \
+  --name trivia501-postgres \
+  -e POSTGRES_DB=trivia501 \
+  -e POSTGRES_USER=trivia501 \
+  -e POSTGRES_PASSWORD=dev_password \
+  -p 5432:5432 \
+  postgres:15
+```
 
-3. **Goalkeeper Stats (Appearances + Clean Sheets)**
-   - "Appearances + Clean Sheets for Chelsea in Premier League"
+Set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` as environment variables pointing at your database. Flyway migrations run automatically on startup.
 
-4. **International Appearances**
-   - "Appearances for Brazil in World Cup"
-
-5. **Nationality/Continent Filter**
-   - "Appearances in Premier League by players from Spain"
-
----
-
-## 🚀 Development Status
-
-### Current Phase: **Planning & Design** ✅
-
-- [x] Project setup
-- [x] Product Requirements Document
-- [x] Technical Design Document
-- [x] Game Rules specification
-- [x] API Integration specification
-
-### Next Phase: **MVP Development** 🔄
-
-#### Phase 1: Core Foundation
-- [ ] Frontend project setup (SvelteKit + TypeScript)
-- [ ] Backend project setup (Spring Boot + PostgreSQL)
-- [ ] Database schema implementation
-- [ ] User authentication (OAuth + Guest accounts)
-- [ ] Basic REST API
-
-#### Phase 2: Game Engine
-- [ ] Scoring rules implementation
-- [ ] Answer validation logic
-- [ ] Valid darts score checker
-- [ ] Question/answer database seeding (20-30 questions)
-- [ ] Daily challenge system
-
-#### Phase 3: Multiplayer
-- [ ] WebSocket infrastructure
-- [ ] Real-time game state synchronization
-- [ ] Matchmaking system (quick match)
-- [ ] Friend system & challenges
-- [ ] AI opponent (basic)
-
-#### Phase 4: Competitive Features
-- [ ] Ranking system (MMR + League Points)
-- [ ] Ranked matchmaking
-- [ ] Leaderboards
-- [ ] Player profiles
-
-#### Phase 5: Polish & Launch
-- [ ] PWA features (installable, offline)
-- [ ] Push notifications (opt-in)
-- [ ] Premium subscription flow
-- [ ] Performance optimization
-- [ ] Security audit
-- [ ] Load testing
+The backend health check: [`/actuator/health`](https://backend-rosy-cloud-4618.fly.dev/actuator/health)
 
 ---
 
-## 🧪 Testing Strategy
+## Docs
 
-### Frontend
-- **Unit Tests**: Vitest (component logic, stores, utilities)
-- **Integration Tests**: API client mocks, WebSocket mocks
-- **E2E Tests**: Playwright (critical user journeys)
+Most of these were written during the planning phase. Some still reference deferred multiplayer features — I've kept them because the design thinking is sound, even if the implementation isn't current.
 
-### Backend
-- **Unit Tests**: JUnit 5 (service layer, game engine)
-- **Integration Tests**: Spring Boot Test with TestContainers
-- **E2E Tests**: Full match flow (API + WebSocket)
-
-**Coverage Target**: > 80% for unit tests
-
----
-
-## 🔐 Security
-
-- ✅ HTTPS only in production
-- ✅ JWT authentication with HTTPOnly cookies
-- ✅ OAuth 2.0 social login (no password storage)
-- ✅ Rate limiting (API & WebSocket)
-- ✅ Input validation & SQL injection prevention
-- ✅ Server-side game state validation (anti-cheat)
-- 🔄 GDPR compliance considerations
+- **[Game Rules](docs/GAME_RULES.md)** — complete rules, scoring, bust logic, checkout range
+- **[Product Requirements](docs/PRD.md)** — original vision (note: multiplayer/freemium sections are parked)
+- **[Technical Design](docs/design/TECHNICAL_DESIGN.md)** — system architecture, database schema, API design
+- **[Backlog](docs/BACKLOG.md)** — living document of deferred work, stretch goals, and completed items
+- **[Autocomplete & Entity Architecture](docs/design/AUTOCOMPLETE_ENTITY_DESIGN.md)** — how the search-as-you-type player name input works
+- **[Difficulty Scoring](docs/design/DIFFICULTY_SCORING.md)** — the continuous 0–10 scoring formula for questions
+- **[API Integration](docs/api/API_INTEGRATION.md)** — how the ScraperFC Python service feeds data into the backend
+- **[Game Modes (Parked)](docs/design/GAME_MODES_STRETCH_GOALS.md)** — designs for Rapid Fire, Draft, and other modes, retained for reference
 
 ---
 
-## 📊 Performance Targets
+## License
 
-| Metric | Target |
-|--------|--------|
-| API Response Time (p95) | < 200ms |
-| WebSocket Message Latency | < 100ms |
-| PWA Load Time (3G) | < 3s |
-| Matchmaking Time | < 10s |
+MIT
 
 ---
 
-## 🌐 API Integration
-
-### API-Football
-
-**Provider**: [API-Football](https://www.api-football.com)
-**Version**: v3
-**Initial Tier**: Free (100 requests/day)
-
-### Caching Strategy
-
-- **Aggressive caching**: All match validation uses cached database
-- **Zero API calls** during gameplay
-- **Batch population**: Questions populated in advance
-- **Weekly updates**: Automated stats refresh for current season
-
-📖 **[Full API Integration Guide](docs/api/API_INTEGRATION.md)**
-
----
-
-## 🤝 Contributing
-
-🔄 **Contributing guidelines coming soon** (after MVP)
-
-For now, this is a **solo portfolio project**.
-
----
-
-## 📄 License
-
-🔄 **License TBD** (likely MIT)
-
----
-
-## 👤 Author
-
-**Paul**
-- Portfolio Project (2026)
-- Showcasing: Full-stack development, real-time systems, game design, system architecture
-
----
-
-## 🎓 Learning Goals
-
-This project demonstrates:
-
-1. ✅ **Product Design** - PRD, user stories, competitive analysis
-2. ✅ **System Architecture** - Microservices, WebSockets, caching strategies
-3. ✅ **Full-Stack Development** - Modern frontend (Svelte) + robust backend (Spring Boot)
-4. 🔄 **Real-Time Systems** - WebSocket communication, concurrency handling
-5. 🔄 **Database Design** - Relational modeling, indexing, query optimization
-6. 🔄 **API Integration** - Third-party APIs, rate limiting, error handling
-7. 🔄 **Authentication** - OAuth 2.0, JWT, session management
-8. 🔄 **DevOps** - CI/CD, Docker, cloud deployment
-9. 🔄 **Testing** - Unit, integration, E2E testing
-10. ✅ **Documentation** - Industry-standard technical writing
-
----
-
-## 📞 Contact
-
-🔄 **Contact information TBD**
-
----
-
-## 🗺️ Roadmap
-
-### MVP (Q1 2026) 🔄
-- Single-player daily challenge
-- Multiplayer quick match
-- Basic ranking system
-- 20-30 curated questions
-
-### Post-MVP (Q2 2026) 🔄
-- AI practice mode
-- Friend challenges (async)
-- Premium subscription
-- 100+ questions
-
-### Future (2026+) 🔄
-- Admin panel for question management
-- Tournament mode
-- Social sharing
-- Achievements system
-- Mobile app optimization
-- Community features
-
----
-
-## ⭐ Acknowledgments
-
-- **API Provider**: [API-Football](https://www.api-football.com) for football statistics
-- **Inspiration**: Wordle, Darts 501, football trivia games
-- **Framework**: [SvelteKit](https://kit.svelte.dev) & [Spring Boot](https://spring.io/projects/spring-boot)
-
----
-
-**Built with ⚽ and ☕**
-
-**Status**: 🔄 In Development | **Last Updated**: 2026-01-17
+Built by [Paul O'Neill](https://github.com/paul-anthony-oneill) — a portfolio project showing full-stack development, game design, system architecture, and the judgement to delete code that isn't pulling its weight.
