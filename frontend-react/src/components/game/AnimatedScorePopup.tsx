@@ -31,21 +31,28 @@ export default function AnimatedScorePopup({
 
   const target = scoreValue;
 
+  // ── Guards: prevent double-fire of onComplete and keep skip handler
+  //     reading the latest phase without depending on render closure.
+  const completedRef = useRef(false);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   // ── Skip: jump to the result immediately ─────────────────────────────────
-  // Uses a ref so the keydown listener (registered once) always has fresh phase.
   const skipRef = useRef<() => void>(() => {});
   skipRef.current = () => {
+    if (completedRef.current) return;
     if (frameRef.current !== null) {
       cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
     }
     setDisplay(target);
-    if (phase === "counting") {
+    if (phaseRef.current === "counting") {
       setPhase(result === "BUST" ? "flashing" : "showing");
-    } else if (phase === "flashing") {
+    } else if (phaseRef.current === "flashing") {
       setPhase("showing");
     } else {
       // "showing" or "invalid" — dismiss now
+      completedRef.current = true;
       onComplete();
     }
   };
@@ -105,11 +112,21 @@ export default function AnimatedScorePopup({
       return () => clearTimeout(t);
     }
     if (phase === "showing") {
-      const t = setTimeout(onComplete, 500);
+      const t = setTimeout(() => {
+        if (!completedRef.current) {
+          completedRef.current = true;
+          onComplete();
+        }
+      }, 500);
       return () => clearTimeout(t);
     }
     if (phase === "invalid") {
-      const t = setTimeout(onComplete, 1500);
+      const t = setTimeout(() => {
+        if (!completedRef.current) {
+          completedRef.current = true;
+          onComplete();
+        }
+      }, 1500);
       return () => clearTimeout(t);
     }
   }, [phase, onComplete]);
