@@ -127,7 +127,6 @@ class FreePlayControllerTest {
             .currentTurnPlayerId(playerId)
             .player1Score(501)
             .turnCount(0)
-            .turnTimerSeconds(45)
             .build();
     }
 
@@ -137,7 +136,7 @@ class FreePlayControllerTest {
             .gameId(g.getId()).matchId(m.getId()).questionId(q.getId())
             .questionText(q.getQuestionText()).currentScore(score)
             .turnCount(g.getTurnCount()).status(status).isWin(isWin)
-            .turnTimerSeconds(g.getTurnTimerSeconds()).entityType(EntityType.FOOTBALLER)
+            .entityType(EntityType.FOOTBALLER)
             .hints(STUB_HINTS).build();
     }
 
@@ -192,7 +191,7 @@ class FreePlayControllerTest {
         Game updatedGame = Game.builder()
             .id(gameId).matchId(matchId).gameNumber(1).questionId(questionId)
             .status(Game.GameStatus.IN_PROGRESS).currentTurnPlayerId(playerId)
-            .player1Score(465).turnCount(1).turnTimerSeconds(45)
+            .player1Score(465).turnCount(1)
             .build();
 
         List<UUID> usedAnswerIds = List.of();
@@ -267,7 +266,7 @@ class FreePlayControllerTest {
         Game completedGame = Game.builder()
             .id(gameId).matchId(matchId).gameNumber(1).questionId(questionId)
             .status(Game.GameStatus.COMPLETED).currentTurnPlayerId(playerId)
-            .player1Score(0).winnerId(playerId).turnCount(11).turnTimerSeconds(45)
+            .player1Score(0).winnerId(playerId).turnCount(11)
             .build();
 
         List<UUID> usedAnswerIds = List.of();

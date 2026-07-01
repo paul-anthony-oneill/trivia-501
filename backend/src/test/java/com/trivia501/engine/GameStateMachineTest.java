@@ -49,9 +49,7 @@ class GameStateMachineTest {
                 .status(Game.GameStatus.IN_PROGRESS)
                 .currentTurnPlayerId(player1Id)
                 .player1Score(501)
-                .playerConsecutiveTimeouts(0)
                 .turnCount(0)
-                .turnTimerSeconds(GameStateMachine.DEFAULT_TIMER)
                 .build();
     }
 
@@ -71,23 +69,6 @@ class GameStateMachineTest {
         assertThat(t.nextTurnPlayerId()).isEqualTo(player1Id); // same player in solo
         assertThat(t.nextGameStatus()).isEqualTo(Game.GameStatus.IN_PROGRESS);
         assertThat(t.winnerId()).isNull();
-        assertThat(t.nextTimerSeconds()).isEqualTo(GameStateMachine.DEFAULT_TIMER);
-        assertThat(t.playerConsecutiveTimeouts()).isEqualTo(0);
-    }
-
-    @Test
-    @DisplayName("VALID move with prior timeouts — resets consecutive timeout counter")
-    void validMove_shouldResetConsecutiveTimeoutsAndTimer() {
-        game.setPlayerConsecutiveTimeouts(2);
-        game.setTurnTimerSeconds(GameStateMachine.REDUCED_TIMER_2);
-
-        AnswerResult answer = AnswerResult.valid("Player", UUID.randomUUID(),
-                25, true, false, 476, false, null, 0.9);
-
-        GameTransition t = stateMachine.onMoveSubmitted(game, match, player1Id, answer);
-
-        assertThat(t.playerConsecutiveTimeouts()).isEqualTo(0);
-        assertThat(t.nextTimerSeconds()).isEqualTo(GameStateMachine.DEFAULT_TIMER);
     }
 
     // ── Move: INVALID ─────────────────────────────────────────────────────────
@@ -140,50 +121,4 @@ class GameStateMachineTest {
         assertThat(t.nextTurnPlayerId()).isNull();
     }
 
-    // ── Timeout ───────────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("First timeout — increments counter to 1, reduces timer to 30s")
-    void firstTimeout_reducesTimerTo30s() {
-        GameTransition t = stateMachine.onTimeout(game, match, player1Id);
-
-        assertThat(t.moveResult()).isEqualTo(GameMove.MoveResult.TIMEOUT);
-        assertThat(t.playerConsecutiveTimeouts()).isEqualTo(1);
-        assertThat(t.nextTimerSeconds()).isEqualTo(GameStateMachine.REDUCED_TIMER_1);
-        assertThat(t.nextTurnPlayerId()).isEqualTo(player1Id); // same player in solo
-        assertThat(t.nextGameStatus()).isEqualTo(Game.GameStatus.IN_PROGRESS);
-    }
-
-    @Test
-    @DisplayName("Second timeout — increments counter to 2, reduces timer to 15s")
-    void secondTimeout_reducesTimerTo15s() {
-        game.setPlayerConsecutiveTimeouts(1);
-        game.setTurnTimerSeconds(GameStateMachine.REDUCED_TIMER_1);
-
-        GameTransition t = stateMachine.onTimeout(game, match, player1Id);
-
-        assertThat(t.playerConsecutiveTimeouts()).isEqualTo(2);
-        assertThat(t.nextTimerSeconds()).isEqualTo(GameStateMachine.REDUCED_TIMER_2);
-    }
-
-    @Test
-    @DisplayName("Third timeout — bust-out, no winner (solo)")
-    void thirdTimeout_bustOut_noWinner() {
-        game.setPlayerConsecutiveTimeouts(2);
-
-        GameTransition t = stateMachine.onTimeout(game, match, player1Id);
-
-        assertThat(t.playerConsecutiveTimeouts()).isEqualTo(3);
-        assertThat(t.nextGameStatus()).isEqualTo(Game.GameStatus.COMPLETED);
-        assertThat(t.winnerId()).isNull(); // solo bust-out
-        assertThat(t.nextTurnPlayerId()).isNull();
-    }
-
-    @Test
-    @DisplayName("Timeout — keeps same player (solo, no opponent)")
-    void timeout_keepsCurrentPlayer() {
-        GameTransition t = stateMachine.onTimeout(game, match, player1Id);
-
-        assertThat(t.nextTurnPlayerId()).isEqualTo(player1Id);
-    }
 }

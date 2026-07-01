@@ -46,6 +46,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Test results (auto-generated)
+backend/test-results/
+
 # OS specific
 .DS_Store
 Thumbs.db
@@ -126,3 +129,16 @@ docs/ponytail-audit-*.md
 CONTEXT.md
 logs.md
 test-data.sql
+
+# Codex (machine-specific config)
+.codex/
+
+# GitHub hooks & skills (machine-specific)
+.github/hooks/
+.github/skills/
+
+# Plan files (auto-generated during plan mode)
+docs/plan/
+
+# Root-level lockfile (project is in frontend-react/)
+package-lock.json

@@ -19,12 +19,10 @@ import java.util.UUID;
  *
  * <h3>State machine rules (solo)</h3>
  * <ul>
- *   <li><b>INVALID</b>  — same player retries; nothing changes (timer keeps running)</li>
+ *   <li><b>INVALID</b>  — same player retries; nothing changes</li>
  *   <li><b>BUST</b>     — no score change; same player retries</li>
- *   <li><b>VALID</b>    — score deducted; timeout counter resets; same player continues</li>
+ *   <li><b>VALID</b>    — score deducted; same player continues</li>
  *   <li><b>CHECKOUT</b> — immediate win</li>
- *   <li><b>TIMEOUT</b>  — increments consecutive counter; reduces timer;
- *                         forfeits as bust-out (no winner) at threshold</li>
  * </ul>
  *
  * <p>Multiplayer rules (close-finish, turn alternation, opponent forfeit) are
@@ -35,18 +33,6 @@ import java.util.UUID;
 @Component
 @Slf4j
 public class GameStateMachine {
-
-    /** Default turn timer in seconds. */
-    public static final int DEFAULT_TIMER = 45;
-
-    /** Timer after the 1st consecutive timeout. */
-    public static final int REDUCED_TIMER_1 = 30;
-
-    /** Timer after the 2nd consecutive timeout. */
-    public static final int REDUCED_TIMER_2 = 15;
-
-    /** Number of consecutive timeouts before the player forfeits. */
-    public static final int FORFEIT_TIMEOUT_THRESHOLD = 3;
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -74,27 +60,22 @@ public class GameStateMachine {
         UUID nextTurnPlayerId     = game.getCurrentTurnPlayerId();
         Game.GameStatus nextStatus = game.getStatus();
         UUID winnerId              = game.getWinnerId();
-        int nextTimer              = game.getTurnTimerSeconds();
-        int p1Timeouts             = game.getPlayerConsecutiveTimeouts();
 
         if (moveResult == GameMove.MoveResult.INVALID) {
             return new GameTransition(moveResult, scoreAfter, turnAdvanced, nextTurnPlayerId,
-                    nextStatus, winnerId, nextTimer, p1Timeouts);
+                    nextStatus, winnerId);
         }
 
         if (moveResult == GameMove.MoveResult.CHECKOUT) {
             log.info("Solo checkout: player {} wins", playerId);
             return new GameTransition(
                     GameMove.MoveResult.CHECKOUT, answerResult.getNewTotal(), false, null,
-                    Game.GameStatus.COMPLETED, playerId,
-                    DEFAULT_TIMER, 0);
+                    Game.GameStatus.COMPLETED, playerId);
         }
 
         // ── VALID or BUST ─────────────────────────────────────────────────
         if (moveResult == GameMove.MoveResult.VALID) {
             scoreAfter = answerResult.getNewTotal();
-            p1Timeouts = 0;
-            nextTimer = DEFAULT_TIMER;
         }
         // For BUST: scoreAfter stays = currentScore (no score change)
 
@@ -102,42 +83,7 @@ public class GameStateMachine {
         // Solo mode: same player always continues
 
         return new GameTransition(moveResult, scoreAfter, turnAdvanced, nextTurnPlayerId,
-                nextStatus, winnerId, nextTimer, p1Timeouts);
-    }
-
-    /**
-     * Process a timeout event and compute the resulting {@link GameTransition}.
-     *
-     * @param game     current game entity
-     * @param match    current match entity
-     * @param playerId the player who timed out
-     * @return an immutable transition descriptor; never {@code null}
-     */
-    public GameTransition onTimeout(Game game, Match match, UUID playerId) {
-        int currentScore = getPlayerScore(game, match, playerId);
-        int p1Timeouts = game.getPlayerConsecutiveTimeouts() + 1;
-
-        // Forfeit threshold reached — solo bust-out, no winner
-        if (p1Timeouts >= FORFEIT_TIMEOUT_THRESHOLD) {
-            log.warn("Player {} busted out after {} consecutive timeouts", playerId, p1Timeouts);
-            return new GameTransition(
-                    GameMove.MoveResult.TIMEOUT, currentScore, true, null,
-                    Game.GameStatus.COMPLETED, null,
-                    game.getTurnTimerSeconds(),
-                    p1Timeouts
-            );
-        }
-
-        // Reduce timer based on accumulated consecutive timeouts
-        int nextTimer = game.getTurnTimerSeconds();
-        if (p1Timeouts == 1)      nextTimer = REDUCED_TIMER_1;
-        else if (p1Timeouts == 2) nextTimer = REDUCED_TIMER_2;
-
-        return new GameTransition(
-                GameMove.MoveResult.TIMEOUT, currentScore, true, playerId,
-                game.getStatus(), game.getWinnerId(),
-                nextTimer, p1Timeouts
-        );
+                nextStatus, winnerId);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

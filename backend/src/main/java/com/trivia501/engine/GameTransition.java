@@ -21,14 +21,12 @@ import java.util.UUID;
  *   <li>{@code winnerId} is {@code null} while the game is still in progress.</li>
  * </ul>
  *
- * @param moveResult                classification of the move (VALID, BUST, INVALID, CHECKOUT, TIMEOUT)
+ * @param moveResult                classification of the move (VALID, BUST, INVALID, CHECKOUT)
  * @param scoreAfter                the active player's score after this transition
  * @param turnAdvanced              {@code true} if the turn counter should increment
  * @param nextTurnPlayerId          who plays next; {@code null} when the game is over
  * @param nextGameStatus            the game status to persist
  * @param winnerId                  set when the game concludes; {@code null} otherwise
- * @param nextTimerSeconds          timer duration (seconds) for the next turn
- * @param playerConsecutiveTimeouts updated timeout count for Player 1
  */
 public record GameTransition(
         GameMove.MoveResult moveResult,
@@ -36,7 +34,5 @@ public record GameTransition(
         boolean turnAdvanced,
         UUID nextTurnPlayerId,
         Game.GameStatus nextGameStatus,
-        UUID winnerId,
-        int nextTimerSeconds,
-        int playerConsecutiveTimeouts
+        UUID winnerId
 ) {}

@@ -71,7 +71,6 @@ public class GameResponseAssembler {
                 .turnCount(game.getTurnCount())
                 .status(game.getStatus().name())
                 .isWin(isWin)
-                .turnTimerSeconds(game.getTurnTimerSeconds())
                 .entityType(entityType)
                 .hints(hints)
                 .moves(moveDtos)
