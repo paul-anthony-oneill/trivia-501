@@ -106,8 +106,7 @@ class FreePlayIntegrationTest extends BaseTest {
             .andExpect(jsonPath("$.gameId").isNotEmpty())
             .andExpect(jsonPath("$.currentScore").value(501))
             .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-            .andExpect(jsonPath("$.questionText").isNotEmpty())
-            .andExpect(jsonPath("$.turnTimerSeconds").value(45));
+            .andExpect(jsonPath("$.questionText").isNotEmpty());
     }
 
     @Test

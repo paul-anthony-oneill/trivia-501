@@ -36,7 +36,6 @@ export interface GameStateResponse {
   turnCount: number;
   status: "IN_PROGRESS" | "COMPLETED";
   isWin?: boolean;
-  turnTimerSeconds?: number;
   entityType?: string;
   hints?: GameHints;
   moves?: Move[];

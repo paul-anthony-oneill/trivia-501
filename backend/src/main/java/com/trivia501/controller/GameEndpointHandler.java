@@ -167,7 +167,6 @@ public class GameEndpointHandler {
                     case BUST -> DailyChallengeShareResponse.MoveEmoji.BUST;
                     case INVALID -> DailyChallengeShareResponse.MoveEmoji.INVALID;
                     case CHECKOUT -> DailyChallengeShareResponse.MoveEmoji.CHECKOUT;
-                    case TIMEOUT -> DailyChallengeShareResponse.MoveEmoji.INVALID;
                 })
                 .toList();
 

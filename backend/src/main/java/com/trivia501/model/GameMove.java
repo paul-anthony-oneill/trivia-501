@@ -60,10 +60,6 @@ public class GameMove {
     @Column(name = "score_after", nullable = false)
     private Integer scoreAfter;
 
-    @Column(name = "is_timeout")
-    @Builder.Default
-    private Boolean isTimeout = false;
-
     @Column(name = "time_taken_seconds")
     private Integer timeTakenSeconds;
 
@@ -75,7 +71,6 @@ public class GameMove {
         VALID,          // Valid answer, score deducted
         BUST,           // Invalid darts score or would take below -10
         INVALID,        // Answer not found or already used
-        TIMEOUT,        // Player timed out
         CHECKOUT        // Player reached exact 0 or within -10 to 0
     }
 
@@ -87,11 +82,10 @@ public class GameMove {
     }
 
     /**
-     * Check if this move was unsuccessful (bust, invalid, or timeout).
+     * Check if this move was unsuccessful (bust or invalid).
      */
     public boolean isUnsuccessfulMove() {
         return result == MoveResult.BUST
-            || result == MoveResult.INVALID
-            || result == MoveResult.TIMEOUT;
+            || result == MoveResult.INVALID;
     }
 }

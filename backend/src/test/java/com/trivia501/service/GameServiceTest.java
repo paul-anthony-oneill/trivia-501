@@ -97,9 +97,7 @@ class GameServiceTest {
             .status(Game.GameStatus.IN_PROGRESS)
             .currentTurnPlayerId(player1Id)
             .player1Score(501)
-            .playerConsecutiveTimeouts(0)
             .turnCount(0)
-            .turnTimerSeconds(45)
             .build();
     }
 
@@ -134,7 +132,6 @@ class GameServiceTest {
         assertThat(savedGame.getPlayer1Score()).isEqualTo(465);
         assertThat(savedGame.getCurrentTurnPlayerId()).isEqualTo(player1Id); // Same player in solo
         assertThat(savedGame.getTurnCount()).isEqualTo(1);
-        assertThat(savedGame.getPlayerConsecutiveTimeouts()).isEqualTo(0);
 
         verify(gameMoveRepository).save(any(GameMove.class));
     }
@@ -225,116 +222,6 @@ class GameServiceTest {
         assertThat(savedGame.getPlayer1Score()).isEqualTo(0);
 
         verify(eventPublisher).publishEvent(any(Object.class));
-    }
-
-    @Test
-    @DisplayName("Should track consecutive timeouts for player")
-    void shouldTrackConsecutiveTimeouts() {
-        game.setPlayerConsecutiveTimeouts(1);
-
-        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
-        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
-
-        gameService.handleTimeout(gameId, player1Id);
-
-        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
-        verify(gameRepository).save(gameCaptor.capture());
-        Game savedGame = gameCaptor.getValue();
-
-        assertThat(savedGame.getPlayerConsecutiveTimeouts()).isEqualTo(2);
-        assertThat(savedGame.getCurrentTurnPlayerId()).isEqualTo(player1Id); // Same player in solo
-
-        ArgumentCaptor<GameMove> moveCaptor = ArgumentCaptor.forClass(GameMove.class);
-        verify(gameMoveRepository).save(moveCaptor.capture());
-        GameMove move = moveCaptor.getValue();
-
-        assertThat(move.getResult()).isEqualTo(GameMove.MoveResult.TIMEOUT);
-        assertThat(move.getIsTimeout()).isTrue();
-    }
-
-    @Test
-    @DisplayName("Should reduce timer to 30s after 1st consecutive timeout")
-    void shouldReduceTimerTo30sAfterFirstTimeout() {
-        game.setPlayerConsecutiveTimeouts(0);
-        game.setTurnTimerSeconds(45);
-
-        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
-        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
-
-        gameService.handleTimeout(gameId, player1Id);
-
-        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
-        verify(gameRepository).save(gameCaptor.capture());
-        Game savedGame = gameCaptor.getValue();
-
-        assertThat(savedGame.getPlayerConsecutiveTimeouts()).isEqualTo(1);
-        assertThat(savedGame.getTurnTimerSeconds()).isEqualTo(30);
-    }
-
-    @Test
-    @DisplayName("Should reduce timer to 15s after 2nd consecutive timeout")
-    void shouldReduceTimerTo15sAfterSecondTimeout() {
-        game.setPlayerConsecutiveTimeouts(1);
-        game.setTurnTimerSeconds(30);
-
-        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
-        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
-
-        gameService.handleTimeout(gameId, player1Id);
-
-        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
-        verify(gameRepository).save(gameCaptor.capture());
-        Game savedGame = gameCaptor.getValue();
-
-        assertThat(savedGame.getPlayerConsecutiveTimeouts()).isEqualTo(2);
-        assertThat(savedGame.getTurnTimerSeconds()).isEqualTo(15);
-    }
-
-    @Test
-    @DisplayName("Should reset consecutive timeouts on successful move")
-    void shouldResetConsecutiveTimeoutsOnSuccess() {
-        game.setPlayerConsecutiveTimeouts(2);
-        game.setTurnTimerSeconds(30);
-
-        String playerAnswer = "Valid Player";
-        UUID answerId = UUID.randomUUID();
-
-        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
-        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
-        when(gameMoveRepository.findUsedAnswerIdsByGameId(gameId)).thenReturn(List.of());
-
-        AnswerResult answerResult = AnswerResult.valid(
-            "Valid Player", answerId, 25, true, false, 476, false, null, 0.95);
-        when(answerEvaluator.evaluateAnswer(any(), any(), isNull(), anyInt(), anyList()))
-            .thenReturn(answerResult);
-
-        gameService.processPlayerMove(gameId, player1Id, playerAnswer, null);
-
-        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
-        verify(gameRepository).save(gameCaptor.capture());
-        Game savedGame = gameCaptor.getValue();
-
-        assertThat(savedGame.getPlayerConsecutiveTimeouts()).isEqualTo(0);
-        assertThat(savedGame.getTurnTimerSeconds()).isEqualTo(45);
-    }
-
-    @Test
-    @DisplayName("Should forfeit as bust-out after 3 consecutive timeouts")
-    void shouldForfeitAfterThreeConsecutiveTimeouts() {
-        game.setPlayerConsecutiveTimeouts(2);
-
-        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
-        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
-
-        gameService.handleTimeout(gameId, player1Id);
-
-        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
-        verify(gameRepository).save(gameCaptor.capture());
-        Game savedGame = gameCaptor.getValue();
-
-        assertThat(savedGame.getPlayerConsecutiveTimeouts()).isEqualTo(3);
-        assertThat(savedGame.getStatus()).isEqualTo(Game.GameStatus.COMPLETED);
-        assertThat(savedGame.getWinnerId()).isNull(); // Solo bust-out
     }
 
     @Test

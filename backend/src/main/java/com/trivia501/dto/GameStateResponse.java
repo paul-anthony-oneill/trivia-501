@@ -58,11 +58,6 @@ public class GameStateResponse {
     private Boolean isWin;
 
     /**
-     * Turn timer in seconds.
-     */
-    private Integer turnTimerSeconds;
-
-    /**
      * Entity type that scopes the autocomplete dropdown for this question
      * (e.g. "footballer", "city", "country").  Sourced from the question's
      * {@code config.entity_type} JSONB field.  Defaults to "footballer" if

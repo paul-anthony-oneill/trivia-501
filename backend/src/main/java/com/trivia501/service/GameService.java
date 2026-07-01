@@ -146,46 +146,6 @@ public class GameService {
     }
 
     /**
-     * Handle a player timeout.
-     *
-     * @param gameId   the game UUID
-     * @param playerId the player who timed out
-     * @throws IllegalStateException if the game is not in progress
-     */
-    @Transactional
-    public void handleTimeout(UUID gameId, UUID playerId) {
-        log.debug("Handling timeout for game {} by player {}", gameId, playerId);
-
-        Game game   = getGameOrThrow(gameId);
-        Match match = getMatchOrThrow(game.getMatchId());
-
-        validateGameInProgress(game);
-
-        int currentScore = game.getPlayer1Score();
-        GameTransition transition = gameStateMachine.onTimeout(game, match, playerId);
-
-        GameMove timeoutMove = GameMove.builder()
-                .gameId(gameId)
-                .playerId(playerId)
-                .moveNumber(game.getTurnCount() + 1)
-                .submittedAnswer("")
-                .result(GameMove.MoveResult.TIMEOUT)
-                .scoreBefore(currentScore)
-                .scoreAfter(currentScore)
-                .isTimeout(true)
-                .build();
-        gameMoveRepository.save(timeoutMove);
-
-        applyTransition(game, match, playerId, transition);
-        gameRepository.save(game);
-
-        if (transition.nextGameStatus() == Game.GameStatus.COMPLETED) {
-            eventPublisher.publishEvent(new GameCompletedEvent(
-                    game.getId(), game.getMatchId(), game.getWinnerId(), false));
-        }
-    }
-
-    /**
      * Abandon an in-progress game and its parent match.
      *
      * <p>Safe to call when the game is already completed or abandoned — it
@@ -235,9 +195,7 @@ public class GameService {
                 .status(Game.GameStatus.IN_PROGRESS)
                 .currentTurnPlayerId(match.getPlayer1Id()) // Player 1 always goes first
                 .player1Score(startingScore)
-                .playerConsecutiveTimeouts(0)
                 .turnCount(0)
-                .turnTimerSeconds(GameStateMachine.DEFAULT_TIMER)
                 .build();
 
         return gameRepository.save(game);
@@ -374,10 +332,6 @@ public class GameService {
         if (t.turnAdvanced()) {
             game.setTurnCount(game.getTurnCount() + 1);
         }
-
-        // Update timer and consecutive-timeout counters
-        game.setTurnTimerSeconds(t.nextTimerSeconds());
-        game.setPlayerConsecutiveTimeouts(t.playerConsecutiveTimeouts());
     }
 
     /** Build a {@link GameMove} from a transition result. */
@@ -401,7 +355,6 @@ public class GameService {
                 .scoreValue(answerResult.getScore())
                 .scoreBefore(scoreBefore)
                 .scoreAfter(transition.scoreAfter())
-                .isTimeout(false)
                 .build();
     }
 

@@ -51,20 +51,12 @@ public class Game {
     @Builder.Default
     private Integer player1Score = 501;
 
-    @Column(name = "player1_consecutive_timeouts")
-    @Builder.Default
-    private Integer playerConsecutiveTimeouts = 0;
-
     @Column(name = "winner_id")
     private UUID winnerId;
 
     @Column(name = "turn_count")
     @Builder.Default
     private Integer turnCount = 0;
-
-    @Column(name = "turn_timer_seconds")
-    @Builder.Default
-    private Integer turnTimerSeconds = 45;
 
     @Column(name = "started_at")
     private LocalDateTime startedAt;
