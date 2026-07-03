@@ -80,8 +80,10 @@ public class ResultSignerClient {
             }
 
             // Serialise the token object to a compact JSON string for storage.
-            String tokenJson = String.format("{\"payload\":\"%s\",\"sig\":\"%s\"}",
-                    response.token().payload(), response.token().sig());
+            // Use Jackson to avoid corrupt JSON from quote/backslash in payload or sig.
+            String tokenJson = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .writeValueAsString(new SignedToken(
+                            response.token().payload(), response.token().sig()));
             return Optional.of(tokenJson);
 
         } catch (Exception e) {
@@ -108,4 +110,7 @@ public class ResultSignerClient {
             @JsonProperty("payload") String payload,
             @JsonProperty("sig") String sig
     ) {}
+
+    /** Wire format for the stored token JSON. */
+    private record SignedToken(String payload, String sig) {}
 }

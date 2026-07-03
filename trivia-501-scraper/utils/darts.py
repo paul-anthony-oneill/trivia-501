@@ -8,7 +8,7 @@ def is_valid_darts_score(score: int) -> bool:
     Max score is 180 (T20 * 3).
     Impossible scores: 163, 166, 169, 172, 173, 175, 176, 178, 179.
     """
-    if score < 0 or score > 180:
+    if score < 1 or score > 180:
         return False
 
     # Known impossible scores for 3 darts
