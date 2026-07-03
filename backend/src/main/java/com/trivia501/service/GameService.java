@@ -130,9 +130,7 @@ public class GameService {
             playerProfileService.recordGameCompleted(playerId, transition.scoreAfter(), true);
 
             // Sign the result for verifiable share links. Failure is non-fatal.
-            resultSignerClient.sign(gameId, playerId, transition.scoreAfter(), game.getCompletedAt() != null
-                    ? game.getCompletedAt()
-                    : java.time.LocalDateTime.now())
+            resultSignerClient.sign(gameId, playerId, transition.scoreAfter(), game.getCompletedAt())
                     .ifPresent(token -> {
                         game.setResultToken(token);
                         gameRepository.save(game);
@@ -343,6 +341,14 @@ public class GameService {
         game.setStatus(t.nextGameStatus());
         if (t.winnerId() != null) {
             game.setWinnerId(t.winnerId());
+        }
+
+        // Stamp completed_at when the game ends (CHECKOUT or bust-out).
+        // The bust-out path in processPlayerMove also sets this, but the
+        // CHECKOUT path only passes through here — and completedAt must not
+        // be null for downstream consumers (signer, stats, share data).
+        if (t.nextGameStatus() == Game.GameStatus.COMPLETED && game.getCompletedAt() == null) {
+            game.setCompletedAt(java.time.LocalDateTime.now());
         }
 
         // Update whose turn it is
