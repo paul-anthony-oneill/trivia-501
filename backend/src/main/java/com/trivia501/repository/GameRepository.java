@@ -126,6 +126,23 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
     List<Game> findActiveGamesByPlayerId(@Param("playerId") UUID playerId);
 
     /**
+     * Find in-progress games for a player that are safe to abandon when starting
+     * a new game. Excludes today's daily-challenge games so starting a new daily
+     * or free-play game doesn't wipe another category's daily progress.
+     */
+    @Query("""
+        SELECT g FROM Game g
+        JOIN Match m ON g.matchId = m.id
+        WHERE m.player1Id = :playerId
+          AND g.status = 'IN_PROGRESS'
+          AND NOT (m.type = 'DAILY_CHALLENGE' AND g.createdAt >= :startOfToday)
+        """)
+    List<Game> findAbandonableGamesByPlayerId(
+        @Param("playerId") UUID playerId,
+        @Param("startOfToday") LocalDateTime startOfToday
+    );
+
+    /**
      * Find a daily challenge game for a player in a specific category with the given status,
      * created on or after startOfDay and before endOfDay. Used to enforce the
      * one-attempt-per-day rule and to resume in-progress daily games.
