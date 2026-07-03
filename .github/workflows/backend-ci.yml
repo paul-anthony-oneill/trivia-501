@@ -49,3 +49,22 @@ jobs:
         working-directory: backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  # Flyway migration validation — catches version collisions (e.g. two V46 scripts)
+  # before they prevent boot in production. A filename check is enough: Flyway
+  # keys on the V<n> prefix, so a duplicate prefix across the .sql and Java
+  # migrations is the only collision that blocks startup.
+  flyway-check:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for duplicate migration versions
+        run: |
+          dups=$(find backend/src/main -name 'V*__*' -exec basename {} \; \
+            | grep -oE '^V[0-9]+' | sort | uniq -d)
+          if [ -n "$dups" ]; then
+            echo "Duplicate Flyway migration versions: $dups"; exit 1
+          fi
+          echo "No duplicate migration versions."

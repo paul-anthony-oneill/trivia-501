@@ -141,14 +141,16 @@ public class GameService {
                     });
         }
 
+        // The just-consumed answer must also be excluded from bust-out and hint
+        // computations. usedAnswerIds is the pre-move (already-used) list.
+        List<UUID> postMoveUsedIds = usedAnswerIds;
+        if (answerResult.getAnswerId() != null) {
+            postMoveUsedIds = new java.util.ArrayList<>(usedAnswerIds);
+            postMoveUsedIds.add(answerResult.getAnswerId());
+        }
+
         // ── Bust-out detection: game over if no playable moves remain ────────
         if (game.getStatus() == Game.GameStatus.IN_PROGRESS) {
-            List<UUID> postMoveUsedIds = usedAnswerIds;
-            if (answerResult.getAnswerId() != null) {
-                postMoveUsedIds = new java.util.ArrayList<>(usedAnswerIds);
-                postMoveUsedIds.add(answerResult.getAnswerId());
-            }
-
             int viableMaxScore = game.getPlayer1Score() + 10; // scores ≤ this won't bust below -10
             if (!answerRepository.hasViableMove(game.getQuestionId(), viableMaxScore, postMoveUsedIds)) {
                 log.info("Bust-out: no playable moves remain for game {} at score {}",
@@ -169,19 +171,10 @@ public class GameService {
             gameHintsService.evictScoreCache(game.getQuestionId());
         }
 
-        // Build the post-move used-answer list for accurate hint computation.
-        // usedAnswerIds is the pre-move list; the just-consumed answer should
-        // also be excluded from checkout/max-score counts.
-        List<UUID> hintExcludeIds = usedAnswerIds;
-        if (answerResult.getAnswerId() != null) {
-            hintExcludeIds = new java.util.ArrayList<>(usedAnswerIds);
-            hintExcludeIds.add(answerResult.getAnswerId());
-        }
-
         log.debug("Move processed: result={}, score {}→{}",
                 transition.moveResult(), currentScore, transition.scoreAfter());
 
-        return new MoveRecord(move, game, match, hintExcludeIds, answerResult.getReason());
+        return new MoveRecord(move, game, match, postMoveUsedIds, answerResult.getReason());
     }
 
     /**

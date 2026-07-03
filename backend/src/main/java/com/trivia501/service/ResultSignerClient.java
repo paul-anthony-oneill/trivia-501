@@ -1,6 +1,7 @@
 package com.trivia501.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -35,13 +36,16 @@ public class ResultSignerClient {
     private final RestClient restClient;
     private final String signerUrl;
     private final String internalSecret;
+    private final ObjectMapper objectMapper;
 
     public ResultSignerClient(
             @Value("${result-signer.url:}") String signerUrl,
-            @Value("${result-signer.secret:}") String internalSecret
+            @Value("${result-signer.secret:}") String internalSecret,
+            ObjectMapper objectMapper
     ) {
         this.signerUrl = signerUrl;
         this.internalSecret = internalSecret;
+        this.objectMapper = objectMapper;
         var factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
         factory.setReadTimeout(Duration.ofSeconds(5));
@@ -80,11 +84,8 @@ public class ResultSignerClient {
             }
 
             // Serialise the token object to a compact JSON string for storage.
-            // Use Jackson to avoid corrupt JSON from quote/backslash in payload or sig.
-            String tokenJson = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .writeValueAsString(new SignedToken(
-                            response.token().payload(), response.token().sig()));
-            return Optional.of(tokenJson);
+            // Jackson escapes any quote/backslash in payload or sig for us.
+            return Optional.of(objectMapper.writeValueAsString(response.token()));
 
         } catch (Exception e) {
             // Signing failure must never break a checkout — log and continue.
@@ -110,7 +111,4 @@ public class ResultSignerClient {
             @JsonProperty("payload") String payload,
             @JsonProperty("sig") String sig
     ) {}
-
-    /** Wire format for the stored token JSON. */
-    private record SignedToken(String payload, String sig) {}
 }

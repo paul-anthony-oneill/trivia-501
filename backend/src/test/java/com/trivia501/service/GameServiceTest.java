@@ -384,4 +384,87 @@ class GameServiceTest {
         )
             .isInstanceOf(IllegalArgumentException.class);
     }
+
+    // ── Multi-move / resume-flow tests ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("Should process two valid moves in sequence with correct score chain")
+    void shouldProcessMultipleMovesInSequence() {
+        UUID firstAnswerId = UUID.randomUUID();
+        UUID secondAnswerId = UUID.randomUUID();
+
+        // Stub: first move
+        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
+        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
+        when(gameMoveRepository.findUsedAnswerIdsByGameId(gameId))
+            .thenReturn(List.of())  // move 1: no prior answers
+            .thenReturn(List.of(firstAnswerId));  // move 2: first answer was used
+
+        when(answerEvaluator.evaluateAnswer(eq(questionId), eq("Haaland"), isNull(), eq(501), eq(List.of())))
+            .thenReturn(AnswerResult.valid("Erling Haaland", firstAnswerId, 36,
+                true, false, 465, false, null, 0.95));
+
+        when(answerEvaluator.evaluateAnswer(eq(questionId), eq("De Bruyne"), isNull(), eq(465), eq(List.of(firstAnswerId))))
+            .thenReturn(AnswerResult.valid("Kevin De Bruyne", secondAnswerId, 25,
+                true, false, 440, false, null, 0.92));
+
+        // The game entity is mutated by processPlayerMove, so we need to let the save capture the state
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Move 1
+        GameService.MoveRecord record1 = gameService.processPlayerMove(gameId, player1Id, "Haaland", null);
+        assertThat(record1.move().getResult()).isEqualTo(GameMove.MoveResult.VALID);
+        assertThat(record1.move().getScoreBefore()).isEqualTo(501);
+        assertThat(record1.move().getScoreAfter()).isEqualTo(465);
+
+        // Move 2 — score should chain from move 1's result (465, not 501)
+        GameService.MoveRecord record2 = gameService.processPlayerMove(gameId, player1Id, "De Bruyne", null);
+        assertThat(record2.move().getResult()).isEqualTo(GameMove.MoveResult.VALID);
+        assertThat(record2.move().getScoreBefore()).isEqualTo(465);
+        assertThat(record2.move().getScoreAfter()).isEqualTo(440);
+
+        // Verify game was saved twice with progressive scores.
+        // (Both captures point to the same mutated Game object, so getValue() = final state 440.
+        //  We verify the score chain via the move records above; here we confirm save count + final state.)
+        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
+        verify(gameRepository, times(2)).save(gameCaptor.capture());
+        List<Game> savedGames = gameCaptor.getAllValues();
+        assertThat(savedGames).hasSize(2);
+        assertThat(savedGames.get(1).getPlayer1Score()).isEqualTo(440);
+        assertThat(savedGames.get(1).getTurnCount()).isEqualTo(2);
+
+        // Both moves saved
+        verify(gameMoveRepository, times(2)).save(any(GameMove.class));
+    }
+
+    @Test
+    @DisplayName("Should resume existing in-progress game state correctly")
+    void shouldResumeGameWithPreservedState() {
+        // Simulate a game that already has one move (score 501→465)
+        game.setPlayer1Score(465);
+        game.setTurnCount(1);
+        UUID priorAnswerId = UUID.randomUUID();
+
+        when(gameRepository.findById(gameId)).thenReturn(Optional.of(game));
+        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
+        when(gameMoveRepository.findUsedAnswerIdsByGameId(gameId))
+            .thenReturn(List.of(priorAnswerId));
+
+        // The answer evaluator should receive the current score (465), not the default (501)
+        UUID answerId = UUID.randomUUID();
+        when(answerEvaluator.evaluateAnswer(eq(questionId), eq("Salah"), isNull(), eq(465), eq(List.of(priorAnswerId))))
+            .thenReturn(AnswerResult.valid("Mohamed Salah", answerId, 30,
+                true, false, 435, false, null, 0.93));
+
+        GameService.MoveRecord record = gameService.processPlayerMove(gameId, player1Id, "Salah", null);
+
+        assertThat(record.move().getResult()).isEqualTo(GameMove.MoveResult.VALID);
+        assertThat(record.move().getScoreBefore()).isEqualTo(465);
+        assertThat(record.move().getScoreAfter()).isEqualTo(435);
+
+        ArgumentCaptor<Game> gameCaptor = ArgumentCaptor.forClass(Game.class);
+        verify(gameRepository).save(gameCaptor.capture());
+        assertThat(gameCaptor.getValue().getPlayer1Score()).isEqualTo(435);
+        assertThat(gameCaptor.getValue().getTurnCount()).isEqualTo(2);
+    }
 }

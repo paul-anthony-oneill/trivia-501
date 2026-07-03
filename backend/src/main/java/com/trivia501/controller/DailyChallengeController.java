@@ -192,9 +192,7 @@ public class DailyChallengeController {
 
         assembler.loadScoreCache(question.getId());
 
-        List<GameMove> moves = game.getTurnCount() > 0
-                ? gameService.getMovesForGame(game.getId())
-                : List.of();
+        List<GameMove> moves = gameService.getMovesForGame(game.getId());
 
         log.info("Daily challenge game started: gameId={}, playerId={}, category={}, startingScore={}",
                 game.getId(), playerId, categorySlug, startRecord.challenge().getStartingScore());
