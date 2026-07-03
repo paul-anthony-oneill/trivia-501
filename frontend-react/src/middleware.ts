@@ -31,7 +31,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  // Only run on admin routes — the middleware's sole purpose is to block
+  // unauthenticated/non-admin users from the admin UI. Narrowing the matcher
+  // removes a Supabase auth round-trip from every game page load and /api call.
+  matcher: "/admin/:path*",
 };

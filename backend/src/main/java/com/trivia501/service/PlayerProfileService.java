@@ -87,7 +87,10 @@ public class PlayerProfileService {
             profile.setGamesPlayed(profile.getGamesPlayed() + 1);
             if (isWin) profile.setGamesWon(profile.getGamesWon() + 1);
             profile.setTotalScore(profile.getTotalScore() + finalScore);
-            if (profile.getBestScore() == null || finalScore < profile.getBestScore()) {
+            // "Best" = closest to zero. abs(0) < abs(-10), so a perfect checkout
+            // edges out a -10 finish; abs(3) < abs(-5), so 3 beats 5, etc.
+            if (profile.getBestScore() == null
+                    || Math.abs(finalScore) < Math.abs(profile.getBestScore())) {
                 profile.setBestScore(finalScore);
             }
             profile.setLastActiveAt(LocalDateTime.now());

@@ -17,15 +17,16 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Development-mode authentication filter.
+ * Development-mode authentication filter — installed by {@link SecurityConfig}
+ * on every non-production profile ({@code !prod}). Injects a fixed
+ * {@value #DEV_PLAYER_ID} principal with ROLE_USER + ROLE_ADMIN so local
+ * dev and CI work without a real Supabase JWT.
  *
- * @deprecated Replaced by {@link OptionalJwtFilter} which provides hybrid
- *             JWT + anonymous authentication on every profile with no
- *             dev/prod split.  Kept on disk as reference documentation
- *             and for the {@link #DEV_PLAYER_ID} constant still referenced
- *             by older test classes.
+ * <p>On the production profile {@link OptionalJwtFilter} handles both JWT
+ * and anonymous-cookie authentication instead. There IS a dev/prod split —
+ * this filter runs on !prod, OptionalJwtFilter runs on prod. The two filters
+ * are mutually exclusive in a given deployment.
  */
-@Deprecated
 @Slf4j
 public class DevModeAuthFilter extends OncePerRequestFilter {
 

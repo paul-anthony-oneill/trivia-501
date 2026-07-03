@@ -125,6 +125,12 @@ public class GameEndpointHandler {
         Match match = matchService.getMatchById(game.getMatchId())
                 .orElseThrow(() -> new IllegalStateException("Match not found"));
 
+        // Only the player in the match can read game state — 404, not 403,
+        // to avoid confirming the game's existence to other players.
+        if (!playerId.equals(match.getPlayer1Id())) {
+            return ResponseEntity.notFound().build();
+        }
+
         Question question = questionService.getQuestionById(game.getQuestionId())
                 .orElseThrow(() -> new IllegalStateException("Question not found"));
 

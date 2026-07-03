@@ -147,8 +147,17 @@ public class DailyChallengeScheduler {
 
     /**
      * Generates the daily challenge for a single (category, date) pair.
-     * Runs in its own transaction so a failure on one day does not roll
-     * back previously-created challenges.
+     *
+     * <p>The {@code @Transactional(propagation = REQUIRES_NEW)} annotation
+     * does <strong>not</strong> take effect when called from
+     * {@link #selectDailyChallenges()} or {@link #ensureTodaysChallenges()}
+     * because Spring's transaction proxy only intercepts calls from outside
+     * the bean. Self-invocations share the caller's transaction instead.
+     *
+     * <p>ponytail: extract to a separate {@code @Component} if a failure on
+     * one day actually needs to preserve prior days. At current scale
+     * (single-digit categories, infrequent failures), the shared transaction
+     * is harmless — all days created or none, and the cron retries tomorrow.
      *
      * @return 1 = created, 0 = skipped (exists), -1 = failed (no viable question)
      */
