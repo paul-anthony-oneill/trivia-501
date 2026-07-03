@@ -23,6 +23,7 @@ export type GameStatus =
   | "NOT_STARTED"
   | "IN_PROGRESS"
   | "COMPLETED"
+  | "ABANDONED"
   | "RESTORING";
 export type GameType = "freeplay" | "daily-challenge";
 
@@ -34,7 +35,7 @@ export interface GameStateResponse {
   questionText: string;
   currentScore: number;
   turnCount: number;
-  status: "IN_PROGRESS" | "COMPLETED";
+  status: "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
   isWin?: boolean;
   entityType?: string;
   hints?: GameHints;
