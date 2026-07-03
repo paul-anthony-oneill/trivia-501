@@ -117,12 +117,24 @@ public class DailyChallengeService {
     /**
      * Returns today's challenge for a specific category, creating it lazily if
      * the scheduler has not run yet (or if no question was pre-selected).
+     *
+     * <p>Handles the rare race where two concurrent requests both attempt
+     * creation: the loser retries the read after the UNIQUE constraint fires,
+     * returning the winner's row.
      */
-    @Transactional
+    @Transactional(noRollbackFor = org.springframework.dao.DataIntegrityViolationException.class)
     public DailyChallenge getTodaysChallenge(UUID categoryId) {
         LocalDate today = LocalDate.now();
-        return challengeRepository.findByChallengeDateAndCategoryId(today, categoryId)
-                .orElseGet(() -> createChallenge(categoryId));
+        try {
+            return challengeRepository.findByChallengeDateAndCategoryId(today, categoryId)
+                    .orElseGet(() -> createChallenge(categoryId));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Lost the creation race — the other thread's row is now committed.
+            log.debug("Lost daily challenge creation race for category {} — using winner's row", categoryId);
+            return challengeRepository.findByChallengeDateAndCategoryId(today, categoryId)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Daily challenge disappeared after concurrent creation for category " + categoryId));
+        }
     }
 
     /**
