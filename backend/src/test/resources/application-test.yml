@@ -20,7 +20,3 @@ spring:
 trivia501:
   data:
     import-path: ../data/transfermarkt
-  game:
-    default-turn-timer: 45
-    checkout-range-min: -10
-    checkout-range-max: 0

@@ -3,14 +3,11 @@ spring:
     name: trivia-501
 
   datasource:
-    # Defaults to Supabase dev project (pooler port 6543).
-    # prepareThreshold=0 is required for pgBouncer in transaction mode.
-    # Set DB_PASSWORD in your shell profile — everything else has safe defaults.
-    #
-    # Direct connection alternative (bypasses pgBouncer, allows prepared-statement caching):
-    #   DB_URL=jdbc:postgresql://db.nnzwructancxzexbcvdz.supabase.co:5432/postgres?sslmode=require
-    url: ${DB_URL:jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:6543/postgres?prepareThreshold=0&sslmode=require}
-    username: ${DB_USERNAME:postgres.nnzwructancxzexbcvdz}
+    # Set DB_URL, DB_USERNAME, and DB_PASSWORD as environment variables.
+    # The defaults point to localhost so the app boots without real credentials
+    # (e.g. for CI or a quick compile check).
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
@@ -49,7 +46,3 @@ result-signer:
 trivia501:
   data:
     import-path: ${DATA_PATH:../data/transfermarkt}
-  game:
-    default-turn-timer: 45
-    checkout-range-min: -10
-    checkout-range-max: 0
