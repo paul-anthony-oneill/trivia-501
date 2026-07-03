@@ -17,6 +17,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -299,13 +300,14 @@ public class GameService {
     }
 
     /**
-     * Abandon all in-progress games for a player.
-     * Safety net that prevents orphaned-game accumulation when a player
-     * starts a new game without explicitly abandoning the old one.
+     * Abandon all in-progress games for a player, except today's daily-challenge
+     * games. Starting a new free-play game or a new daily in one category should
+     * not wipe progress in another category's daily.
      */
     @Transactional
     public void abandonActiveGamesForPlayer(UUID playerId) {
-        List<Game> activeGames = gameRepository.findActiveGamesByPlayerId(playerId);
+        LocalDateTime startOfToday = java.time.LocalDate.now().atStartOfDay();
+        List<Game> activeGames = gameRepository.findAbandonableGamesByPlayerId(playerId, startOfToday);
         for (Game game : activeGames) {
             log.info("Abandoning orphaned game {} for player {} before new game", game.getId(), playerId);
             abandonGameAndMatch(game);
