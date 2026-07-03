@@ -422,17 +422,17 @@ class OptionalJwtFilterTest {
         void reusesExistingCookie() throws Exception {
             var filter = new OptionalJwtFilter(jwtDecoder, jwtConverter, false);
             var request = new MockHttpServletRequest();
-            request.setCookies(new Cookie("X-Anonymous-Id", "existing-uuid-reuse"));
+            request.setCookies(new Cookie("X-Anonymous-Id", "a0000000-0000-0000-0000-000000000042"));
             var response = new MockHttpServletResponse();
 
             filter.doFilterInternal(request, response, chain);
 
             var auth = SecurityContextHolder.getContext().getAuthentication();
-            assertThat(auth.getName()).isEqualTo("existing-uuid-reuse");
+            assertThat(auth.getName()).isEqualTo("a0000000-0000-0000-0000-000000000042");
 
             Cookie cookie = response.getCookie("X-Anonymous-Id");
             assertThat(cookie).isNotNull();
-            assertThat(cookie.getValue()).isEqualTo("existing-uuid-reuse");
+            assertThat(cookie.getValue()).isEqualTo("a0000000-0000-0000-0000-000000000042");
             assertThat(cookie.getMaxAge()).isEqualTo(86400); // sliding window
         }
     }
@@ -448,7 +448,7 @@ class OptionalJwtFilterTest {
         void rotatesCookieOnRequest() throws Exception {
             var filter = new OptionalJwtFilter(jwtDecoder, jwtConverter, false);
             var request = new MockHttpServletRequest();
-            request.setCookies(new Cookie("X-Anonymous-Id", "old-session-id"));
+            request.setCookies(new Cookie("X-Anonymous-Id", "a0000000-0000-0000-0000-000000000043"));
             // The filter sets AUTH_TYPE_ATTR during setAnonymousAuth;
             // controllers set ROTATE_ANON_ATTR before the chain runs.
             // In a real request, setAnonymousAuth runs first (sets ANON),
@@ -461,13 +461,13 @@ class OptionalJwtFilterTest {
             filter.doFilterInternal(request, response, chain);
 
             // Post-rotation: a new cookie should be issued.
-            // Two cookies with the same name: the first from setAnonymousAuth ("old-session-id"),
+            // Two cookies with the same name: the first from setAnonymousAuth ("a0000000-0000-0000-0000-000000000043"),
             // the second from rotation (new UUID). getCookie() returns the first match,
             // so inspect the full list.
             Cookie[] cookies = response.getCookies();
             assertThat(cookies).hasSize(2);
-            assertThat(cookies[0].getValue()).isEqualTo("old-session-id");
-            assertThat(cookies[1].getValue()).isNotEqualTo("old-session-id");
+            assertThat(cookies[0].getValue()).isEqualTo("a0000000-0000-0000-0000-000000000043");
+            assertThat(cookies[1].getValue()).isNotEqualTo("a0000000-0000-0000-0000-000000000043");
             // The principal should be updated to the new UUID
             var auth = SecurityContextHolder.getContext().getAuthentication();
             assertThat(auth.getName()).isEqualTo(cookies[1].getValue());
@@ -478,7 +478,7 @@ class OptionalJwtFilterTest {
         void noRotationWithoutAttribute() throws Exception {
             var filter = new OptionalJwtFilter(jwtDecoder, jwtConverter, false);
             var request = new MockHttpServletRequest();
-            request.setCookies(new Cookie("X-Anonymous-Id", "keep-me"));
+            request.setCookies(new Cookie("X-Anonymous-Id", "a0000000-0000-0000-0000-000000000044"));
             // No ROTATE_ANON_ATTR set
             var response = new MockHttpServletResponse();
 
@@ -486,7 +486,7 @@ class OptionalJwtFilterTest {
 
             Cookie cookie = response.getCookie("X-Anonymous-Id");
             assertThat(cookie).isNotNull();
-            assertThat(cookie.getValue()).isEqualTo("keep-me");
+            assertThat(cookie.getValue()).isEqualTo("a0000000-0000-0000-0000-000000000044");
         }
 
         @Test
