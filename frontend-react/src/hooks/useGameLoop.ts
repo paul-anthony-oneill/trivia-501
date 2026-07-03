@@ -108,6 +108,14 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
         setTurnCount(game.turnCount ?? 0);
         setEntityType(game.entityType ?? "footballer");
         setHints(game.hints ?? null);
+
+        if (game.status === "ABANDONED") {
+          clearSavedGameState();
+          setGameStatus("NOT_STARTED");
+          addToast("Your previous game expired.", "info");
+          return;
+        }
+
         const completed = game.status === "COMPLETED";
         setGameStatus(completed ? "COMPLETED" : "IN_PROGRESS");
         setIsWin(completed && game.isWin === true);
