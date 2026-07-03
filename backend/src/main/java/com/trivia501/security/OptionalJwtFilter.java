@@ -175,6 +175,14 @@ public class OptionalJwtFilter extends OncePerRequestFilter {
     private void setAnonymousAuth(HttpServletRequest request, HttpServletResponse response) {
         String anonymousId = getCookieValue(request, ANON_COOKIE);
 
+        // Validate the cookie is a canonical UUID — regenerate on garbage to
+        // prevent malformed values from causing UUID.fromString() failures in
+        // downstream code (controllers, repositories).
+        if (anonymousId != null && !isCanonicalUuid(anonymousId)) {
+            log.debug("OptionalJwtFilter: malformed anonymous cookie — regenerating");
+            anonymousId = null;
+        }
+
         if (anonymousId == null) {
             anonymousId = UUID.randomUUID().toString();
             log.trace("OptionalJwtFilter: created anonymous session {}", anonymousId);
@@ -204,5 +212,14 @@ public class OptionalJwtFilter extends OncePerRequestFilter {
             .map(Cookie::getValue)
             .findFirst()
             .orElse(null);
+    }
+
+    /** Returns true if the string is a canonical UUID (e.g. 00000000-0000-0000-0000-000000000001). */
+    private static boolean isCanonicalUuid(String s) {
+        try {
+            return UUID.fromString(s).toString().equals(s);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }
