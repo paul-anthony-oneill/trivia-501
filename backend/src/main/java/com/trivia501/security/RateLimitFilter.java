@@ -18,8 +18,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple in-memory rate limiter for MVP scale.
- * Limits unauthenticated requests to 10/min and authenticated to 100/min per IP.
- * Excluded from the test profile to avoid exhausting the per-IP window across test methods.
+ * <p>
+ * Limits anonymous players (cookie-based sessions) to 60 req/min and
+ * authenticated players (JWT) to 100 req/min per client IP.
+ * Excluded from the test profile to avoid exhausting the per-IP window
+ * across test methods.
+ * <p>
+ * Client IP resolution: reads Fly's {@code Fly-Client-IP} header (set by
+ * Fly.io's edge proxy and not spoofable by clients). Falls back to
+ * {@code getRemoteAddr()} in local dev.
  */
 @Component
 @Profile("!test")
@@ -27,7 +34,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
-    private static final int UNAUTHENTICATED_LIMIT = 10;
+    /** Fly.io edge proxy sets this header to the real client IP. */
+    private static final String FLY_CLIENT_IP_HEADER = "Fly-Client-IP";
+
+    private static final int ANONYMOUS_LIMIT = 60;
     private static final int AUTHENTICATED_LIMIT = 100;
     private static final long WINDOW_MS = 60_000;
 
@@ -45,10 +55,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String ip = request.getRemoteAddr();
+        // Resolve the real client IP: trust Fly-Client-IP in production,
+        // fall back to getRemoteAddr() in local dev where the header isn't set.
+        String flyIp = request.getHeader(FLY_CLIENT_IP_HEADER);
+        String ip = flyIp != null && !flyIp.isBlank() ? flyIp : request.getRemoteAddr();
+
         boolean isJwt = "jwt".equals(request.getAttribute(OptionalJwtFilter.AUTH_TYPE_ATTR));
         String key = isJwt ? "auth:" + ip : "anon:" + ip;
-        int limit = isJwt ? AUTHENTICATED_LIMIT : UNAUTHENTICATED_LIMIT;
+        int limit = isJwt ? AUTHENTICATED_LIMIT : ANONYMOUS_LIMIT;
 
         long now = System.currentTimeMillis();
         Window window = windows.compute(key, (k, w) -> {
@@ -58,11 +72,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             w.count().incrementAndGet();
             return w;
         });
-
-        // Clean up expired windows occasionally
-        if (now > window.resetAt()) {
-            windows.remove(key);
-        }
+        // ponytail: window cleanup is handled by compute() above — it already
+        // replaces expired windows. No separate sweep needed at this scale.
 
         if (window.count().get() > limit) {
             log.warn("Rate limit exceeded for {} (count={}, limit={})", key, window.count().get(), limit);
