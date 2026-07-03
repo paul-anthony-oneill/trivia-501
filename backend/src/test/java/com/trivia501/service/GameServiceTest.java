@@ -48,6 +48,9 @@ class GameServiceTest {
     private AnswerEvaluator answerEvaluator;
 
     @Mock
+    private GameHintsService gameHintsService;
+
+    @Mock
     private PlayerProfileService playerProfileService;
 
     @Mock
@@ -72,8 +75,8 @@ class GameServiceTest {
     void setUp() {
         gameService = new GameService(
             gameRepository, gameMoveRepository, matchRepository,
-            answerRepository, answerEvaluator, gameStateMachine, playerProfileService,
-            eventPublisher, resultSignerClient);
+            answerRepository, answerEvaluator, gameStateMachine, gameHintsService,
+            playerProfileService, eventPublisher, resultSignerClient);
 
         matchId = UUID.randomUUID();
         gameId = UUID.randomUUID();
