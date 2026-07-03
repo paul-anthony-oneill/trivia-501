@@ -88,14 +88,31 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
     Optional<Game> findActiveGameByPlayerId(@Param("playerId") UUID playerId);
 
     /**
-     * Find all in-progress games last updated before the given cutoff.
+     * Find all in-progress non-daily games last updated before the given cutoff.
+     * Daily-challenge games are untimed and swept separately (after their day ends).
      */
     @Query("""
         SELECT g FROM Game g
+        JOIN Match m ON g.matchId = m.id
         WHERE g.status = 'IN_PROGRESS'
           AND g.updatedAt < :cutoff
+          AND m.type <> 'DAILY_CHALLENGE'
         """)
     List<Game> findStaleGames(@Param("cutoff") LocalDateTime cutoff);
+
+    /**
+     * Find in-progress daily-challenge games created before the given cutoff.
+     * Only used to sweep dailies from previous days (cutoff = start of today).
+     * Today's dailies are never abandoned by the cleanup scheduler.
+     */
+    @Query("""
+        SELECT g FROM Game g
+        JOIN Match m ON g.matchId = m.id
+        WHERE g.status = 'IN_PROGRESS'
+          AND m.type = 'DAILY_CHALLENGE'
+          AND g.createdAt < :cutoff
+        """)
+    List<Game> findStaleDailyGames(@Param("cutoff") LocalDateTime cutoff);
 
     /**
      * Find all in-progress games for a player (across all their matches).
