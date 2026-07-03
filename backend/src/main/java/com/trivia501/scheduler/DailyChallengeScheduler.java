@@ -57,6 +57,43 @@ public class DailyChallengeScheduler {
     }
 
     /**
+     * Daily catch-up at 00:05 UTC: ensures today's challenge exists for every
+     * category with eligible questions. Idempotent — generateOneDay skips
+     * existing rows. Covers the case where the monthly cron was missed (Fly
+     * machine asleep, crash, deploy window).
+     */
+    @Scheduled(cron = "0 5 0 * * *")
+    public void ensureTodaysChallenges() {
+        LocalDate today = LocalDate.now();
+        log.info("Daily catch-up: ensuring challenges exist for {}", today);
+
+        List<Category> categories = categoryRepository.findAll();
+        int created = 0;
+        int skipped = 0;
+        int failed = 0;
+
+        for (Category category : categories) {
+            if ("test".equals(category.getSlug())) continue;
+            if (!questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(
+                    category.getId(), Question.STATUS_ACTIVE)) continue;
+
+            try {
+                int outcome = generateOneDay(category, today);
+                switch (outcome) {
+                    case 1 -> created++;
+                    case 0 -> skipped++;
+                    case -1 -> failed++;
+                }
+            } catch (Exception e) {
+                log.error("Daily catch-up failed for '{}' on {}", category.getSlug(), today, e);
+                failed++;
+            }
+        }
+
+        log.info("Daily catch-up complete: created={}, skipped={}, failed={}", created, skipped, failed);
+    }
+
+    /**
      * Runs at midnight UTC on the 1st of every month. Generates daily
      * challenges for every day of the current month, for every category
      * that has eligible questions.
