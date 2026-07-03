@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,16 +35,18 @@ public class GameCleanupScheduler {
 
     private final GameRepository gameRepository;
     private final GameService gameService;
+    private final Clock clock;
 
-    public GameCleanupScheduler(GameRepository gameRepository, GameService gameService) {
+    public GameCleanupScheduler(GameRepository gameRepository, GameService gameService, Clock clock) {
         this.gameRepository = gameRepository;
         this.gameService = gameService;
+        this.clock = clock;
     }
 
     @Scheduled(fixedDelay = 60_000)
     public void cleanupStaleGames() {
         // ── Sweep 1: Free Play / casual (idle timer) ─────────────────────────
-        LocalDateTime freePlayCutoff = LocalDateTime.now().minusMinutes(FREE_PLAY_STALE_MINUTES);
+        LocalDateTime freePlayCutoff = LocalDateTime.now(clock).minusMinutes(FREE_PLAY_STALE_MINUTES);
         List<Game> staleFreePlay = gameRepository.findStaleGames(freePlayCutoff);
 
         if (!staleFreePlay.isEmpty()) {
@@ -53,7 +56,7 @@ public class GameCleanupScheduler {
         }
 
         // ── Sweep 2: Daily Challenge (previous-day sweep only) ───────────────
-        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime startOfToday = LocalDate.now(clock).atStartOfDay();
         List<Game> staleDailies = gameRepository.findStaleDailyGames(startOfToday);
 
         if (!staleDailies.isEmpty()) {

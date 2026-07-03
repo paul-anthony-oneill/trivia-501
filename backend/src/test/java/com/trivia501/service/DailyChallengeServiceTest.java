@@ -38,6 +38,8 @@ class DailyChallengeServiceTest {
     @Mock private MatchRepository matchRepository;
     @Mock private ChallengeScorePicker scorePicker;
 
+    private final java.time.Clock clock = java.time.Clock.systemUTC();
+
     private DailyChallengeService service;
 
     private final UUID categoryId = UUID.randomUUID();
@@ -53,7 +55,7 @@ class DailyChallengeServiceTest {
         service = new DailyChallengeService(
                 challengeRepository, questionRepository, categoryRepository,
                 matchService, gameService, gameRepository,
-                matchRepository, scorePicker);
+                matchRepository, scorePicker, clock);
     }
 
     @Test

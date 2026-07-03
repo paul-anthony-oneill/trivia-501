@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +36,7 @@ public class DailyChallengeService {
     private final GameRepository gameRepository;
     private final MatchRepository matchRepository;
     private final ChallengeScorePicker scorePicker;
+    private final Clock clock;
 
     public DailyChallengeService(
             DailyChallengeRepository challengeRepository,
@@ -44,7 +46,8 @@ public class DailyChallengeService {
             GameService gameService,
             GameRepository gameRepository,
             MatchRepository matchRepository,
-            ChallengeScorePicker scorePicker
+            ChallengeScorePicker scorePicker,
+            Clock clock
     ) {
         this.challengeRepository = challengeRepository;
         this.questionRepository = questionRepository;
@@ -54,6 +57,7 @@ public class DailyChallengeService {
         this.gameRepository = gameRepository;
         this.matchRepository = matchRepository;
         this.scorePicker = scorePicker;
+        this.clock = clock;
     }
 
     /**
@@ -61,7 +65,7 @@ public class DailyChallengeService {
      */
     @Transactional(readOnly = true)
     public List<DailyChallenge> getTodaysChallenges() {
-        return challengeRepository.findByChallengeDate(LocalDate.now());
+        return challengeRepository.findByChallengeDate(LocalDate.now(clock));
     }
 
     /** Pass-through to {@code CategoryRepository.findAll()} so controllers don't inject repositories directly. */
@@ -96,7 +100,7 @@ public class DailyChallengeService {
     @Transactional(readOnly = true)
     public boolean todaysChallengeExists(UUID categoryId) {
         return challengeRepository
-                .findByChallengeDateAndCategoryId(LocalDate.now(), categoryId)
+                .findByChallengeDateAndCategoryId(LocalDate.now(clock), categoryId)
                 .isPresent();
     }
 
@@ -106,7 +110,7 @@ public class DailyChallengeService {
      */
     @Transactional
     public void deleteTodaysChallenge(UUID categoryId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         challengeRepository.findByChallengeDateAndCategoryId(today, categoryId)
                 .ifPresent(challenge -> {
                     challengeRepository.delete(challenge);
@@ -124,7 +128,7 @@ public class DailyChallengeService {
      */
     @Transactional(noRollbackFor = org.springframework.dao.DataIntegrityViolationException.class)
     public DailyChallenge getTodaysChallenge(UUID categoryId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         try {
             return challengeRepository.findByChallengeDateAndCategoryId(today, categoryId)
                     .orElseGet(() -> createChallenge(categoryId));
@@ -164,7 +168,7 @@ public class DailyChallengeService {
 
         DailyChallenge challenge = getTodaysChallenge(category.getId());
 
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime startOfDay = LocalDate.now(clock).atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
         // Block replay: a completed game today cannot be restarted
@@ -263,7 +267,7 @@ public class DailyChallengeService {
             throw new IllegalArgumentException("No daily challenge for the test category");
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         LocalDate cooldownStart = today.minusDays(DifficultyConstants.DAILY_QUESTION_COOLDOWN_DAYS);
         List<UUID> recentQuestionIds = challengeRepository.findQuestionIdsUsedBetween(
                 categoryId, cooldownStart, today);
