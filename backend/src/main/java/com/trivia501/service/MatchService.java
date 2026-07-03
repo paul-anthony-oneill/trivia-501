@@ -141,7 +141,10 @@ public class MatchService {
         }
 
         Question question = questionService.getQuestionById(questionId)
-            .orElseThrow(() -> new IllegalArgumentException("Question not found: " + questionId));
+            .filter(q -> "active".equals(q.getStatus()))
+            .filter(q -> q.getCategoryId().equals(match.getCategoryId()))
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Question not found or not eligible: " + questionId));
 
         long completedGames = gameRepository.countByMatchIdAndStatus(match.getId(), Game.GameStatus.COMPLETED);
         int gameNumber = (int) completedGames + 1;
