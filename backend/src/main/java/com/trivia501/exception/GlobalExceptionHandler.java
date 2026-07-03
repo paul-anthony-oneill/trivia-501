@@ -101,6 +101,16 @@ public class GlobalExceptionHandler {
                 .body(errorBody(ex.getMessage()));
     }
 
+    // ── 500 Internal Server Error (catch-all) ─────────────────────────────────
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(errorBody("An unexpected error occurred"));
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private Map<String, Object> errorBody(String message) {
