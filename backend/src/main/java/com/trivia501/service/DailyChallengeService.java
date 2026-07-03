@@ -89,6 +89,11 @@ public class DailyChallengeService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<DailyChallenge> findByChallengeDateAndCategoryId(LocalDate date, UUID categoryId) {
+        return challengeRepository.findByChallengeDateAndCategoryId(date, categoryId);
+    }
+
+    @Transactional(readOnly = true)
     public boolean todaysChallengeExists(UUID categoryId) {
         return challengeRepository
                 .findByChallengeDateAndCategoryId(LocalDate.now(), categoryId)
