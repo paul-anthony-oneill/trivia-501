@@ -50,6 +50,7 @@ public class GameService {
     private final AnswerRepository answerRepository;
     private final AnswerEvaluator answerEvaluator;
     private final GameStateMachine gameStateMachine;
+    private final GameHintsService gameHintsService;
     private final PlayerProfileService playerProfileService;
     private final ApplicationEventPublisher eventPublisher;
     private final ResultSignerClient resultSignerClient;
@@ -61,6 +62,7 @@ public class GameService {
             AnswerRepository answerRepository,
             AnswerEvaluator answerEvaluator,
             GameStateMachine gameStateMachine,
+            GameHintsService gameHintsService,
             PlayerProfileService playerProfileService,
             ApplicationEventPublisher eventPublisher,
             ResultSignerClient resultSignerClient
@@ -71,6 +73,7 @@ public class GameService {
         this.answerRepository     = answerRepository;
         this.answerEvaluator      = answerEvaluator;
         this.gameStateMachine     = gameStateMachine;
+        this.gameHintsService     = gameHintsService;
         this.playerProfileService = playerProfileService;
         this.eventPublisher       = eventPublisher;
         this.resultSignerClient   = resultSignerClient;
@@ -159,10 +162,25 @@ public class GameService {
             }
         }
 
+        // Evict the score cache when the game ends so future games
+        // on the same question see fresh data after re-materializations.
+        if (game.getStatus() == Game.GameStatus.COMPLETED) {
+            gameHintsService.evictScoreCache(game.getQuestionId());
+        }
+
+        // Build the post-move used-answer list for accurate hint computation.
+        // usedAnswerIds is the pre-move list; the just-consumed answer should
+        // also be excluded from checkout/max-score counts.
+        List<UUID> hintExcludeIds = usedAnswerIds;
+        if (answerResult.getAnswerId() != null) {
+            hintExcludeIds = new java.util.ArrayList<>(usedAnswerIds);
+            hintExcludeIds.add(answerResult.getAnswerId());
+        }
+
         log.debug("Move processed: result={}, score {}→{}",
                 transition.moveResult(), currentScore, transition.scoreAfter());
 
-        return new MoveRecord(move, game, match, usedAnswerIds, answerResult.getReason());
+        return new MoveRecord(move, game, match, hintExcludeIds, answerResult.getReason());
     }
 
     /**
