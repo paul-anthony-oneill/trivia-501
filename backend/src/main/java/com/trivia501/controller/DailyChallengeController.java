@@ -57,33 +57,32 @@ public class DailyChallengeController {
     }
 
     /**
-     * Returns today's challenge status for all categories that have a challenge.
+     * Returns today's challenge status for all categories, lazily creating
+     * any that don't exist yet. This ensures the homepage hero section is
+     * never empty, even if the cron missed a day.
      */
     @GetMapping("/status")
     public ResponseEntity<DailyChallengeStatusResponse> getStatus() {
-        List<DailyChallenge> challenges = dailyChallengeService.getTodaysChallenges();
-
-        List<UUID> categoryIds = challenges.stream()
-                .map(DailyChallenge::getCategoryId).distinct().toList();
-        List<UUID> questionIds = challenges.stream()
-                .map(DailyChallenge::getQuestionId).distinct().toList();
-
-        Map<UUID, Category> categoriesById = dailyChallengeService.getCategoriesByIds(categoryIds);
-        Map<UUID, Question> questionsById = questionService.getQuestionsByIds(questionIds).stream()
-                .collect(java.util.stream.Collectors.toMap(Question::getId, q -> q));
-
+        List<Category> categories = dailyChallengeService.getAllCategories();
         List<DailyChallengeStatusResponse.CategoryChallenge> items = new ArrayList<>();
-        for (DailyChallenge dc : challenges) {
-            Category category = categoriesById.get(dc.getCategoryId());
-            Question question = questionsById.get(dc.getQuestionId());
 
-            items.add(DailyChallengeStatusResponse.CategoryChallenge.builder()
-                    .categorySlug(category != null ? category.getSlug() : "unknown")
-                    .categoryName(category != null ? category.getName() : "Unknown")
-                    .startingScore(dc.getStartingScore())
-                    .questionText(question != null ? question.getQuestionText() : null)
-                    .hasChallenge(true)
-                    .build());
+        for (Category category : categories) {
+            if ("test".equals(category.getSlug())) continue;
+            try {
+                DailyChallenge dc = dailyChallengeService.getTodaysChallenge(category.getId());
+                Question question = questionService.getQuestionById(dc.getQuestionId()).orElse(null);
+
+                items.add(DailyChallengeStatusResponse.CategoryChallenge.builder()
+                        .categorySlug(category.getSlug())
+                        .categoryName(category.getName())
+                        .startingScore(dc.getStartingScore())
+                        .questionText(question != null ? question.getQuestionText() : null)
+                        .hasChallenge(true)
+                        .build());
+            } catch (IllegalStateException e) {
+                // Category has no daily-eligible questions — skip
+                log.debug("No daily challenge for '{}': {}", category.getSlug(), e.getMessage());
+            }
         }
 
         return ResponseEntity.ok(DailyChallengeStatusResponse.builder()
