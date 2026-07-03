@@ -9,6 +9,7 @@ import com.trivia501.dto.SubmitAnswerResponse;
 import com.trivia501.model.*;
 import com.trivia501.scheduler.DailyChallengeScheduler;
 import com.trivia501.service.DailyChallengeService;
+import com.trivia501.service.GameService;
 import com.trivia501.service.PlayerProfileService;
 import com.trivia501.service.QuestionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ public class DailyChallengeController {
     private final DailyChallengeScheduler dailyChallengeScheduler;
     private final QuestionService questionService;
     private final PlayerProfileService playerProfileService;
+    private final GameService gameService;
     private final GameResponseAssembler assembler;
     private final GameEndpointHandler gameEndpointHandler;
 
@@ -41,6 +43,7 @@ public class DailyChallengeController {
             DailyChallengeScheduler dailyChallengeScheduler,
             QuestionService questionService,
             PlayerProfileService playerProfileService,
+            GameService gameService,
             GameResponseAssembler assembler,
             GameEndpointHandler gameEndpointHandler
     ) {
@@ -48,6 +51,7 @@ public class DailyChallengeController {
         this.dailyChallengeScheduler = dailyChallengeScheduler;
         this.questionService = questionService;
         this.playerProfileService = playerProfileService;
+        this.gameService = gameService;
         this.assembler = assembler;
         this.gameEndpointHandler = gameEndpointHandler;
     }
@@ -189,10 +193,14 @@ public class DailyChallengeController {
 
         assembler.loadScoreCache(question.getId());
 
+        List<GameMove> moves = game.getTurnCount() > 0
+                ? gameService.getMovesForGame(game.getId())
+                : List.of();
+
         log.info("Daily challenge game started: gameId={}, playerId={}, category={}, startingScore={}",
                 game.getId(), playerId, categorySlug, startRecord.challenge().getStartingScore());
 
-        return ResponseEntity.ok(assembler.buildGameStateResponse(game, question, startRecord.match(), List.of(), List.of()));
+        return ResponseEntity.ok(assembler.buildGameStateResponse(game, question, startRecord.match(), moves));
     }
 
     /**
