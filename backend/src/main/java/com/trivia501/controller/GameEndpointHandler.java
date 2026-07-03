@@ -141,25 +141,32 @@ public class GameEndpointHandler {
             return ResponseEntity.notFound().build();
         }
 
-        List<GameMove> moves = gameService.getMovesForGame(gameId);
-
-        DailyChallenge challenge = dailyChallengeService.findByChallengeDateAndQuestionId(
-                LocalDate.now(), game.getQuestionId()).orElse(null);
-
-        String categoryName = "Unknown";
-        String categorySlug = "unknown";
-        int startingScore = 501;
-        LocalDate challengeDate = LocalDate.now();
-
-        if (challenge != null) {
-            startingScore = challenge.getStartingScore();
-            challengeDate = challenge.getChallengeDate();
-            Category category = dailyChallengeService.getCategoryById(challenge.getCategoryId()).orElse(null);
-            if (category != null) {
-                categoryName = category.getName();
-                categorySlug = category.getSlug();
-            }
+        // Only completed games are shareable
+        if (game.getStatus() != Game.GameStatus.COMPLETED) {
+            return ResponseEntity.notFound().build();
         }
+
+        // Resolve the challenge from the game's own date + match's category,
+        // not today's date — share links must be stable across midnight.
+        Match match = matchService.getMatchById(game.getMatchId()).orElse(null);
+        if (match == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        DailyChallenge challenge = dailyChallengeService.findByChallengeDateAndCategoryId(
+                game.getCreatedAt().toLocalDate(), match.getCategoryId()).orElse(null);
+
+        if (challenge == null) {
+            // Game exists but no matching challenge — free-play game passed to
+            // the share endpoint, or data was cleaned up.
+            return ResponseEntity.notFound().build();
+        }
+
+        Category category = dailyChallengeService.getCategoryById(challenge.getCategoryId()).orElse(null);
+        String categoryName = category != null ? category.getName() : "Unknown";
+        String categorySlug = category != null ? category.getSlug() : "unknown";
+
+        List<GameMove> moves = gameService.getMovesForGame(gameId);
 
         List<DailyChallengeShareResponse.MoveEmoji> emojis = moves.stream()
                 .map(m -> switch (m.getResult()) {
@@ -176,8 +183,8 @@ public class GameEndpointHandler {
                 .gameId(gameId)
                 .categoryName(categoryName)
                 .categorySlug(categorySlug)
-                .challengeDate(challengeDate)
-                .startingScore(startingScore)
+                .challengeDate(challenge.getChallengeDate())
+                .startingScore(challenge.getStartingScore())
                 .finalScore(game.getPlayer1Score())
                 .turnCount(game.getTurnCount())
                 .isWin(isWin)
