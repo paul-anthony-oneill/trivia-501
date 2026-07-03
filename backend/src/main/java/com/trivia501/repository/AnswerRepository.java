@@ -280,4 +280,27 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
         @Param("questionId") UUID questionId,
         @Param("maxScore") int maxScore
     );
+
+    /**
+     * Returns true if the question has at least one valid non-bust, unused answer
+     * whose score is playable from the current position (won't bust below -10).
+     * Used to detect bust-out: if no valid move remains, the game is over.
+     *
+     * @param questionId    the question UUID
+     * @param maxScore      the highest acceptable answer score (currentScore + 10)
+     * @param usedAnswerIds already-used answer IDs to exclude (empty list = none)
+     */
+    @Query("""
+        SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM Answer a
+        WHERE a.questionId = :questionId
+          AND a.isValidDarts = true
+          AND a.isBust = false
+          AND a.score <= :maxScore
+          AND (:usedAnswerIds IS NULL OR a.id NOT IN :usedAnswerIds)
+        """)
+    boolean hasViableMove(
+        @Param("questionId") UUID questionId,
+        @Param("maxScore") int maxScore,
+        @Param("usedAnswerIds") List<UUID> usedAnswerIds
+    );
 }

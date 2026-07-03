@@ -139,6 +139,28 @@ public class GameService {
                     });
         }
 
+        // ── Bust-out detection: game over if no playable moves remain ────────
+        if (game.getStatus() == Game.GameStatus.IN_PROGRESS) {
+            List<UUID> postMoveUsedIds = usedAnswerIds;
+            if (answerResult.getAnswerId() != null) {
+                postMoveUsedIds = new java.util.ArrayList<>(usedAnswerIds);
+                postMoveUsedIds.add(answerResult.getAnswerId());
+            }
+
+            int viableMaxScore = game.getPlayer1Score() + 10; // scores ≤ this won't bust below -10
+            if (!answerRepository.hasViableMove(game.getQuestionId(), viableMaxScore, postMoveUsedIds)) {
+                log.info("Bust-out: no playable moves remain for game {} at score {}",
+                        gameId, game.getPlayer1Score());
+                game.setStatus(Game.GameStatus.COMPLETED);
+                game.setCompletedAt(java.time.LocalDateTime.now());
+                gameRepository.save(game);
+
+                eventPublisher.publishEvent(new GameCompletedEvent(
+                        game.getId(), game.getMatchId(), null, false));
+                playerProfileService.recordGameCompleted(playerId, game.getPlayer1Score(), false);
+            }
+        }
+
         log.debug("Move processed: result={}, score {}→{}",
                 transition.moveResult(), currentScore, transition.scoreAfter());
 

@@ -99,6 +99,10 @@ class GameServiceTest {
             .player1Score(501)
             .turnCount(0)
             .build();
+
+        // Default: viable moves remain (bust-out detection off for happy-path tests).
+        // Lenient — tests that don't call processPlayerMove won't trigger this stub.
+        lenient().when(answerRepository.hasViableMove(any(), anyInt(), anyList())).thenReturn(true);
     }
 
     @Test
