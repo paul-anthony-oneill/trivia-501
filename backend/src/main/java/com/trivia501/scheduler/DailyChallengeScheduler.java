@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -41,19 +42,22 @@ public class DailyChallengeScheduler {
     private final CategoryRepository categoryRepository;
     private final AnswerRepository answerRepository;
     private final ChallengeScorePicker scorePicker;
+    private final Clock clock;
 
     public DailyChallengeScheduler(
             DailyChallengeRepository challengeRepository,
             QuestionRepository questionRepository,
             CategoryRepository categoryRepository,
             AnswerRepository answerRepository,
-            ChallengeScorePicker scorePicker
+            ChallengeScorePicker scorePicker,
+            Clock clock
     ) {
         this.challengeRepository = challengeRepository;
         this.questionRepository = questionRepository;
         this.categoryRepository = categoryRepository;
         this.answerRepository = answerRepository;
         this.scorePicker = scorePicker;
+        this.clock = clock;
     }
 
     /**
@@ -64,7 +68,7 @@ public class DailyChallengeScheduler {
      */
     @Scheduled(cron = "0 5 0 * * *")
     public void ensureTodaysChallenges() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         log.info("Daily catch-up: ensuring challenges exist for {}", today);
 
         List<Category> categories = categoryRepository.findAll();
@@ -102,7 +106,7 @@ public class DailyChallengeScheduler {
      */
     @Scheduled(cron = "0 0 0 1 * *")
     public GenerationSummary selectDailyChallenges() {
-        YearMonth month = YearMonth.now();
+        YearMonth month = YearMonth.now(clock);
         LocalDate firstOfMonth = month.atDay(1);
         LocalDate lastOfMonth = month.atEndOfMonth();
         log.info("Monthly daily challenge generation starting for {} ({}–{})",
