@@ -1,5 +1,7 @@
 package com.trivia501.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,8 +23,11 @@ public class StartFreePlayRequest {
 
     private String categorySlug;
 
+    @Min(1) @Max(3)
     private Integer difficulty;
 
+    @Min(value = 2, message = "startingScore must be at least 2")
+    @Max(value = 501, message = "startingScore cannot exceed 501")
     private Integer startingScore;
 
     /** Optional football-specific question filter. When present, overrides random question selection. */
