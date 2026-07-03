@@ -159,6 +159,32 @@ public class DailyChallengeService {
                     "You have already completed today's " + categorySlug + " daily challenge");
             });
 
+        // Resume abandoned: an abandoned daily (cleanup scheduler, tab close)
+        // is still the player's one attempt — resume with the original board,
+        // not a fresh start. This closes the abandon-and-retry loophole.
+        Optional<Game> abandoned = gameRepository.findDailyGameByPlayerCategoryAndStatus(
+                playerId, category.getId(), Match.MatchType.DAILY_CHALLENGE,
+                Game.GameStatus.ABANDONED, startOfDay, endOfDay);
+        if (abandoned.isPresent()) {
+            Game existingGame = abandoned.get();
+            existingGame.setStatus(Game.GameStatus.IN_PROGRESS);
+            gameRepository.save(existingGame);
+
+            // Re-activate the match too
+            Match existingMatch = matchRepository.findById(existingGame.getMatchId())
+                    .orElseThrow(() -> new IllegalStateException("Match not found for abandoned daily game"));
+            if (existingMatch.getStatus() == Match.MatchStatus.ABANDONED) {
+                existingMatch.setStatus(Match.MatchStatus.IN_PROGRESS);
+                matchRepository.save(existingMatch);
+            }
+
+            Question question = questionRepository.findById(challenge.getQuestionId())
+                    .orElseThrow(() -> new IllegalStateException("Question not found for daily challenge"));
+            log.info("Resuming abandoned daily challenge: gameId={}, playerId={}, category={}",
+                    existingGame.getId(), playerId, categorySlug);
+            return new GameStartRecord(existingMatch, existingGame, question, challenge);
+        }
+
         // Resume: return the existing in-progress game rather than creating a new one
         Optional<Game> inProgress = gameRepository.findDailyGameByPlayerCategoryAndStatus(
                 playerId, category.getId(), Match.MatchType.DAILY_CHALLENGE,
