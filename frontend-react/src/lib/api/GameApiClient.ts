@@ -43,10 +43,13 @@ class GameApiClient {
     targetScore?: number,
     footballFilter?: FootballFilter,
   ): Promise<GameStateResponse> {
+    // ponytail: compound slugs (football:premier-league:league:goals) are for
+    // UI nav state; the backend only knows simple category slugs like "football"
+    const baseCategory = categorySlug.includes(":") ? categorySlug.split(":")[0] : categorySlug;
     return this.request<GameStateResponse>("/api/freeplay/start", {
       method: "POST",
       body: JSON.stringify({
-        categorySlug,
+        categorySlug: baseCategory,
         startingScore: targetScore,
         footballFilter,
       }),
