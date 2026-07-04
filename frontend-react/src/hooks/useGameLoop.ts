@@ -129,23 +129,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
           }
         }
 
-        if (game.moves && Array.isArray(game.moves)) {
-          const restoredMoves: Move[] = [...game.moves]
-            .reverse()
-            .map(
-              (m) =>
-                ({
-                  answer: (m.answer as string) ?? "",
-                  result: (m.result as string) ?? "UNKNOWN",
-                  scoreBefore: (m.scoreBefore as number) ?? 0,
-                  scoreAfter: (m.scoreAfter as number) ?? 0,
-                  matchedAnswer: (m.matchedAnswer as string) ?? undefined,
-                  scoreValue: (m.scoreValue as number) ?? undefined,
-                  reason: (m.reason as string) ?? undefined,
-                }) as Move,
-            );
-          setMoves(restoredMoves);
-        }
+        setMoves(game.moves ? [...game.moves].reverse() : []);
 
         addToast("Game restored!", "success");
       })
@@ -202,22 +186,7 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
       setScore(game.currentScore);
       setQuestion(game.questionText);
       setTurnCount(game.turnCount ?? 0);
-      if (game.moves && Array.isArray(game.moves)) {
-        const mapped: Move[] = [...game.moves].reverse().map(
-          (m) => ({
-            answer: (m.answer as string) ?? "",
-            result: (m.result as string) ?? "UNKNOWN",
-            scoreBefore: (m.scoreBefore as number) ?? 0,
-            scoreAfter: (m.scoreAfter as number) ?? 0,
-            matchedAnswer: (m.matchedAnswer as string) ?? undefined,
-            scoreValue: (m.scoreValue as number) ?? undefined,
-            reason: (m.reason as string) ?? undefined,
-          }) as Move,
-        );
-        setMoves(mapped);
-      } else {
-        setMoves([]);
-      }
+      setMoves(game.moves ? [...game.moves].reverse() : []);
       setEntityType(game.entityType ?? "footballer");
       setHints(game.hints ?? null);
       setCurrentCategorySlug(categorySlug);

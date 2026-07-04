@@ -28,3 +28,28 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-react
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        run: npx playwright test smoke.spec.ts
+        # Only smoke tests — full-game.spec.ts needs a running backend.
+        # Wire the backend as a service container when that spec is promoted.
+

@@ -1,6 +1,7 @@
 package com.trivia501.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -31,6 +32,9 @@ import java.util.UUID;
 public class ResultSignerClient {
 
     private static final DateTimeFormatter ISO_INSTANT = DateTimeFormatter.ISO_INSTANT;
+
+    /** Thread-safe once configured; one instance is enough for the whole app. */
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
     private final String signerUrl;
@@ -80,11 +84,8 @@ public class ResultSignerClient {
             }
 
             // Serialise the token object to a compact JSON string for storage.
-            // Use Jackson to avoid corrupt JSON from quote/backslash in payload or sig.
-            String tokenJson = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .writeValueAsString(new SignedToken(
-                            response.token().payload(), response.token().sig()));
-            return Optional.of(tokenJson);
+            // Jackson escapes any quote/backslash in payload or sig for us.
+            return Optional.of(MAPPER.writeValueAsString(response.token()));
 
         } catch (Exception e) {
             // Signing failure must never break a checkout — log and continue.
@@ -110,7 +111,4 @@ public class ResultSignerClient {
             @JsonProperty("payload") String payload,
             @JsonProperty("sig") String sig
     ) {}
-
-    /** Wire format for the stored token JSON. */
-    private record SignedToken(String payload, String sig) {}
 }
