@@ -33,19 +33,19 @@ public class ResultSignerClient {
 
     private static final DateTimeFormatter ISO_INSTANT = DateTimeFormatter.ISO_INSTANT;
 
+    /** Thread-safe once configured; one instance is enough for the whole app. */
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final RestClient restClient;
     private final String signerUrl;
     private final String internalSecret;
-    private final ObjectMapper objectMapper;
 
     public ResultSignerClient(
             @Value("${result-signer.url:}") String signerUrl,
-            @Value("${result-signer.secret:}") String internalSecret,
-            ObjectMapper objectMapper
+            @Value("${result-signer.secret:}") String internalSecret
     ) {
         this.signerUrl = signerUrl;
         this.internalSecret = internalSecret;
-        this.objectMapper = objectMapper;
         var factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
         factory.setReadTimeout(Duration.ofSeconds(5));
@@ -85,7 +85,7 @@ public class ResultSignerClient {
 
             // Serialise the token object to a compact JSON string for storage.
             // Jackson escapes any quote/backslash in payload or sig for us.
-            return Optional.of(objectMapper.writeValueAsString(response.token()));
+            return Optional.of(MAPPER.writeValueAsString(response.token()));
 
         } catch (Exception e) {
             // Signing failure must never break a checkout — log and continue.
