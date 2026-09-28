@@ -8,7 +8,7 @@ starting, honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| [001](001-run-frontend-tests-in-ci.md) | Frontend unit tests + typecheck run in CI and pre-commit | P1 | S | — | TODO |
+| [001](001-run-frontend-tests-in-ci.md) | Frontend unit tests + typecheck run in CI and pre-commit | P1 | S | — | DONE (2026-09-28, branch `advisor/001-frontend-tests-in-ci`, unmerged) |
 | [002](002-upgrade-nextjs-security.md) | Bump Next.js to 16.3.6 (critical advisory) | P1 | S | 001 | TODO |
 | [003](003-stop-share-token-leaking-player-id.md) | Share links stop exposing the guest session ID | P1 | S | — | TODO |
 | [004](004-fix-popup-timer-and-daily-lock.md) | INVALID popup auto-dismisses; /daily starts get locked | P1 | S | 001 (soft) | TODO |
