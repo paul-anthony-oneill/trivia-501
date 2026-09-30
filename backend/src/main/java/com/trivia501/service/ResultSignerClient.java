@@ -8,10 +8,14 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +59,23 @@ public class ResultSignerClient {
                 .build();
     }
 
+    /**
+     * One-way pseudonym for the signed payload. The raw player id is the guest's
+     * session credential (X-Anonymous-Id cookie), and token payloads are readable by
+     * anyone holding a share link, so the raw id must never be signed.
+     * A SHA-256 of a random v4 UUID can't be reversed, but it still lets the owner
+     * prove "this token is mine" by recomputing it.
+     */
+    static String playerPseudonym(UUID playerId) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(playerId.toString().getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e); // every JVM ships SHA-256
+        }
+    }
+
     public Optional<String> sign(UUID gameId, UUID playerId, int finalScore, LocalDateTime completedAt) {
         if (signerUrl == null || signerUrl.isBlank()) {
             log.debug("result-signer.url not configured — skipping signing for game {}", gameId);
@@ -65,7 +86,7 @@ public class ResultSignerClient {
             String completedAtIso = completedAt.atOffset(ZoneOffset.UTC).format(ISO_INSTANT);
             SignRequest request = new SignRequest(
                     gameId.toString(),
-                    playerId.toString(),
+                    playerPseudonym(playerId),
                     finalScore,
                     completedAtIso
             );
