@@ -195,7 +195,6 @@ public class GameEndpointHandler {
                 .turnCount(game.getTurnCount())
                 .isWin(isWin)
                 .moveEmojis(emojis)
-                .resultToken(game.getResultToken())
                 .build());
     }
 
