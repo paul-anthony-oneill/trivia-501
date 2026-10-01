@@ -9,10 +9,8 @@ Two passes are made per league, mirroring the historical scraper:
   2. Goalkeeping     — clean sheets, goals conceded (updates GK rows only)
 
 Run this script after each matchday (or weekly) to keep current-season
-data fresh.  After it completes, trigger the Java materializer to refresh
-any active questions whose underlying stints have changed:
+data fresh.  Answers are re-materialized automatically by the backend's AnswerRematerializationScheduler (Mondays 05:17 UTC).
 
-    POST /api/admin/questions/rematerialize-stale
     POST /api/admin/templates/generate   ← only needed at start of a new season
 
 Post-V9 schema notes
@@ -213,8 +211,6 @@ def run_scrape(season_str: str, league_keys: list[str], dry_run: bool = False) -
     log.info("Total  : %d created, %d updated, %d failed",
              total_created, total_updated, total_failed)
     log.info("\nNext steps:")
-    log.info("  POST /api/admin/questions/rematerialize-stale"
-             "   ← refresh active question answers")
     log.info("  POST /api/admin/templates/generate"
              "              ← create drafts for new (team, season) combos")
 

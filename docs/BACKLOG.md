@@ -282,6 +282,11 @@ Deleting multiplayer tests without removing the underlying production code leave
 - **Severity**: Low
 - **Files**: `DailyChallengeController.java:42`, `FreePlayController.java:56`
 
+### Scraper cleanup: dead scripts, broken Dockerfile, unused deps (2026-10-01)
+- **Severity**: Low
+- **What**: Delete dead `init_questions_v2.py`, `populate_answers_v2.py`, `database/models_v4.py`; fix or delete `Dockerfile` (CMD points at non-existent `api.main`); prune unused deps (`fastapi`, `uvicorn`, `python-jose`, `passlib`, `apscheduler`, `prometheus-client`) and pin versions. Deferred from plan 005 (weekly refresh fix) to keep that change small.
+- **Files**: `trivia-501-scraper/init_questions_v2.py`, `trivia-501-scraper/populate_answers_v2.py`, `trivia-501-scraper/database/models_v4.py`, `trivia-501-scraper/Dockerfile`, `trivia-501-scraper/requirements.txt`
+
 ### `LobbyView` leagues and stat types are hardcoded; `resolveTarget("random")` pool is narrower than backend
 - **Severity**: Low
 - **What**: `LEAGUES` and `STAT_TYPES` are baked into the component. If the backend adds a league, the frontend silently omits it. Extract to `src/lib/constants/lobbyOptions.ts`. Separately: the "RND" target score button picks from `[501, 301, 101]` only; the backend pool now has 30 values. Either defer to backend for random selection or expand the client pool.
