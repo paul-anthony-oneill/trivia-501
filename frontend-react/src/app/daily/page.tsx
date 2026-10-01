@@ -7,6 +7,7 @@ import {
   type CategoryChallenge,
 } from "@/hooks/useDailyChallenge";
 import { apiFetch } from "@/lib/api/client";
+import { saveGameState } from "@/hooks/useGamePersistence";
 import { useToast } from "@/context/ToastContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -40,14 +41,7 @@ export default function DailyPage() {
       }
       const game = await res.json();
       // Store game state and redirect to main page (will restore from sessionStorage)
-      sessionStorage.setItem(
-        "activeGameState",
-        JSON.stringify({
-          gameId: game.gameId,
-          label: label,
-          gameType: "daily-challenge",
-        }),
-      );
+      saveGameState(game.gameId, label, "daily-challenge", slug);
       router.push("/");
     } catch (err) {
       addToast(
