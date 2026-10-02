@@ -12,8 +12,8 @@ interface DailyHeroSectionProps {
   onRetry: () => void;
   timeUntilReset: string;
   starting: string | null;
+  /** Resumes an in-progress daily, otherwise asks the one-attempt question. */
   onPlay: (slug: string, label: string) => void;
-  onRequestConfirm: (slug: string, label: string) => void;
 }
 
 // ─── Shared card content (label + name + score + question) ──────────────────
@@ -49,7 +49,6 @@ export default function DailyHeroSection({
   timeUntilReset,
   starting,
   onPlay,
-  onRequestConfirm,
 }: DailyHeroSectionProps) {
   return (
     <section className="mb-10" suppressHydrationWarning>
@@ -131,13 +130,7 @@ export default function DailyHeroSection({
             return (
               <button
                 key={dc.categorySlug}
-                onClick={() => {
-                  if (isInProgress) {
-                    onPlay(dc.categorySlug, dc.categoryName);
-                  } else {
-                    onRequestConfirm(dc.categorySlug, dc.categoryName);
-                  }
-                }}
+                onClick={() => onPlay(dc.categorySlug, dc.categoryName)}
                 disabled={starting !== null}
                 className="group flex flex-col bg-surface border border-line rounded-lg p-6 md:p-8 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[var(--shadow-card)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >

@@ -1,6 +1,16 @@
 import { apiFetch } from "@/lib/api/client";
 import type { FootballFilter } from "@/lib/api/footballApi";
 import type { GameStateResponse, SubmitAnswerResponse } from "@/hooks/useGameLoop.types";
+import type { ShareData } from "@/utils/share";
+
+/** Matches backend {@code DailyChallengeStatusResponse.CategoryChallenge}. */
+export interface DailyStatus {
+  categorySlug: string;
+  categoryName: string;
+  startingScore: number;
+  questionText: string;
+  hasChallenge: boolean;
+}
 
 /**
  * Typed API facade for game endpoints, matching the {@code AdminApiClient}
@@ -87,6 +97,18 @@ class GameApiClient {
     gameType: "freeplay" | "daily-challenge",
   ): Promise<GameStateResponse> {
     return this.request<GameStateResponse>(`${this.basePath(gameType)}/games/${gameId}`);
+  }
+
+  async getDailyStatuses(): Promise<{ date?: string; challenges?: DailyStatus[] }> {
+    return this.request("/api/daily-challenge/status");
+  }
+
+  async getDailyStatus(categorySlug: string): Promise<DailyStatus> {
+    return this.request<DailyStatus>(`/api/daily-challenge/${encodeURIComponent(categorySlug)}`);
+  }
+
+  async getShareData(gameId: string): Promise<ShareData> {
+    return this.request<ShareData>(`/api/daily-challenge/share/${gameId}`);
   }
 
   async getActiveGame(): Promise<GameStateResponse> {

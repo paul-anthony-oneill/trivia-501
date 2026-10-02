@@ -11,11 +11,13 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useGameLoop } from "@/hooks/useGameLoop";
-import { useDailyChallenge } from "@/hooks/useDailyChallenge";
+import {
+  useDailyChallenge,
+  useDailyStart,
+  dailyResultText,
+} from "@/hooks/useDailyChallenge";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useToast } from "@/context/ToastContext";
-import { apiFetch } from "@/lib/api/client";
-import { buildShareText } from "@/utils/share";
 
 const LoginButton = dynamic(() => import("@/components/auth/LoginButton"), { ssr: false });
 
@@ -83,22 +85,13 @@ export default function GamePage() {
   // Share state: idle → sharing → copied
   const [shareState, setShareState] = useState<"idle" | "sharing" | "copied">("idle");
 
-  // Pending daily challenge confirmation
-  const [pendingDaily, setPendingDaily] = useState<{ slug: string; label: string } | null>(null);
-  // Slug currently starting a game (prevents double-clicks)
-  const [starting, setStarting] = useState<string | null>(null);
+  const {
+    starting,
+    play: playDaily,
+    confirmProps: dailyConfirmProps,
+  } = useDailyStart(startGame);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-
-  const handleStartDailyChallenge = async (categorySlug: string, label: string) => {
-    if (starting) return;
-    setStarting(categorySlug);
-    try {
-      await startGame({ mode: "daily", categorySlug, breadcrumb: [label] });
-    } finally {
-      setStarting(null);
-    }
-  };
 
   const handlePlayAgain = async () => {
     if (spec) await startGame(spec);
@@ -108,11 +101,7 @@ export default function GamePage() {
     if (!gameId || shareState !== "idle") return;
     setShareState("sharing");
     try {
-      const res = await apiFetch(`/api/daily-challenge/share/${gameId}`);
-      if (!res.ok) throw new Error("Failed to get share data");
-      const data = await res.json();
-
-      const shareText = buildShareText(data, window.location.origin);
+      const shareText = await dailyResultText(gameId);
 
       if (navigator.share) {
         await navigator.share({ text: shareText });
@@ -181,8 +170,7 @@ export default function GamePage() {
               onRetry={retryDailies}
               timeUntilReset={timeUntilReset}
               starting={starting}
-              onPlay={handleStartDailyChallenge}
-              onRequestConfirm={(slug, label) => setPendingDaily({ slug, label })}
+              onPlay={playDaily}
             />
 
             {/* Build Your Own Game entry */}
@@ -205,21 +193,7 @@ export default function GamePage() {
           </main>
         </div>
 
-        <ConfirmDialog
-          open={pendingDaily !== null}
-          title={`Play today's ${pendingDaily?.label} challenge?`}
-          message="You only get one attempt per day. Once you start, this is your shot."
-          confirmText="Let's go"
-          cancelText="Not yet"
-          type="info"
-          onConfirm={() => {
-            if (pendingDaily) {
-              handleStartDailyChallenge(pendingDaily.slug, pendingDaily.label);
-            }
-            setPendingDaily(null);
-          }}
-          onCancel={() => setPendingDaily(null)}
-        />
+        <ConfirmDialog {...dailyConfirmProps} />
       </ErrorBoundary>
     );
   }

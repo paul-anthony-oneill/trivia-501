@@ -1,81 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api/client";
 import { startGame } from "@/lib/gameStart";
 import { useToast } from "@/context/ToastContext";
-import { buildShareText } from "@/utils/share";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
-  getDailyLock,
-  pruneStaleDailyLocks,
-  type DailyLockState,
-} from "@/lib/dailyLock";
-
-interface CategoryStatus {
-  categorySlug: string;
-  categoryName: string;
-  startingScore: number;
-  questionText: string;
-  hasChallenge: boolean;
-}
+  useDailyStatus,
+  useDailyStart,
+  dailyResultText,
+} from "@/hooks/useDailyChallenge";
 
 export default function DailyCategoryPage() {
   const params = useParams();
   const router = useRouter();
   const categorySlug = params.category as string;
-
-  const [status, setStatus] = useState<CategoryStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [lock, setLock] = useState<DailyLockState | null>(null);
-  const [resultText, setResultText] = useState<string | null>(null);
   const { addToast } = useToast();
 
-  useEffect(() => {
-    pruneStaleDailyLocks();
-    setLock(getDailyLock(categorySlug));
-
-    apiFetch(`/api/daily-challenge/${encodeURIComponent(categorySlug)}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          if (res.status === 404) throw new Error("No challenge found for this category today");
-          throw new Error("Failed to load challenge");
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setStatus(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || "Error loading challenge");
-        setLoading(false);
-      });
-  }, [categorySlug]);
+  const { status, lock, loading, error } = useDailyStatus(categorySlug);
+  const { starting, play, confirmProps } = useDailyStart(async (spec) => {
+    await startGame(spec);
+    router.push("/");
+  });
+  const [resultText, setResultText] = useState<string | null>(null);
 
   const handleViewResult = async () => {
     if (!lock?.gameId) return;
     try {
-      const res = await apiFetch(`/api/daily-challenge/share/${lock.gameId}`);
-      if (!res.ok) throw new Error();
-      setResultText(buildShareText(await res.json(), window.location.origin));
+      setResultText(await dailyResultText(lock.gameId));
     } catch {
       addToast("Couldn't load your result", "error");
-    }
-  };
-
-  const handlePlay = async () => {
-    if (!status) return;
-    setStarting(true);
-    try {
-      await startGame({ mode: "daily", categorySlug, breadcrumb: [status.categoryName] });
-      router.push("/");
-    } catch (err) {
-      addToast((err as Error).message || "Error starting daily challenge", "error");
-    } finally {
-      setStarting(false);
     }
   };
 
@@ -134,8 +88,8 @@ export default function DailyCategoryPage() {
               View result →
             </button>
         : <button
-            onClick={handlePlay}
-            disabled={starting}
+            onClick={() => play(categorySlug, status.categoryName)}
+            disabled={starting !== null}
             className="btn-primary w-full h-13 text-lg py-3.5"
           >
             {starting ? "Starting…"
@@ -150,6 +104,8 @@ export default function DailyCategoryPage() {
           </a>
         </div>
       </div>
+
+      <ConfirmDialog {...confirmProps} />
 
       <footer className="mt-8 kicker">
         Shared via Trivia 501 ·{" "}

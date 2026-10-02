@@ -23,6 +23,7 @@
 
 | Item | Migration/PR | Notes |
 |---|---|---|
+| Daily module | — | Architecture review (2026-10-01) #3. `hooks/useDailyChallenge.ts` owns everything daily: `useDailyChallenge()` (status list, cached per UTC day), `useDailyStatus(slug)` (cache first, else `GET /{slug}`), `useDailyStart(start)` (resume in-progress, else one-attempt confirm), `dailyResultText(gameId)`. Deleted the deep-link page's own fetch + status type and two of three copy-pasted confirm dialogs; one `todayUTC()`. Fixed: the share-link page started a daily without the one-attempt confirm. Daily/share HTTP now goes through `GameApiClient`. |
 | Game Session reducer + one Daily Lock rule | — | Architecture review (2026-10-01) #2. `lib/gameSession.ts` is a pure reducer fed server snapshots; `useGameLoop` just runs side effects. Answers are committed when the server responds (saved-game cleanup + Daily Lock no longer wait on `AnimatedScorePopup`) and revealed when the popup completes (`visible()`). `recordDailyProgress` in `lib/dailyLock.ts` is the only lock writer and never downgrades a completed lock (adopt used to). Also fixed: "View result" on `/daily/[category]` opened raw share JSON (PR #87). |
 | Game-start module behind a `GameSpec` | — | `lib/gameStart.ts` is the only place games start (4 hand-rolled page starts deleted, `useGamePersistence.ts` folded in). `useGameLoop.adopt` is the single snapshot→state path for start + restore. Fixed: Play Again used the label as slug, header breadcrumb never split, RND→501 on Football, abandoning a daily via the freeplay endpoint. See `CONTEXT.md`. |
 | Clean per-season football questions from DB | V28 | Deleted all `football.team_competition_season_metric` questions + answers + dependent rows; deactivated V11 templates. |
@@ -110,12 +111,12 @@ The following items were previously P0/P1 launch blockers but are now parked. Th
 Findings from the 2026-06-09 architectural review. Ordered by severity. None are launch blockers but the P1 items should be addressed before the codebase grows further.
 
 
-### Architecture review 2026-10-01 — remaining candidates (#3–#5)
-#1 (Game-start module) and #2 (Game Session reducer) are done; the review itself was a temp HTML file and isn't in the repo.
-- **#3 Deepen the Daily module** (worth exploring): status fetch, "today" (UTC) and lock reads exist twice — `useDailyChallenge.ts` and `app/daily/[category]/page.tsx` (own fetch + re-declared status shape). One Daily module (`challenges`, `statusFor(slug)`, `start(slug)`, `resultHref(slug)`) would own them.
-- **#4 Make `GameApiClient` the only HTTP adapter** (worth exploring): raw `apiFetch` game/daily/share calls remain in `app/page.tsx` (share), `app/daily/[category]/page.tsx`, `DebugPanel.tsx`, `useDailyChallenge.ts`; DTOs live in `hooks/useGameLoop.types.ts` so `lib/api` imports from `hooks/`. A fake client would be the second adapter for tests.
+### Architecture review 2026-10-01 — remaining candidates (#4–#5)
+#1 (Game-start module), #2 (Game Session reducer) and #3 (Daily module) are done; the review itself was a temp HTML file and isn't in the repo.
+- **#4 Make `GameApiClient` the only HTTP adapter** (worth exploring): daily/share calls now go through it (#3); `DebugPanel.tsx` still calls `apiFetch` directly; DTOs live in `hooks/useGameLoop.types.ts` so `lib/api` imports from `hooks/`. A fake client would be the second adapter for tests.
 - **#5 `gameView(state)` selector + typed `MoveResult`** (speculative): `"VALID"/"BUST"/"INVALID"` string checks in `MatchView`, `MoveHistory`, `AnimatedScorePopup`; starting score derived from `moves[last].scoreBefore` in render. Natural follow-on to `lib/gameSession.ts` — don't do it standalone.
-- **Why deferred**: one refactor at a time; #3 next.
+- **Why deferred**: one refactor at a time; #4 next.
+
 ### ✅ Planned Refactor: Strip `player2` from the data model, engine, and tests — clean solo-only architecture
 
 **Done** (2026-06-19, V44 migration). All player2 columns dropped. Engine, services, repos, and controllers simplified to solo-only. GameCompletedEvent breaks the @Lazy cycle. GameResponseAssembler eliminates controller duplication. See the Recently Completed table above.
