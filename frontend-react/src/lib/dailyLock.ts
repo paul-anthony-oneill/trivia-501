@@ -33,7 +33,7 @@ export function getDailyLock(categorySlug: string): DailyLockState | null {
   }
 }
 
-export function setDailyLockInProgress(categorySlug: string, gameId: string): void {
+function setDailyLockInProgress(categorySlug: string, gameId: string): void {
   try {
     localStorage.setItem(
       key(categorySlug, todayISO()),
@@ -44,7 +44,7 @@ export function setDailyLockInProgress(categorySlug: string, gameId: string): vo
   }
 }
 
-export function setDailyLockCompleted(categorySlug: string, gameId: string): void {
+function setDailyLockCompleted(categorySlug: string, gameId: string): void {
   try {
     localStorage.setItem(
       key(categorySlug, todayISO()),
@@ -52,6 +52,21 @@ export function setDailyLockCompleted(categorySlug: string, gameId: string): voi
     );
   } catch {
     /* storage unavailable — non-critical */
+  }
+}
+
+/**
+ * The one Daily Lock rule: a finished game completes the lock, a game with a
+ * dart thrown marks it in progress, and a completed lock is never downgraded.
+ */
+export function recordDailyProgress(
+  categorySlug: string,
+  gameId: string,
+  game: { completed: boolean; turnCount: number },
+): void {
+  if (game.completed) setDailyLockCompleted(categorySlug, gameId);
+  else if (game.turnCount > 0 && getDailyLock(categorySlug)?.state !== "completed") {
+    setDailyLockInProgress(categorySlug, gameId);
   }
 }
 
