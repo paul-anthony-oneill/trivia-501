@@ -10,7 +10,7 @@ import AnimatedScorePopup from "@/components/game/AnimatedScorePopup";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import { useGameLoop, getSavedLabel } from "@/hooks/useGameLoop";
+import { useGameLoop } from "@/hooks/useGameLoop";
 import { useDailyChallenge } from "@/hooks/useDailyChallenge";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useToast } from "@/context/ToastContext";
@@ -21,11 +21,10 @@ const LoginButton = dynamic(() => import("@/components/auth/LoginButton"), { ssr
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Derive a display category name from the selection label (e.g. "Football > Premier League > Goals > Random") */
-function categoryLabel(label: string): { name: string; sub: string } {
-  const parts = label.split(" > ");
-  const name = parts[0] ?? "Trivia";
-  const sub = parts.slice(1).join(" > ") || "Darts Edition";
+/** Split a Game Spec breadcrumb into header name + sub (e.g. ["Football", "Premier League", "Goals"]) */
+function categoryLabel(breadcrumb: string[] = []): { name: string; sub: string } {
+  const name = breadcrumb[0] ?? "Trivia";
+  const sub = breadcrumb.slice(1).join(" › ") || "Darts Edition";
   return { name, sub };
 }
 
@@ -62,10 +61,10 @@ export default function GamePage() {
     flashVersion,
     popup,
     gameType,
+    spec,
     gameId,
     onPopupComplete,
-    startNewGame,
-    startDailyChallenge,
+    startGame,
     submitAnswer,
     exitGame,
   } = useGameLoop();
@@ -84,11 +83,6 @@ export default function GamePage() {
   // Share state: idle → sharing → copied
   const [shareState, setShareState] = useState<"idle" | "sharing" | "copied">("idle");
 
-  // Track the last selection so we can replay and display in MatchView.
-  const savedLabel = getSavedLabel();
-  const [lastSlug, setLastSlug] = useState(() => savedLabel ?? "football");
-  const [lastLabel, setLastLabel] = useState(() => savedLabel ?? "Football");
-
   // Pending daily challenge confirmation
   const [pendingDaily, setPendingDaily] = useState<{ slug: string; label: string } | null>(null);
   // Slug currently starting a game (prevents double-clicks)
@@ -99,17 +93,15 @@ export default function GamePage() {
   const handleStartDailyChallenge = async (categorySlug: string, label: string) => {
     if (starting) return;
     setStarting(categorySlug);
-    setLastSlug(categorySlug);
-    setLastLabel(label);
     try {
-      await startDailyChallenge(categorySlug, label);
+      await startGame({ mode: "daily", categorySlug, breadcrumb: [label] });
     } finally {
       setStarting(null);
     }
   };
 
   const handlePlayAgain = async () => {
-    await startNewGame(lastSlug, lastLabel);
+    if (spec) await startGame(spec);
   };
 
   const handleShare = async () => {
@@ -234,7 +226,7 @@ export default function GamePage() {
 
   // ── Active game ──────────────────────────────────────────────────────────────
 
-  const { name: catName, sub: catSub } = categoryLabel(lastLabel);
+  const { name: catName, sub: catSub } = categoryLabel(spec?.breadcrumb);
 
   return (
     <ErrorBoundary section="game">

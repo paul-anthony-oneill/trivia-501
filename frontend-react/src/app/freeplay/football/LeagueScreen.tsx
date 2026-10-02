@@ -8,7 +8,8 @@ import { type NavScreen, type League, STAT_TYPES } from "@/components/game/lobby
 interface LeagueScreenProps {
   league: League;
   onPush: (s: NavScreen) => void;
-  onStartGame: (slug: string, label: string, filter?: FootballFilter) => void;
+  /** `key` is UI-only (which row shows the spinner); the Game Spec is breadcrumb + filter. */
+  onStartGame: (key: string, breadcrumb: string[], filter?: FootballFilter) => void;
   starting: string | null;
 }
 
@@ -32,7 +33,7 @@ export default function LeagueScreen({ league, onPush, onStartGame, starting }: 
           random
           name="League Questions"
           sub={`Stats across the full ${league.name}`}
-          onClick={() => onStartGame(`football:${league.id}`, `Football › ${league.name} › League`, {
+          onClick={() => onStartGame(`football:${league.id}`, ["Football", league.name, "League"], {
             scope: "league", league: league.id,
           })}
           disabled={isStarting}
@@ -49,7 +50,7 @@ export default function LeagueScreen({ league, onPush, onStartGame, starting }: 
               small
               onClick={() => onStartGame(
                 slug,
-                `Football › ${league.name} › ${stat.name}`,
+                ["Football", league.name, stat.name],
                 { scope: "league", league: league.id, statType: stat.id },
               )}
               disabled={isStarting}
@@ -69,7 +70,7 @@ export default function LeagueScreen({ league, onPush, onStartGame, starting }: 
           random
           name="Random Club"
           sub={`Any club from the ${league.name}`}
-          onClick={() => onStartGame(`football:${league.id}:random`, `Football › ${league.name} › Random Club`, {
+          onClick={() => onStartGame(`football:${league.id}:random`, ["Football", league.name, "Random Club"], {
             scope: "random_club_level", league: league.id,
           })}
           disabled={isStarting}

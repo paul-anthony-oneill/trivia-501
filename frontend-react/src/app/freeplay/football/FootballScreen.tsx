@@ -6,7 +6,8 @@ import type { FootballFilter } from "@/lib/api/footballApi";
 
 interface FootballScreenProps {
   onPush: (s: NavScreen) => void;
-  onStartGame: (slug: string, label: string, filter?: FootballFilter) => void;
+  /** `key` is UI-only (which row shows the spinner); the Game Spec is breadcrumb + filter. */
+  onStartGame: (key: string, breadcrumb: string[], filter?: FootballFilter) => void;
   starting: string | null;
 }
 
@@ -20,7 +21,7 @@ export default function FootballScreen({ onPush, onStartGame, starting }: Footba
           random
           name="Random Question"
           sub="Any club, any league, any stat"
-          onClick={() => onStartGame("football:random_any", "Football — Random", { scope: "random_any" })}
+          onClick={() => onStartGame("football:random_any", ["Football", "Random"], { scope: "random_any" })}
           disabled={isStarting}
           loading={starting === "football:random_any"}
         />
@@ -29,7 +30,7 @@ export default function FootballScreen({ onPush, onStartGame, starting }: Footba
           random
           name="Random League Question"
           sub="League-wide stat, picked at random"
-          onClick={() => onStartGame("football:random_league", "Football — Random League", { scope: "random_league_level" })}
+          onClick={() => onStartGame("football:random_league", ["Football", "Random League"], { scope: "random_league_level" })}
           disabled={isStarting}
           loading={starting === "football:random_league"}
         />

@@ -9,7 +9,8 @@ import type { FootballFilter } from "@/lib/api/footballApi";
 interface NavScreenRendererProps {
   screen: NavScreen;
   onPush: (s: NavScreen) => void;
-  onStartGame: (slug: string, label: string, filter?: FootballFilter) => void;
+  /** `key` is UI-only (which row shows the spinner); the Game Spec is breadcrumb + filter. */
+  onStartGame: (key: string, breadcrumb: string[], filter?: FootballFilter) => void;
   starting: string | null;
 }
 

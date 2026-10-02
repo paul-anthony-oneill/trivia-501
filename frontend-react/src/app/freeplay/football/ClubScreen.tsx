@@ -8,7 +8,8 @@ import type { FootballClub, FootballFilter } from "@/lib/api/footballApi";
 interface ClubScreenProps {
   league: League;
   club: FootballClub;
-  onStartGame: (slug: string, label: string, filter?: FootballFilter) => void;
+  /** `key` is UI-only (which row shows the spinner); the Game Spec is breadcrumb + filter. */
+  onStartGame: (key: string, breadcrumb: string[], filter?: FootballFilter) => void;
   starting: string | null;
 }
 
@@ -23,7 +24,7 @@ export default function ClubScreen({ league, club, onStartGame, starting }: Club
         sub="Any stat type for this club"
         onClick={() => onStartGame(
           randomSlug,
-          `Football › ${league.name} › ${club.name}`,
+          ["Football", league.name, club.name],
           { scope: "club", league: league.id, club: club.id },
         )}
         disabled={isStarting}
@@ -42,7 +43,7 @@ export default function ClubScreen({ league, club, onStartGame, starting }: Club
             small
             onClick={() => onStartGame(
               slug,
-              `Football › ${league.name} › ${club.name} › ${stat.name}`,
+              ["Football", league.name, club.name, stat.name],
               { scope: "club", league: league.id, club: club.id, statType: stat.id },
             )}
             disabled={isStarting}

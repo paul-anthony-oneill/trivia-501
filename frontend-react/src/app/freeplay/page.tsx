@@ -7,10 +7,9 @@ import dynamic from "next/dynamic";
 import CategoryCard from "@/components/game/lobby/CategoryCard";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import HowToPlayPanel from "@/components/game/HowToPlayPanel";
-import { gameApiClient } from "@/lib/api/GameApiClient";
-import { saveGameState } from "@/hooks/useGamePersistence";
+import { startGame as requestStart } from "@/lib/gameStart";
 import { useToast } from "@/context/ToastContext";
-import { OTHER_CATEGORIES, resolveTarget, type TargetScore, TARGET_OPTIONS } from "@/components/game/lobby/types";
+import { OTHER_CATEGORIES, type TargetScore, TARGET_OPTIONS } from "@/components/game/lobby/types";
 
 const LoginButton = dynamic(() => import("@/components/auth/LoginButton"), { ssr: false });
 
@@ -24,8 +23,7 @@ export default function FreePlayHubPage() {
     if (starting) return;
     setStarting(slug);
     try {
-      const game = await gameApiClient.startFreePlay(slug, resolveTarget(target));
-      saveGameState(game.gameId, label, "freeplay");
+      await requestStart({ mode: "freeplay", categorySlug: slug, breadcrumb: [label], target });
       router.push("/");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to start game";

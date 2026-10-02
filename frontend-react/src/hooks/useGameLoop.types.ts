@@ -85,6 +85,8 @@ export interface GameLoopState {
   popup: PopupState | null;
   /** The active game type (freeplay or daily-challenge). */
   gameType: GameType;
+  /** The Game Spec of the active game; null when no game is active. Drives the header and Play Again. */
+  spec: import("@/lib/gameStart").GameSpec | null;
   /** The active game ID, null when no game is active. */
   gameId: string | null;
   /** The current question ID, used by debug tools to fetch all answers. */
@@ -94,15 +96,8 @@ export interface GameLoopState {
 export interface GameLoopActions {
   /** The current game type (freeplay or daily-challenge). */
   gameType: GameType;
-  /** Start a new Free Play game for the given category slug. */
-  startNewGame: (
-    categorySlug: string,
-    label: string,
-    targetScore?: number,
-    footballFilter?: import("@/lib/api/footballApi").FootballFilter,
-  ) => Promise<void>;
-  /** Start a daily challenge game for the given category slug. */
-  startDailyChallenge: (categorySlug: string, label: string) => Promise<void>;
+  /** Start a game from a Game Spec (abandons the previous Free Play game). */
+  startGame: (spec: import("@/lib/gameStart").GameSpec) => Promise<void>;
   /** Submit an answer for the current game turn. */
   submitAnswer: (answer: string, entityId?: string) => Promise<void>;
   /** Exit the current game and return to the lobby. */

@@ -6,8 +6,7 @@ import {
   useDailyChallenge,
   type CategoryChallenge,
 } from "@/hooks/useDailyChallenge";
-import { apiFetch } from "@/lib/api/client";
-import { saveGameState } from "@/hooks/useGamePersistence";
+import { startGame } from "@/lib/gameStart";
 import { useToast } from "@/context/ToastContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -22,26 +21,7 @@ export default function DailyPage() {
   const handlePlay = async (slug: string, label: string) => {
     setStarting(slug);
     try {
-      const res = await apiFetch(
-        `/api/daily-challenge/${encodeURIComponent(slug)}/start`,
-        {
-          method: "POST",
-        },
-      );
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        let msg = "Failed to start challenge";
-        try {
-          const p = JSON.parse(text);
-          msg = p.error || p.message || text;
-        } catch {
-          msg = text || msg;
-        }
-        throw new Error(msg);
-      }
-      const game = await res.json();
-      // Store game state and redirect to main page (will restore from sessionStorage)
-      saveGameState(game.gameId, label, "daily-challenge", slug);
+      await startGame({ mode: "daily", categorySlug: slug, breadcrumb: [label] });
       router.push("/");
     } catch (err) {
       addToast(
