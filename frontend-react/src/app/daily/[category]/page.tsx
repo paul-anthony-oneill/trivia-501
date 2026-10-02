@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
+import { saveGameState } from "@/hooks/useGamePersistence";
 import { useToast } from "@/context/ToastContext";
 import {
   getDailyLock,
@@ -66,11 +67,7 @@ export default function DailyCategoryPage() {
         throw new Error(msg);
       }
       const game = await res.json();
-      sessionStorage.setItem("activeGameState", JSON.stringify({
-        gameId: game.gameId,
-        label: status.categoryName,
-        gameType: "daily-challenge",
-      }));
+      saveGameState(game.gameId, status.categoryName, "daily-challenge", categorySlug);
       router.push("/");
     } catch (err) {
       addToast((err as Error).message || "Error starting daily challenge", "error");

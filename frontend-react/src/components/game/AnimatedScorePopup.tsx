@@ -37,6 +37,11 @@ export default function AnimatedScorePopup({
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
+  // Parent re-renders (e.g. the 1s countdown on GamePage) pass a new onComplete
+  // each time; reading it through a ref keeps the dismiss timers from restarting.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   // ── Skip: jump to the result immediately ─────────────────────────────────
   const skipRef = useRef<() => void>(() => {});
   skipRef.current = () => {
@@ -53,7 +58,7 @@ export default function AnimatedScorePopup({
     } else {
       // "showing" or "invalid" — dismiss now
       completedRef.current = true;
-      onComplete();
+      onCompleteRef.current();
     }
   };
 
@@ -115,7 +120,7 @@ export default function AnimatedScorePopup({
       const t = setTimeout(() => {
         if (!completedRef.current) {
           completedRef.current = true;
-          onComplete();
+          onCompleteRef.current();
         }
       }, 500);
       return () => clearTimeout(t);
@@ -124,12 +129,13 @@ export default function AnimatedScorePopup({
       const t = setTimeout(() => {
         if (!completedRef.current) {
           completedRef.current = true;
-          onComplete();
+          onCompleteRef.current();
         }
       }, 1500);
       return () => clearTimeout(t);
     }
-  }, [phase, onComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
