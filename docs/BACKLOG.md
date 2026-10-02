@@ -521,6 +521,11 @@ Findings from the 2026-06-11 frontend design audit (15-principle heuristic evalu
 
 These don't block the first players but should follow quickly.
 
+### Performance: cache `/api/daily-challenge/status` per UTC day
+- **What**: After the empty-pool fail-fast (PR #87) `/status` dropped from ~21s to ~2.4s, still well over the 200ms p95 target (`/categories` is ~0.7s). Each call does several Fly (sjc) → Supabase round trips per category (categories, today's challenge, question text, empty-pool check). The response only changes once per UTC day, so cache it until next midnight UTC (e.g. Spring `@Cacheable` keyed on date, or `Cache-Control` until midnight).
+- **Why deferred**: 2.4s is acceptable for now (2026-10-02); the frontend also caches status per day in `useDailyChallenge`.
+- **See**: `DailyChallengeController.getStatus()`, `DailyChallengeService.getTodaysChallenge()`.
+
 ### Security: Re-enable CSRF protection
 - **What**: CSRF is currently disabled for stateless REST. Re-enable with SameSite cookies when JWT cookies are introduced.
 - **Why deferred**: Not applicable until HTTPOnly cookie auth is in place.
