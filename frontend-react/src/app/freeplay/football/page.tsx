@@ -6,8 +6,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import NavScreenRenderer from "./NavScreenRenderer";
-import { gameApiClient } from "@/lib/api/GameApiClient";
-import { saveGameState } from "@/hooks/useGamePersistence";
+import { startGame as requestStart } from "@/lib/gameStart";
+import { TARGET_OPTIONS, type TargetScore } from "@/components/game/lobby/types";
 import { useToast } from "@/context/ToastContext";
 import { useNavStack } from "@/hooks/useNavStack";
 import type { FootballFilter } from "@/lib/api/footballApi";
@@ -21,20 +21,19 @@ function FootballPageInner() {
   const searchParams = useSearchParams();
   const { addToast } = useToast();
 
-  // Read target from URL, default to 501
+  // Read the Target Choice from the URL (incl. "random"), default to 501
   const targetParam = searchParams.get("target");
-  const targetScore = targetParam === "301" ? 301 : targetParam === "101" ? 101 : 501;
+  const target: TargetScore = TARGET_OPTIONS.find((o) => String(o) === targetParam) ?? 501;
 
   const [starting, setStarting] = useState<string | null>(null);
   const { stack, currentScreen, slideDir, animKey, breadcrumb, push, pop } = useNavStack();
 
   const startGame = useCallback(
-    async (slug: string, label: string, filter?: FootballFilter) => {
+    async (key: string, breadcrumb: string[], filter?: FootballFilter) => {
       if (starting) return;
-      setStarting(slug);
+      setStarting(key);
       try {
-        const game = await gameApiClient.startFreePlay(slug, targetScore, filter);
-        saveGameState(game.gameId, label, "freeplay");
+        await requestStart({ mode: "freeplay", categorySlug: "football", breadcrumb, target, filter });
         router.push("/");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to start game";
@@ -43,7 +42,7 @@ function FootballPageInner() {
         setStarting(null);
       }
     },
-    [targetScore, router, addToast, starting],
+    [target, router, addToast, starting],
   );
 
   return (
@@ -72,7 +71,7 @@ function FootballPageInner() {
         </div>
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent text-bg font-display font-bold text-xs tracking-wide">
-            🎯 {targetScore}
+            {target === "random" ? "🎲 RND" : `🎯 ${target}`}
           </span>
           <ThemeToggle />
           <LoginButton />

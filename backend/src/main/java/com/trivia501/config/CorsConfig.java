@@ -35,10 +35,13 @@ public class CorsConfig {
         // Always allow localhost for development
         config.addAllowedOriginPattern("http://localhost:*");
         config.addAllowedOriginPattern("http://127.0.0.1:*");
-        // Add production frontend origin when set
-        if (frontendOrigin != null && !frontendOrigin.isEmpty()) {
-            config.addAllowedOrigin(frontendOrigin);
-            log.info("CORS: allowing frontend origin {}", frontendOrigin);
+        // Frontend origins: comma-separated, wildcards allowed so Vercel previews work,
+        // e.g. "https://trivia-501.vercel.app,https://trivia-501-*-fanaticpurifiers-projects.vercel.app"
+        for (String origin : frontendOrigin.split(",")) {
+            if (!origin.isBlank()) {
+                config.addAllowedOriginPattern(origin.strip());
+                log.info("CORS: allowing frontend origin {}", origin.strip());
+            }
         }
         config.setAllowedHeaders(List.of(
             "Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"

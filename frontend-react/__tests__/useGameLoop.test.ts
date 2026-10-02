@@ -103,9 +103,9 @@ describe("useGameLoop — initial state", () => {
   });
 });
 
-// ── startNewGame (Free Play) ───────────────────────────────────────────────
+// ── startGame (Free Play) ───────────────────────────────────────────────
 
-describe("useGameLoop — startNewGame", () => {
+describe("useGameLoop — startGame (freeplay)", () => {
   it("calls POST /api/freeplay/start with correct body", async () => {
     mockApiFetch.mockResolvedValue(
       new Response(JSON.stringify(mockGameResponse()), { status: 200 }),
@@ -114,7 +114,7 @@ describe("useGameLoop — startNewGame", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startNewGame("football", "Football", 301);
+      await result.current.startGame({ mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 301 });
     });
 
     expect(mockApiFetch).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe("useGameLoop — startNewGame", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startNewGame("geography", "Geography");
+      await result.current.startGame({ mode: "freeplay", categorySlug: "geography", breadcrumb: ["Geography"], target: 501 });
     });
 
     expect(result.current.gameId).toBe("abc-123");
@@ -173,7 +173,7 @@ describe("useGameLoop — startNewGame", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startNewGame("football", "Football", 501);
+      await result.current.startGame({ mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 501 });
     });
 
     expect(mockSetItem).toHaveBeenCalledWith(
@@ -190,7 +190,7 @@ describe("useGameLoop — startNewGame", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startNewGame("football", "Football");
+      await result.current.startGame({ mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 501 });
     });
 
     expect(mockAddToast).toHaveBeenCalledWith("No questions available", "error");
@@ -198,9 +198,9 @@ describe("useGameLoop — startNewGame", () => {
   });
 });
 
-// ── startDailyChallenge ────────────────────────────────────────────────────
+// ── startGame (daily) ────────────────────────────────────────────────────
 
-describe("useGameLoop — startDailyChallenge", () => {
+describe("useGameLoop — startGame (daily)", () => {
   it("calls POST /api/daily-challenge/{slug}/start", async () => {
     mockApiFetch.mockResolvedValue(
       new Response(JSON.stringify(mockGameResponse()), { status: 200 }),
@@ -209,7 +209,7 @@ describe("useGameLoop — startDailyChallenge", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startDailyChallenge("football", "Daily Football");
+      await result.current.startGame({ mode: "daily", categorySlug: "football", breadcrumb: ["Daily Football"] });
     });
 
     expect(mockApiFetch).toHaveBeenCalledWith(
@@ -229,13 +229,13 @@ describe("useGameLoop — startDailyChallenge", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startDailyChallenge("football", "Daily Football");
+      await result.current.startGame({ mode: "daily", categorySlug: "football", breadcrumb: ["Daily Football"] });
     });
 
     expect(result.current.gameType).toBe("daily-challenge");
   });
 
-  it("saves with gameType daily-challenge", async () => {
+  it("saves the daily Game Spec", async () => {
     mockApiFetch.mockResolvedValue(
       new Response(JSON.stringify(mockGameResponse()), { status: 200 }),
     );
@@ -243,11 +243,11 @@ describe("useGameLoop — startDailyChallenge", () => {
     const { result } = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await result.current.startDailyChallenge("football", "Daily Football");
+      await result.current.startGame({ mode: "daily", categorySlug: "football", breadcrumb: ["Daily Football"] });
     });
 
     const saved = JSON.parse(mockSetItem.mock.calls[0][1]);
-    expect(saved.gameType).toBe("daily-challenge");
+    expect(saved.spec).toEqual({ mode: "daily", categorySlug: "football", breadcrumb: ["Daily Football"] });
   });
 });
 
@@ -262,7 +262,7 @@ describe("useGameLoop — submitAnswer", () => {
     const hook = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await hook.result.current.startNewGame("football", "Football");
+      await hook.result.current.startGame({ mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 501 });
     });
 
     mockApiFetch.mockClear();
@@ -386,7 +386,7 @@ describe("useGameLoop — onPopupComplete", () => {
     const hook = renderHook(() => useGameLoop());
 
     await act(async () => {
-      await hook.result.current.startNewGame("football", "Football");
+      await hook.result.current.startGame({ mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 501 });
     });
 
     mockApiFetch.mockClear();
@@ -527,7 +527,7 @@ describe("useGameLoop — exitGame", () => {
 
     // Start a game first
     await act(async () => {
-      await result.current.startNewGame("football", "Football");
+      await result.current.startGame({ mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 501 });
     });
 
     mockApiFetch.mockClear();
@@ -558,7 +558,10 @@ describe("useGameLoop — exitGame", () => {
 describe("useGameLoop — session restore", () => {
   it("attempts restore when saved game exists in sessionStorage", async () => {
     mockGetItem.mockReturnValue(
-      JSON.stringify({ gameId: "saved-game-1", label: "Football", gameType: "freeplay" }),
+      JSON.stringify({
+        gameId: "saved-game-1",
+        spec: { mode: "freeplay", categorySlug: "football", breadcrumb: ["Football"], target: 501 },
+      }),
     );
 
     mockApiFetch.mockResolvedValue(
@@ -591,9 +594,32 @@ describe("useGameLoop — session restore", () => {
     expect(result.current.moves).toHaveLength(2);
   });
 
+  it("restores a daily through the same path as a start", async () => {
+    mockGetItem.mockReturnValue(
+      JSON.stringify({
+        gameId: "daily-1",
+        spec: { mode: "daily", categorySlug: "geography", breadcrumb: ["Geography"] },
+      }),
+    );
+    mockApiFetch.mockResolvedValue(
+      new Response(JSON.stringify(mockGameResponse({ gameId: "daily-1", turnCount: 1 })), { status: 200 }),
+    );
+
+    const { result } = renderHook(() => useGameLoop());
+
+    await vi.waitFor(() => expect(result.current.gameStatus).toBe("IN_PROGRESS"));
+    expect(mockApiFetch).toHaveBeenCalledWith("/api/daily-challenge/games/daily-1", expect.anything());
+    expect(result.current.gameType).toBe("daily-challenge");
+    expect(result.current.spec?.breadcrumb).toEqual(["Geography"]);
+    expect(mockAddToast).toHaveBeenCalledWith("Daily Challenge resumed!", "success");
+  });
+
   it("clears saved state and shows error toast when restore fails", async () => {
     mockGetItem.mockReturnValue(
-      JSON.stringify({ gameId: "expired-game", label: "Film", gameType: "freeplay" }),
+      JSON.stringify({
+        gameId: "expired-game",
+        spec: { mode: "freeplay", categorySlug: "film", breadcrumb: ["Film"], target: 501 },
+      }),
     );
 
     mockApiFetch.mockResolvedValue(

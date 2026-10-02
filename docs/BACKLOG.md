@@ -23,6 +23,7 @@
 
 | Item | Migration/PR | Notes |
 |---|---|---|
+| Game-start module behind a `GameSpec` | — | `lib/gameStart.ts` is the only place games start (4 hand-rolled page starts deleted, `useGamePersistence.ts` folded in). `useGameLoop.adopt` is the single snapshot→state path for start + restore. Fixed: Play Again used the label as slug, header breadcrumb never split, RND→501 on Football, abandoning a daily via the freeplay endpoint. See `CONTEXT.md`. |
 | Clean per-season football questions from DB | V28 | Deleted all `football.team_competition_season_metric` questions + answers + dependent rows; deactivated V11 templates. |
 | Fix league-level question metadata | V28 | Backfilled `q_scope='league'`, `q_league`, `q_stat` on V12 `player_competition_metric_since` questions so `findRandomFootballLeagueQuestion()` can surface them. Set `q_scope='career'` on career questions. |
 | Add league-scope Appearances, Goals+Appearances, Assists+Appearances questions | V30 | Seeded 3 new `player_competition_metric_since` templates; created one question per tier-1 domestic league; materialized answers and difficulty metrics inline. |
@@ -65,6 +66,12 @@ These items must be complete before real players can use the game.
 ### Frontend test suite — Phase 2 (component & integration tests)
 - **What**: Phase 1 (behaviour tests) is complete — 99 tests covering share-grid encoding, country utilities, `apiFetch`, `adminApi`, and `useGameLoop`. Phase 2 adds component tests (answer input flow), integration tests (daily challenge browse → start → play → share), and smoke tests (auth login/logout, guest path). Deferred until visual design stabilises.
 - **See**: `__tests__/` directory under `frontend-react/`; Vitest + React Testing Library setup.
+
+
+### Film & Geography have no daily challenge pool
+- **What**: As of 2026-10-02, film (5) and geography (5) have zero `suitable_for_daily` questions, so only football shows a daily. Curate/flag viable questions (or add more) so those categories get dailies.
+- **Why deferred**: Data/curation task. The ~21s `/status` latency it caused is fixed by the empty-pool fail-fast in `DailyChallengeService.createChallenge`.
+- **See**: `questions.suitable_for_daily`, V21/V22 seed CSVs, `ChallengeScorePicker`.
 
 
 ---
@@ -291,6 +298,11 @@ Deleting multiplayer tests without removing the underlying production code leave
 - **Severity**: Low
 - **What**: `LEAGUES` and `STAT_TYPES` are baked into the component. If the backend adds a league, the frontend silently omits it. Extract to `src/lib/constants/lobbyOptions.ts`. Separately: the "RND" target score button picks from `[501, 301, 101]` only; the backend pool now has 30 values. Either defer to backend for random selection or expand the client pool.
 - **Files**: `LobbyView.tsx:16–46`
+
+### Play Again: "keep same target / re-roll" toggle for RND (2026-10-02)
+- **Severity**: Low (feature idea)
+- **What**: A Game Spec stores the Target Choice (`"random"`), not the rolled number, so Play Again re-rolls. A toggle could let players keep the rolled Starting Score instead. Deferred from the Game-start module refactor; re-roll was the simplest default.
+- **Files**: `frontend-react/src/lib/gameStart.ts` (once it exists), `components/game/lobby/types.ts` (`resolveTarget`)
 
 ### `suppressHydrationWarning` on `DailyHeroSection` masks a `useDailyChallenge` hydration bug (2026-06-24)
 

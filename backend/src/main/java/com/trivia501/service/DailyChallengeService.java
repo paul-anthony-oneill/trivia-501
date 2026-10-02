@@ -266,6 +266,13 @@ public class DailyChallengeService {
         if (category != null && "test".equals(category.getSlug())) {
             throw new IllegalArgumentException("No daily challenge for the test category");
         }
+        // Fail fast on an empty pool: the score picker otherwise runs dozens of
+        // DB round trips before giving up, on every /status request.
+        if (!questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(
+                categoryId, Question.STATUS_ACTIVE)) {
+            throw new IllegalStateException(
+                "No suitable_for_daily question found for category " + categoryId);
+        }
 
         LocalDate today = LocalDate.now(clock);
         LocalDate cooldownStart = today.minusDays(DifficultyConstants.DAILY_QUESTION_COOLDOWN_DAYS);

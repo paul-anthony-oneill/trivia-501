@@ -5,17 +5,16 @@ import { useToast } from "@/context/ToastContext";
 import { useAnimatedScore } from "@/hooks/useAnimatedScore";
 import { gameApiClient } from "@/lib/api/GameApiClient";
 import {
-  saveGameState,
-  loadSavedGameState,
-  clearSavedGameState,
-  getSavedLabel,
-} from "@/hooks/useGamePersistence";
+  startGame as requestStart,
+  loadSavedGame,
+  clearSavedGame,
+  type GameSpec,
+} from "@/lib/gameStart";
 import {
   getDailyLock,
   setDailyLockInProgress,
   setDailyLockCompleted,
 } from "@/lib/dailyLock";
-import type { FootballFilter } from "@/lib/api/footballApi";
 import type {
   Move,
   GameHints,
@@ -41,18 +40,10 @@ export type {
   GameLoopActions,
 };
 
-export { getSavedLabel } from "@/hooks/useGamePersistence";
-
 /**
- * `useGameLoop` — thin coordinator that wires together:
- *
- * - {@code GameApiClient}              — typed API facade
- * - {@code useGamePersistence} module  — sessionStorage helpers
- * - {@code useAnimatedScore}    — score animation
- * - Toast context               — user feedback
- *
- * The public interface ({@code GameLoopState & GameLoopActions}) is unchanged
- * so callers don't need to update.
+ * `useGameLoop` — owns the game session on `/`. Games are started by the
+ * Game-start module (`lib/gameStart.ts`); every server snapshot, whether from
+ * a start or a restore, enters hook state through `adopt`.
  */
 export function useGameLoop(): GameLoopState & GameLoopActions {
   const { addToast } = useToast();
@@ -71,12 +62,11 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
   const [entityType, setEntityType] = useState("footballer");
   const [hints, setHints] = useState<GameHints | null>(null);
   const [popup, setPopup] = useState<PopupState | null>(null);
-  const [gameType, setGameType] = useState<GameType>("freeplay");
+  const [spec, setSpec] = useState<GameSpec | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [questionId, setQuestionId] = useState<string | null>(null);
-  const [currentCategorySlug, setCurrentCategorySlug] = useState<
-    string | null
-  >(null);
+
+  const gameType: GameType = spec?.mode === "daily" ? "daily-challenge" : "freeplay";
 
   const restoreAttempted = useRef(false);
   const pendingResultRef = useRef<{
@@ -84,57 +74,62 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     result: SubmitAnswerResponse;
   } | null>(null);
 
+  // ── Adopt a server snapshot (start or restore) ───────────────────────────
+
+  function adopt(game: GameStateResponse, gameSpec: GameSpec) {
+    const turns = game.turnCount ?? 0;
+    const completed = game.status === "COMPLETED";
+
+    setSpec(gameSpec);
+    setGameId(game.gameId);
+    setQuestionId(game.questionId ?? null);
+    setScore(game.currentScore);
+    setQuestion(game.questionText);
+    setTurnCount(turns);
+    setMoves(game.moves ? [...game.moves].reverse() : []);
+    setEntityType(game.entityType ?? "footballer");
+    setHints(game.hints ?? null);
+    setGameStatus(completed ? "COMPLETED" : "IN_PROGRESS");
+    setIsWin(completed && game.isWin === true);
+
+    if (gameSpec.mode === "daily") {
+      if (completed) setDailyLockCompleted(gameSpec.categorySlug, game.gameId);
+      else if (turns > 0) setDailyLockInProgress(gameSpec.categorySlug, game.gameId);
+    }
+
+    if (completed) return;
+    const what = gameSpec.mode === "daily" ? "Daily Challenge" : "Game";
+    addToast(turns > 0 ? `${what} resumed!` : `${what} started!`, "success");
+  }
+
   // ── Restore on mount ─────────────────────────────────────────────────────
 
   useEffect(() => {
     if (restoreAttempted.current) return;
     restoreAttempted.current = true;
 
-    const saved = loadSavedGameState();
+    const saved = loadSavedGame();
     if (!saved) return;
 
-    const savedGameType = saved.gameType ?? "freeplay";
-    setGameType(savedGameType);
-
+    setSpec(saved.spec);
     setGameStatus("RESTORING");
 
     gameApiClient
-      .getGameState(saved.gameId, savedGameType)
+      .getGameState(
+        saved.gameId,
+        saved.spec.mode === "daily" ? "daily-challenge" : "freeplay",
+      )
       .then((game) => {
-        setGameId(game.gameId);
-        setQuestionId(game.questionId ?? null);
-        setScore(game.currentScore);
-        setQuestion(game.questionText);
-        setTurnCount(game.turnCount ?? 0);
-        setEntityType(game.entityType ?? "footballer");
-        setHints(game.hints ?? null);
-
         if (game.status === "ABANDONED") {
-          clearSavedGameState();
+          clearSavedGame();
           setGameStatus("NOT_STARTED");
           addToast("Your previous game expired.", "info");
           return;
         }
-
-        const completed = game.status === "COMPLETED";
-        setGameStatus(completed ? "COMPLETED" : "IN_PROGRESS");
-        setIsWin(completed && game.isWin === true);
-
-        if (savedGameType === "daily-challenge" && saved.categorySlug) {
-          setCurrentCategorySlug(saved.categorySlug);
-          if (game.status === "COMPLETED") {
-            setDailyLockCompleted(saved.categorySlug, game.gameId);
-          } else if ((game.turnCount ?? 0) > 0) {
-            setDailyLockInProgress(saved.categorySlug, game.gameId);
-          }
-        }
-
-        setMoves(game.moves ? [...game.moves].reverse() : []);
-
-        addToast("Game restored!", "success");
+        adopt(game, saved.spec);
       })
       .catch(() => {
-        clearSavedGameState();
+        clearSavedGame();
         setGameStatus("NOT_STARTED");
         addToast("Your previous game session has expired.", "error");
       });
@@ -143,72 +138,11 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
-  async function startNewGame(
-    categorySlug: string,
-    label: string,
-    targetScore?: number,
-    footballFilter?: FootballFilter,
-  ) {
-    setGameType("freeplay");
-    if (gameId) gameApiClient.abandonGame(gameId, "freeplay");
-    clearSavedGameState();
+  async function startGame(gameSpec: GameSpec) {
     try {
-      const game = await gameApiClient.startFreePlay(
-        categorySlug,
-        targetScore,
-        footballFilter,
-      );
-      setGameId(game.gameId);
-      setQuestionId(game.questionId ?? null);
-      setScore(game.currentScore);
-      setQuestion(game.questionText);
-      setTurnCount(0);
-      setMoves([]);
-      setEntityType(game.entityType ?? "footballer");
-      setHints(game.hints ?? null);
-      setGameStatus("IN_PROGRESS");
-
-      saveGameState(game.gameId, label, "freeplay");
-      addToast("Game started!", "success");
+      adopt(await requestStart(gameSpec), gameSpec);
     } catch (err) {
       addToast((err as Error).message || "Error starting game", "error");
-    }
-  }
-
-  async function startDailyChallenge(categorySlug: string, label: string) {
-    setGameType("daily-challenge");
-    if (gameId) gameApiClient.abandonGame(gameId, "freeplay");
-    clearSavedGameState();
-    try {
-      const game = await gameApiClient.startDailyChallenge(categorySlug);
-      setGameId(game.gameId);
-      setQuestionId(game.questionId ?? null);
-      setScore(game.currentScore);
-      setQuestion(game.questionText);
-      setTurnCount(game.turnCount ?? 0);
-      setMoves(game.moves ? [...game.moves].reverse() : []);
-      setEntityType(game.entityType ?? "footballer");
-      setHints(game.hints ?? null);
-      setCurrentCategorySlug(categorySlug);
-      setGameStatus("IN_PROGRESS");
-
-      saveGameState(game.gameId, label, "daily-challenge", categorySlug);
-
-      if ((game.turnCount ?? 0) > 0) {
-        setDailyLockInProgress(categorySlug, game.gameId);
-      }
-
-      addToast(
-        (game.turnCount ?? 0) > 0
-          ? "Daily Challenge resumed!"
-          : "Daily Challenge started!",
-        "success",
-      );
-    } catch (err) {
-      addToast(
-        (err as Error).message || "Error starting daily challenge",
-        "error",
-      );
     }
   }
 
@@ -276,30 +210,26 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     if (gameCompleted) {
       setGameStatus("COMPLETED");
       setIsWin(gameWasWon);
-      clearSavedGameState();
-      if (gameType === "daily-challenge" && currentCategorySlug && gameId) {
-        setDailyLockCompleted(currentCategorySlug, gameId);
+      clearSavedGame();
+      if (spec?.mode === "daily" && gameId) {
+        setDailyLockCompleted(spec.categorySlug, gameId);
       }
-    } else if (
-      gameType === "daily-challenge" &&
-      currentCategorySlug &&
-      gameId
-    ) {
-      const existing = getDailyLock(currentCategorySlug);
+    } else if (spec?.mode === "daily" && gameId) {
+      const existing = getDailyLock(spec.categorySlug);
       if (!existing || existing.state === "in_progress") {
-        setDailyLockInProgress(currentCategorySlug, gameId);
+        setDailyLockInProgress(spec.categorySlug, gameId);
       }
     }
   }
 
   function exitGame() {
     if (gameId) gameApiClient.abandonGame(gameId, gameType);
-    clearSavedGameState();
+    clearSavedGame();
     setGameStatus("NOT_STARTED");
     setIsWin(false);
     setGameId(null);
     setQuestionId(null);
-    setCurrentCategorySlug(null);
+    setSpec(null);
   }
 
   // ── Return ───────────────────────────────────────────────────────────────
@@ -319,11 +249,11 @@ export function useGameLoop(): GameLoopState & GameLoopActions {
     isAnimating,
     popup,
     gameType,
+    spec,
     gameId,
     questionId,
     onPopupComplete: handlePopupComplete,
-    startNewGame,
-    startDailyChallenge,
+    startGame,
     submitAnswer,
     exitGame,
   };
