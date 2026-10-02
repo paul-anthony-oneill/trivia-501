@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { startGame } from "@/lib/gameStart";
 import { useToast } from "@/context/ToastContext";
+import { buildShareText } from "@/utils/share";
 import {
   getDailyLock,
   pruneStaleDailyLocks,
@@ -29,6 +30,7 @@ export default function DailyCategoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [lock, setLock] = useState<DailyLockState | null>(null);
+  const [resultText, setResultText] = useState<string | null>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -52,6 +54,17 @@ export default function DailyCategoryPage() {
         setLoading(false);
       });
   }, [categorySlug]);
+
+  const handleViewResult = async () => {
+    if (!lock?.gameId) return;
+    try {
+      const res = await apiFetch(`/api/daily-challenge/share/${lock.gameId}`);
+      if (!res.ok) throw new Error();
+      setResultText(buildShareText(await res.json(), window.location.origin));
+    } catch {
+      addToast("Couldn't load your result", "error");
+    }
+  };
 
   const handlePlay = async () => {
     if (!status) return;
@@ -110,14 +123,16 @@ export default function DailyCategoryPage() {
         </p>
 
         {lock?.state === "completed" ?
-          <a
-            href={`/api/daily-challenge/share/${lock.gameId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-secondary w-full h-13 text-lg py-3.5 flex items-center justify-center"
-          >
-            View result →
-          </a>
+          resultText ?
+            <pre className="font-mono text-sm whitespace-pre-wrap select-all text-center">
+              {resultText}
+            </pre>
+          : <button
+              onClick={handleViewResult}
+              className="btn-secondary w-full h-13 text-lg py-3.5"
+            >
+              View result →
+            </button>
         : <button
             onClick={handlePlay}
             disabled={starting}
