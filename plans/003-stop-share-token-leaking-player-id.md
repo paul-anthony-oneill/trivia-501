@@ -131,7 +131,7 @@ static String playerPseudonym(UUID playerId) {
 Replace `playerId.toString(),` in the `new SignRequest(...)` call with `playerPseudonym(playerId),`.
 Prefer imports at the top of the file over fully-qualified names, to match the file's style.
 
-**Verify**: `mvn -B -q compile` → exit 0, and `grep -n "playerId.toString()" src/main/java/com/trivia501/service/ResultSignerClient.java` → no matches.
+**Verify**: `mvn -B -q compile` → exit 0, and `grep -n "playerPseudonym(playerId)" src/main/java/com/trivia501/service/ResultSignerClient.java` → 1 match (note: `playerId.toString()` still appears once, legitimately, inside the helper body).
 
 ### Step 2: Unit-test the pseudonym
 
