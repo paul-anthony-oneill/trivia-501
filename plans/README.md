@@ -10,9 +10,9 @@ starting, honor its STOP conditions, and update your row when done.
 |------|-------|----------|--------|------------|--------|
 | [001](001-run-frontend-tests-in-ci.md) | Frontend unit tests + typecheck run in CI and pre-commit | P1 | S | — | DONE (2026-09-28, merged in #79) |
 | [002](002-upgrade-nextjs-security.md) | Bump Next.js to 16.3.6 (critical advisory) | P1 | S | 001 | DONE (2026-09-28, branch `advisor/002-nextjs-security-bump` @ 553dbf8, PR #80 open) |
-| [003](003-stop-share-token-leaking-player-id.md) | Share links stop exposing the guest session ID | P1 | S | — | TODO |
-| [004](004-fix-popup-timer-and-daily-lock.md) | INVALID popup auto-dismisses; /daily starts get locked | P1 | S | 001 (soft) | TODO |
-| [005](005-revive-weekly-scraper.md) | Weekly scraper runs green + answers re-materialize | P1 | M | — (operator must add a secret) | TODO |
+| [003](003-stop-share-token-leaking-player-id.md) | Share links stop exposing the guest session ID | P1 | S | — | DONE (2026-09-30, merged in #82) |
+| [004](004-fix-popup-timer-and-daily-lock.md) | INVALID popup auto-dismisses; /daily starts get locked | P1 | S | 001 (soft) | DONE (2026-10-01, branch `advisor/004-popup-timer-daily-lock` @ 378d86e, not merged) |
+| [005](005-revive-weekly-scraper.md) | Weekly scraper runs green + answers re-materialize | P1 | M | — (operator must add a secret) | BLOCKED (2026-10-02, parked by owner): code merged (#83, #84), but the FBref client (`scrape_historical.py:580`) needs a desktop Chrome to get past Cloudflare (`headless=False`, pinned `version_main=148`), so it can't run on GitHub runners. Workflow disabled manually. Revisit with a non-Cloudflare data source or a local schedule. |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -34,6 +34,8 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - Guest cookie rotation is added after the response is committed (`OptionalJwtFilter.java:153-172`).
 - The go-signer HTTP call runs inside the move transaction (`GameService.java:137`).
 - Docs drift: the CLAUDE.md P0 list (7/8 done), "9 starting scores" (now 30), API-Football references, QUICKSTART.md (SvelteKit-era), go-signer is undocumented, and several stale BACKLOG entries.
+
+- Weekly re-materialization can make auto-exclusion sticky (`QuestionMaterializerService.java:~283`). Viability is computed from the fresh materializer output only, so one thin scrape flips an active question to `excluded`. `AnswerRematerializationScheduler` only re-processes `active` questions, so it never comes back. No answers are lost. Fix idea: skip the status flip when re-materializing, or re-check `excluded` questions whose reason is viability.
 
 ## Findings considered and rejected
 

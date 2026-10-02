@@ -747,6 +747,11 @@ Features that are designed but not being built until the core Daily Challenge + 
 
 ## Admin & Data
 
+### Weekly data refresh: scraper can't run in CI (parked 2026-10-02)
+- **What**: Current-season stats (`player_season_stints`) aren't refreshed automatically, so answers only change when someone runs the scraper by hand. `scraper-scheduled.yml` is `disabled_manually`. Its DB side works (secret, session pooler, psycopg 3 all verified on 2026-10-02), but `build_fbref_client()` drives a visible desktop Chrome via `undetected_chromedriver` (`headless=False`, pinned `version_main=148`) to get past FBref's Cloudflare. GitHub-hosted runners have no display, their Chrome version drifts, and they use data-center IPs. If the challenge never clears, the client parses the challenge page silently, with no error.
+- **Why deferred**: Fixing it means either a non-Cloudflare data source or running the scraper on a machine that isn't a GitHub runner (a local launchd schedule; a self-hosted runner is risky on a public repo). That's a product/infra decision, not a code fix. The backend `AnswerRematerializationScheduler` (Mondays 05:17 UTC) is already live and will pick up fresh stints whenever they land.
+- **See**: `plans/005-revive-weekly-scraper.md` (Outcome), `trivia-501-scraper/scrape_historical.py` (`build_fbref_client`), `.github/workflows/scraper-scheduled.yml`, PRs #83 and #84.
+
 ### Difficulty range presets in admin UI
 - **What**: Named bands (Accessible 0–4, Competitive 4–7, Expert 7–10) shown as UI constants at render time. Never stored in the DB.
 - **Why deferred**: Needs data populated first to be meaningful.

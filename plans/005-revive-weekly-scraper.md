@@ -19,6 +19,7 @@
 - **Depends on**: none
 - **Category**: bug / dx
 - **Planned at**: commit `0baf851`, 2026-09-28
+- **Outcome (2026-10-02)**: BLOCKED / parked. Steps 2-4 and 6 merged in #83. A follow-up, #84, added `psycopg[binary]`: SQLAlchemy 2.1 defaults `postgresql://` to psycopg 3, and `sqlalchemy` is unpinned. The dry-run now reaches the DB, then fails at `import undetected_chromedriver`. Root blocker: `build_fbref_client()` (`scrape_historical.py:580`) drives a visible desktop Chrome (`headless=False`, `version_main=148`) to beat Cloudflare. That isn't viable on GitHub-hosted runners (no display, Chrome version drift, data-center IPs). The owner chose to park it, and `scraper-scheduled.yml` is `disabled_manually`. The backend `AnswerRematerializationScheduler` stays live. It's idempotent on unchanged stints.
 
 ## Why this matters
 
@@ -102,8 +103,13 @@ A daily trivia game with stale answers loses players' trust fast.
 ### Step 1 (OPERATOR, not the executor): create the secret
 
 The repo owner must create a repo secret named `SUPABASE_DB_URL` holding the Supabase
-**direct** connection (port 5432, not the 6543 pgBouncer pooler) in SQLAlchemy form:
-`postgresql://<user>:<password>@<host>:5432/postgres?sslmode=require`.
+**Session pooler** connection (port 5432 on `aws-0-<region>.pooler.supabase.com`). Not the
+direct `db.<ref>.supabase.co` host: that one is IPv6-only without the paid add-on, and
+GitHub-hosted runners have no IPv6. Not the 6543 transaction pooler either: it has no prepared
+statements. Use SQLAlchemy form:
+`postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require`.
+**Status 2026-10-01**: the operator set this secret. If Step 5 fails with a connection error,
+check the host first. A timeout or "Network is unreachable" means the direct host was used.
 Command: `gh secret set SUPABASE_DB_URL` (it prompts for the value, so the value never appears in shell history).
 
 Note: the project memory says the DB password was exposed earlier and needs rotating. If it
