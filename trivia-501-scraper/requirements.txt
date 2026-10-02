@@ -8,6 +8,7 @@ pydantic-settings>=2.1.0
 
 # Database
 psycopg2-binary>=2.9.9
+psycopg[binary]>=3.2  # SQLAlchemy 2.1+ uses psycopg 3 as the default postgresql:// driver
 sqlalchemy>=2.0.25
 
 # Scraping
