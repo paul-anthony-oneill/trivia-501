@@ -84,6 +84,8 @@ class DailyChallengeServiceTest {
         when(challengeRepository.findByChallengeDateAndCategoryId(LocalDate.now(), categoryId))
                 .thenReturn(Optional.empty());
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+        when(questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(categoryId, Question.STATUS_ACTIVE))
+                .thenReturn(true);
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
@@ -107,6 +109,8 @@ class DailyChallengeServiceTest {
         when(challengeRepository.findByChallengeDateAndCategoryId(LocalDate.now(), categoryId))
                 .thenReturn(Optional.empty());
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+        when(questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(categoryId, Question.STATUS_ACTIVE))
+                .thenReturn(true);
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
@@ -118,6 +122,20 @@ class DailyChallengeServiceTest {
         assertThatThrownBy(() -> service.getTodaysChallenge(categoryId))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("suitable_for_daily");
+    }
+
+    @Test
+    void shouldFailFastWhenDailyPoolIsEmpty() {
+        when(challengeRepository.findByChallengeDateAndCategoryId(LocalDate.now(), categoryId))
+                .thenReturn(Optional.empty());
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+        when(questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(categoryId, Question.STATUS_ACTIVE))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> service.getTodaysChallenge(categoryId))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("suitable_for_daily");
+        verify(scorePicker, never()).findViableQuestionAndScore(any(), anyInt(), any(), any());
     }
 
     @Test
@@ -149,6 +167,8 @@ class DailyChallengeServiceTest {
         when(challengeRepository.findByChallengeDateAndCategoryId(LocalDate.now(), categoryId))
                 .thenReturn(Optional.empty());
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+        when(questionRepository.existsByCategoryIdAndSuitableForDailyTrueAndStatus(categoryId, Question.STATUS_ACTIVE))
+                .thenReturn(true);
         when(challengeRepository.findLatestStartingScoreBefore(eq(categoryId), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         when(challengeRepository.findQuestionIdsUsedBetween(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))

@@ -68,6 +68,12 @@ These items must be complete before real players can use the game.
 - **See**: `__tests__/` directory under `frontend-react/`; Vitest + React Testing Library setup.
 
 
+### Film & Geography have no daily challenge pool
+- **What**: As of 2026-10-02, film (5) and geography (5) have zero `suitable_for_daily` questions, so only football shows a daily. Curate/flag viable questions (or add more) so those categories get dailies.
+- **Why deferred**: Data/curation task. The ~21s `/status` latency it caused is fixed by the empty-pool fail-fast in `DailyChallengeService.createChallenge`.
+- **See**: `questions.suitable_for_daily`, V21/V22 seed CSVs, `ChallengeScorePicker`.
+
+
 ---
 
 ## Deferred Indefinitely — Multiplayer & Competitive Ranking
