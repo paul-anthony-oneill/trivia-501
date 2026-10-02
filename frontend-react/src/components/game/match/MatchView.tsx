@@ -10,7 +10,7 @@ import LoginButton from "@/components/auth/LoginButton";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
-import type { Move, GameHints } from "@/hooks/useGameLoop";
+import type { Move, GameHints } from "@/lib/types/game";
 
 interface StagedAnswer {
   name: string;

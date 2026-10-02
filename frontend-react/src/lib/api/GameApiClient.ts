@@ -1,13 +1,20 @@
 import { apiFetch } from "@/lib/api/client";
 import type { FootballFilter } from "@/lib/api/footballApi";
-import type { GameStateResponse, SubmitAnswerResponse } from "@/hooks/useGameLoop.types";
+import type {
+  AnswerItem,
+  DailyStatus,
+  GameStateResponse,
+  GameType,
+  SubmitAnswerResponse,
+} from "@/lib/types/game";
+import type { ShareData } from "@/utils/share";
 
 /**
  * Typed API facade for game endpoints, matching the {@code AdminApiClient}
  * pattern. Extracted from {@code useGameLoop} so the hook only coordinates.
  */
 class GameApiClient {
-  private basePath(gameType: "freeplay" | "daily-challenge"): string {
+  private basePath(gameType: GameType): string {
     return gameType === "daily-challenge" ? "/api/daily-challenge" : "/api/freeplay";
   }
 
@@ -64,7 +71,7 @@ class GameApiClient {
     gameId: string,
     answer: string,
     entityId: string | null,
-    gameType: "freeplay" | "daily-challenge",
+    gameType: GameType,
   ): Promise<SubmitAnswerResponse> {
     return this.request<SubmitAnswerResponse>(
       `${this.basePath(gameType)}/games/${gameId}/submit`,
@@ -76,7 +83,7 @@ class GameApiClient {
   }
 
   /** Fire-and-forget abandon — server is idempotent. */
-  abandonGame(gameId: string, gameType: "freeplay" | "daily-challenge"): void {
+  abandonGame(gameId: string, gameType: GameType): void {
     apiFetch(`${this.basePath(gameType)}/games/${gameId}/abandon`, { method: "POST" }).catch(
       () => {},
     );
@@ -84,9 +91,26 @@ class GameApiClient {
 
   async getGameState(
     gameId: string,
-    gameType: "freeplay" | "daily-challenge",
+    gameType: GameType,
   ): Promise<GameStateResponse> {
     return this.request<GameStateResponse>(`${this.basePath(gameType)}/games/${gameId}`);
+  }
+
+  /** Debug only: every answer for the game's question. */
+  async getAllAnswers(gameId: string, gameType: GameType): Promise<AnswerItem[]> {
+    return this.request<AnswerItem[]>(`${this.basePath(gameType)}/games/${gameId}/answers`);
+  }
+
+  async getDailyStatuses(): Promise<{ date?: string; challenges?: DailyStatus[] }> {
+    return this.request("/api/daily-challenge/status");
+  }
+
+  async getDailyStatus(categorySlug: string): Promise<DailyStatus> {
+    return this.request<DailyStatus>(`/api/daily-challenge/${encodeURIComponent(categorySlug)}`);
+  }
+
+  async getShareData(gameId: string): Promise<ShareData> {
+    return this.request<ShareData>(`/api/daily-challenge/share/${gameId}`);
   }
 
   async getActiveGame(): Promise<GameStateResponse> {

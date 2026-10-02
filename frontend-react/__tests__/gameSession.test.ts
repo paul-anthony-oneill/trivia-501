@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sessionReducer, initialSession, visible, type GameSession } from "@/lib/gameSession";
-import type { GameStateResponse, SubmitAnswerResponse } from "@/hooks/useGameLoop.types";
+import type { GameStateResponse, SubmitAnswerResponse } from "@/lib/types/game";
 import type { GameSpec } from "@/lib/gameStart";
 
 const spec: GameSpec = { mode: "daily", categorySlug: "football", breadcrumb: ["Football"] };

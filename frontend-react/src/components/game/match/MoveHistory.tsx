@@ -1,7 +1,7 @@
 "use client";
 
 import HowToPlayPanel from "../HowToPlayPanel";
-import type { Move } from "@/hooks/useGameLoop";
+import type { Move } from "@/lib/types/game";
 
 interface MoveHistoryProps {
   moves: Move[];

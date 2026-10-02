@@ -15,7 +15,8 @@ export type DailyLockState =
   | { state: "in_progress"; gameId: string }
   | { state: "completed"; gameId: string };
 
-function todayISO(): string {
+/** Today as YYYY-MM-DD in UTC — the day boundary for Daily Challenges. */
+export function todayUTC(): string {
   return new Date().toISOString().split("T")[0]!;
 }
 
@@ -25,7 +26,7 @@ function key(categorySlug: string, date: string): string {
 
 export function getDailyLock(categorySlug: string): DailyLockState | null {
   try {
-    const raw = localStorage.getItem(key(categorySlug, todayISO()));
+    const raw = localStorage.getItem(key(categorySlug, todayUTC()));
     if (!raw) return null;
     return JSON.parse(raw) as DailyLockState;
   } catch {
@@ -36,7 +37,7 @@ export function getDailyLock(categorySlug: string): DailyLockState | null {
 function setDailyLockInProgress(categorySlug: string, gameId: string): void {
   try {
     localStorage.setItem(
-      key(categorySlug, todayISO()),
+      key(categorySlug, todayUTC()),
       JSON.stringify({ state: "in_progress", gameId } satisfies DailyLockState),
     );
   } catch {
@@ -47,7 +48,7 @@ function setDailyLockInProgress(categorySlug: string, gameId: string): void {
 function setDailyLockCompleted(categorySlug: string, gameId: string): void {
   try {
     localStorage.setItem(
-      key(categorySlug, todayISO()),
+      key(categorySlug, todayUTC()),
       JSON.stringify({ state: "completed", gameId } satisfies DailyLockState),
     );
   } catch {
@@ -73,7 +74,7 @@ export function recordDailyProgress(
 /** Remove lock entries from previous days to keep localStorage tidy. */
 export function pruneStaleDailyLocks(): void {
   try {
-    const today = todayISO();
+    const today = todayUTC();
     Object.keys(localStorage)
       .filter((k) => k.startsWith(PREFIX) && !k.includes(`_${today}`))
       .forEach((k) => localStorage.removeItem(k));
