@@ -362,7 +362,7 @@ The Vercel frontend proxies all `/api/*` requests to the Fly.io backend via `nex
 | `DB_URL` | Supabase PostgreSQL JDBC URL |
 | `DB_USERNAME` | Database user |
 | `DB_PASSWORD` | Database password |
-| `FOOTBALL501_FRONTEND_ORIGIN` | CORS allowed origin (`https://trivia-501.vercel.app`) |
+| `TRIVIA501_FRONTEND_ORIGIN` | CORS allowed origins, comma-separated, wildcards OK (`https://trivia-501.vercel.app,https://trivia-501-*-fanaticpurifiers-projects.vercel.app` so previews can POST) |
 
 **Critical — Spring profile**: **Do NOT set `SPRING_PROFILES_ACTIVE=prod`** until real JWT authentication is implemented and the frontend sends Bearer tokens with API calls. The `prod` profile disables `DevModeAuthFilter` (which injects a fixed authenticated principal for dev-mode permissive auth). If `prod` is active without a configured `SUPABASE_JWT_ISSUER` and JWT decoder, there is **no authentication mechanism at all** — every endpoint requiring `authenticated()` returns 403. When real auth ships, remove `DevModeAuthFilter` entirely, or keep it behind `@Profile("!prod")` and set both `SPRING_PROFILES_ACTIVE=prod` and `SUPABASE_JWT_ISSUER` together.
 
