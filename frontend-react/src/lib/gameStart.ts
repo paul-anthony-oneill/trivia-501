@@ -1,7 +1,7 @@
 import { gameApiClient } from "@/lib/api/GameApiClient";
 import { resolveTarget, type TargetScore } from "@/components/game/lobby/types";
 import type { FootballFilter } from "@/lib/api/footballApi";
-import type { GameStateResponse } from "@/hooks/useGameLoop.types";
+import type { GameStateResponse } from "@/lib/types/game";
 
 /**
  * Game-start module. The only place a game gets started: abandons the

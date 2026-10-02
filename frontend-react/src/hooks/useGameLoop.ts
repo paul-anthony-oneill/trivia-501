@@ -17,12 +17,11 @@ import type {
   GameHints,
   GameStatus,
   GameType,
-  GameStateResponse,
-  SubmitAnswerResponse,
   PopupState,
   GameLoopState,
   GameLoopActions,
 } from "@/hooks/useGameLoop.types";
+import type { GameStateResponse, SubmitAnswerResponse } from "@/lib/types/game";
 
 // Re-export types so existing callers (page.tsx, MatchView.tsx) don't change
 export type {

@@ -2,11 +2,9 @@ import type { GameSpec } from "@/lib/gameStart";
 import type {
   GameHints,
   GameStateResponse,
-  GameStatus,
   Move,
-  PopupState,
   SubmitAnswerResponse,
-} from "@/hooks/useGameLoop.types";
+} from "@/lib/types/game";
 
 /**
  * Game Session — the client's copy of one game, fed only by server snapshots.
@@ -15,6 +13,19 @@ import type {
  * the Daily Lock never depend on an animation finishing) but stays unrevealed
  * until the popup completes: `visible()` shows the pre-answer values meanwhile.
  */
+
+export type GameStatus =
+  | "NOT_STARTED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "ABANDONED"
+  | "RESTORING";
+
+export interface PopupState {
+  scoreValue: number;
+  result: "VALID" | "BUST" | "INVALID";
+  reason?: string;
+}
 
 /** The fields the player sees change when an answer is revealed. */
 interface Shown {

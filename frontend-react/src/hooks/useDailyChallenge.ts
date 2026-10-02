@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/context/ToastContext";
-import { gameApiClient, type DailyStatus } from "@/lib/api/GameApiClient";
+import { gameApiClient } from "@/lib/api/GameApiClient";
+import type { DailyStatus } from "@/lib/types/game";
 import type { GameSpec } from "@/lib/gameStart";
 import { buildShareText } from "@/utils/share";
 import {

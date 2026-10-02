@@ -1,64 +1,11 @@
 "use client";
 
-// ─── Types shared by useGameLoop, GameApiClient, and callers ─────────────────
+import type { Move, GameHints, GameType } from "@/lib/types/game";
+import type { GameStatus, PopupState } from "@/lib/gameSession";
 
-export interface Move {
-  answer: string;
-  result: string;
-  scoreBefore: number;
-  scoreAfter: number;
-  matchedAnswer?: string;
-  scoreValue?: number;
-  reason?: string;
-}
+export type { Move, GameHints, GameType, GameStatus, PopupState };
 
-export interface GameHints {
-  /** Remaining unused answers worth exactly 180 points. Shown while score > 180. */
-  maxScoresLeft: number;
-  /** Remaining unused answers that would win the game in one move. Shown while score ≤ 180. */
-  checkoutsLeft: number;
-}
-
-export type GameStatus =
-  | "NOT_STARTED"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "ABANDONED"
-  | "RESTORING";
-export type GameType = "freeplay" | "daily-challenge";
-
-/** Matches backend {@code com.trivia501.dto.GameStateResponse}. */
-export interface GameStateResponse {
-  gameId: string;
-  matchId: string;
-  questionId: string;
-  questionText: string;
-  currentScore: number;
-  turnCount: number;
-  status: "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
-  isWin?: boolean;
-  entityType?: string;
-  hints?: GameHints;
-  moves?: Move[];
-}
-
-/** Matches backend {@code com.trivia501.dto.SubmitAnswerResponse}. */
-export interface SubmitAnswerResponse {
-  result: string;
-  matchedAnswer?: string;
-  scoreValue?: number;
-  scoreBefore?: number;
-  scoreAfter?: number;
-  reason?: string;
-  isWin?: boolean;
-  gameState: GameStateResponse;
-}
-
-export interface PopupState {
-  scoreValue: number;
-  result: "VALID" | "BUST" | "INVALID";
-  reason?: string;
-}
+// ─── Types for useGameLoop and its callers ───────────────────────────────────
 
 export interface GameLoopState {
   /** Current game score (starts at 501, counts down to 0). */
