@@ -1,19 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api/client";
-
-interface AnswerItem {
-  id: string;
-  displayText: string;
-  score: number;
-  isValidDarts: boolean;
-  isBust: boolean;
-}
+import { gameApiClient } from "@/lib/api/GameApiClient";
+import type { AnswerItem, GameType } from "@/lib/types/game";
 
 interface DebugPanelProps {
   gameId: string | null;
-  gameType: "freeplay" | "daily-challenge";
+  gameType: GameType;
 }
 
 export default function DebugPanel({ gameId, gameType }: DebugPanelProps) {
@@ -26,16 +19,9 @@ export default function DebugPanel({ gameId, gameType }: DebugPanelProps) {
     if (!open || !gameId) return;
     setLoading(true);
     setError(null);
-    const base =
-      gameType === "daily-challenge" ? "/api/daily-challenge" : "/api/freeplay";
-    apiFetch(`${base}/games/${gameId}/answers`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setAnswers(
-          (data as AnswerItem[]).sort((a, b) => b.score - a.score),
-        );
-      })
+    gameApiClient
+      .getAllAnswers(gameId, gameType)
+      .then((data) => setAnswers(data.sort((a, b) => b.score - a.score)))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [open, gameId, gameType]);

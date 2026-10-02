@@ -463,6 +463,24 @@ describe("useGameLoop — onPopupComplete", () => {
     expect(mockRemoveItem).toHaveBeenCalledWith("activeGameState");
   });
 
+  it("commits a finished game before the popup completes, but doesn't show it", async () => {
+    const { result } = await startAndSubmit({
+      result: "CHECKOUT",
+      scoreValue: 10,
+      scoreAfter: 0,
+      isWin: true,
+      gameState: { status: "COMPLETED" },
+    });
+
+    // Saved game cleared even if the popup never finishes...
+    expect(mockRemoveItem).toHaveBeenCalledWith("activeGameState");
+    // ...while the player still sees the pre-answer state under the popup.
+    expect(result.current.popup).not.toBeNull();
+    expect(result.current.gameStatus).toBe("IN_PROGRESS");
+    expect(result.current.score).toBe(501);
+    expect(result.current.moves).toHaveLength(0);
+  });
+
   it("updates hints from gameState in response", async () => {
     const { result } = await startAndSubmit({
       gameState: { hints: { maxScoresLeft: 2, checkoutsLeft: 1 } },
